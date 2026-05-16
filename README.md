@@ -65,6 +65,12 @@ That loads `server.yaml` and `client.yaml`, starts `llama-server`, runs one stre
 
 ## Tests
 
+For a new model, fill the bullets after calibration...
+
+```bash
+cd tester-v1 && python3 src/model_calibration.py test-configs/test1/qwen3.5-9b-q8
+```
+
 ### Test 1 - First Steps
 Simple smoke test prompt...
 
@@ -79,6 +85,11 @@ Test Script Config:
 ```
 
 #### `Qwen_Qwen3.5-9B-Q8_0.gguf`
+
+* GGUF on disk: 9.55 GB
+* Model VRAM: 10379 MiB
+* KV VRAM: 4388 MiB
+* Estimated Max Context: 143064 tokens
 
 ##### `baseline` (no switches)
 ```

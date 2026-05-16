@@ -11,7 +11,7 @@ from unittest.mock import patch
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
-from vram import VramPoller, sample_vram_mb  # noqa: E402
+from vram import VramPoller, query_gpu_total_mb, sample_vram_mb  # noqa: E402
 
 
 class TestSampleVramMb(unittest.TestCase):
@@ -36,6 +36,33 @@ class TestSampleVramMb(unittest.TestCase):
     def test_returns_none_on_missing_binary(self) -> None:
         with patch("vram.subprocess.run", side_effect=FileNotFoundError):
             self.assertIsNone(sample_vram_mb())
+
+
+class TestQueryGpuTotalMb(unittest.TestCase):
+    def test_parses_single_gpu(self) -> None:
+        with patch("vram.subprocess.run") as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = "  24576\n"
+            self.assertEqual(query_gpu_total_mb(), 24576)
+            run.assert_called_once()
+            query = run.call_args.args[0]
+            self.assertTrue(any("memory.total" in part for part in query))
+
+    def test_parses_max_across_gpus(self) -> None:
+        with patch("vram.subprocess.run") as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = "8192\n16384\n"
+            self.assertEqual(query_gpu_total_mb(), 16384)
+
+    def test_returns_none_on_failure(self) -> None:
+        with patch("vram.subprocess.run") as run:
+            run.return_value.returncode = 1
+            run.return_value.stdout = ""
+            self.assertIsNone(query_gpu_total_mb())
+
+    def test_returns_none_on_missing_binary(self) -> None:
+        with patch("vram.subprocess.run", side_effect=FileNotFoundError):
+            self.assertIsNone(query_gpu_total_mb())
 
 
 class TestVramPoller(unittest.TestCase):

@@ -45,10 +45,19 @@ def _load_server(server_path: Path, config_dir: Path | None) -> ServerConfig:
     return server
 
 
+def _result_path_display(result_path: Path) -> str:
+    try:
+        return str(result_path.relative_to(_TESTER_ROOT))
+    except ValueError:
+        return str(result_path)
+
+
 def _run_default(
     server_path: Path,
     client_path: Path,
     config_dir: Path | None = None,
+    *,
+    quiet: bool = False,
 ) -> int:
     server = _load_server(server_path, config_dir)
     client = load_client_config(client_path)
@@ -109,15 +118,18 @@ def _run_default(
         return 1
 
     if status == "ok" and metrics_dict is not None and run_id is not None:
-        print(
-            format_run_summary(
-                run_id,
-                result_path,
-                server,
-                metrics_dict,
-                tester_root=_TESTER_ROOT,
+        if quiet:
+            print(f"Wrote {_result_path_display(result_path)}", file=sys.stderr)
+        else:
+            print(
+                format_run_summary(
+                    run_id,
+                    result_path,
+                    server,
+                    metrics_dict,
+                    tester_root=_TESTER_ROOT,
+                )
             )
-        )
         return 0
 
     print(
@@ -252,6 +264,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="start server, run one streaming completion, print metrics, teardown",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="suppress stdout run summary; write one line to stderr on success",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -270,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
         return _run_test_client(server_path, client_path, config_dir)
     if args.test_server:
         return _run_test_server(server_path, client_path, config_dir)
-    return _run_default(server_path, client_path, config_dir)
+    return _run_default(server_path, client_path, config_dir, quiet=args.quiet)
 
 
 if __name__ == "__main__":

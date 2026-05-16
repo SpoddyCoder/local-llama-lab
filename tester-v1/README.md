@@ -47,6 +47,37 @@ Without a config directory, the runner uses `server.yaml` and `client.yaml` in `
 
 Use separate variant directories (for example `baseline` vs `no-mmap`) instead of editing root-level yamls when comparing configurations.
 
+## Model calibration
+
+Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. `model_calibration.py` runs each variant via `python_runner.py --quiet`, writes result JSON under `results/` as usual, then reads `idle_vram_mb` from the latest footprint and ctx-probe results to compute the summary.
+
+Each model config directory (for example `test-configs/test1/qwen3.5-9b-q8/`) must include two calibration variants:
+
+- **`calibration-footprint/`** — `server.yaml` with `--fit off`, `-c 4096` (or your chosen footprint context), `--parallel 1`; `client.yaml` with a minimal prompt (`ok`) and `max_tokens: 1`. Idle VRAM after ready is the model footprint at that context.
+- **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
+
+`baseline` and `no-mmap` are normal variants for benchmarks; calibration does not run them.
+
+From `tester-v1/`:
+
+```bash
+python3 src/model_calibration.py test-configs/test1/qwen3.5-9b-q8
+```
+
+Progress and errors go to stderr. On success, stdout is a blank line then four summary lines:
+
+```text
+
+* GGUF on disk: 9.55 GB
+* Model VRAM: 10353 MiB
+* KV VRAM: 4414 MiB
+* Estimated Max Context: 241987 tokens
+```
+
+Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the four stdout values into your model notes (see the repo root README Qwen section).
+
+To scaffold calibration-footprint, calibration-ctx-probe, baseline, and no-mmap configs for a new model, use the [create-new-model-test](../.cursor/skills/create-new-model-test/SKILL.md) project skill.
+
 ## test-configs layout
 
 Variant configs live under `test-configs/`. The directory tree is organizational only; the runner does not interpret segment names beyond building the result slug.
@@ -58,6 +89,12 @@ test-configs/
   test1/                    # test or experiment group
     qwen3.5-9b-q8/          # model family
       baseline/
+        server.yaml
+        client.yaml
+      calibration-footprint/   # VRAM cal: --fit off -c 4096
+        server.yaml
+        client.yaml
+      calibration-ctx-probe/   # VRAM cal: --fit off -c 16384
         server.yaml
         client.yaml
       no-mmap/

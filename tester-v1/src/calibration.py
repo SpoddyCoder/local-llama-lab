@@ -1,0 +1,131 @@
+"""VRAM calibration from footprint and ctx-probe variant results."""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+from config import slug_from_config_dir
+
+VARIANT_FOOTPRINT = "calibration-footprint"
+VARIANT_CTX_PROBE = "calibration-ctx-probe"
+
+
+def read_idle_vram_from_result(path: Path) -> int:
+    """Load idle_vram_mb from a result JSON; require ok status."""
+    with path.open(encoding="utf-8") as f:
+        document = json.load(f)
+    if document.get("status") != "ok":
+        raise ValueError(f"result status is not ok: {path}")
+    metrics = document.get("metrics")
+    if not isinstance(metrics, dict):
+        raise ValueError(f"result metrics missing: {path}")
+    idle = metrics.get("idle_vram_mb")
+    if idle is None:
+        raise ValueError(f"idle_vram_mb missing in result: {path}")
+    return int(idle)
+
+
+def _run_id_timestamp_prefix(path: Path) -> str:
+    stem = path.stem
+    sep = stem.find("_")
+    if sep <= 0:
+        raise ValueError(f"result filename has no run_id timestamp prefix: {path.name}")
+    return stem[:sep]
+
+
+def find_latest_result(results_dir: Path, slug: str) -> Path:
+    """Return the newest result JSON matching *_{slug}.json by run_id timestamp."""
+    pattern = f"*_{slug}.json"
+    matches = sorted(results_dir.glob(pattern))
+    if not matches:
+        raise FileNotFoundError(
+            f"no result JSON matching {pattern!r} in {results_dir}"
+        )
+    return max(matches, key=_run_id_timestamp_prefix)
+
+
+def gguf_size_gb(model_path: str) -> float:
+    """Return GGUF file size in gibibytes (GB label, bytes / 1e9)."""
+    expanded = os.path.expanduser(model_path)
+    size_bytes = os.path.getsize(expanded)
+    return size_bytes / 1_000_000_000
+
+
+def compute_summary(
+    footprint_idle: int,
+    ctx_probe_idle: int,
+    footprint_c: int,
+    ctx_c: int,
+    gpu_total_mb: int,
+    margin_mb: int,
+    gguf_gb: float,
+) -> dict[str, float | int]:
+    """Derive calibration summary fields from probe idle VRAM and contexts."""
+    if ctx_c <= footprint_c:
+        raise ValueError(
+            f"ctx-probe context ({ctx_c}) must be greater than footprint context "
+            f"({footprint_c})"
+        )
+
+    delta_idle = ctx_probe_idle - footprint_idle
+    delta_ctx = ctx_c - footprint_c
+    if delta_idle <= 0:
+        raise ValueError(
+            f"KV VRAM slope is non-positive: ctx-probe idle {ctx_probe_idle} MiB "
+            f"<= footprint idle {footprint_idle} MiB"
+        )
+
+    kv_mib_per_1k = delta_idle / delta_ctx * 1024
+    if kv_mib_per_1k <= 0:
+        raise ValueError(
+            f"KV VRAM slope is non-positive: {kv_mib_per_1k} MiB per 1k tokens"
+        )
+
+    kv_vram_mb = gpu_total_mb - footprint_idle - margin_mb
+    if kv_vram_mb < 0:
+        raise ValueError(
+            f"KV VRAM budget is negative ({kv_vram_mb} MiB): gpu_total "
+            f"{gpu_total_mb} - footprint_idle {footprint_idle} - margin {margin_mb}"
+        )
+
+    extra_tokens = kv_vram_mb / kv_mib_per_1k * 1024
+    estimated_context_max = footprint_c + math.floor(extra_tokens)
+
+    return {
+        "gguf_gb": gguf_gb,
+        "model_vram_mb": footprint_idle,
+        "kv_vram_mb": kv_vram_mb,
+        "estimated_context_max": estimated_context_max,
+    }
+
+
+def format_summary_lines(summary: dict[str, float | int]) -> list[str]:
+    """Format the four calibration summary lines for stdout."""
+    return [
+        f"* GGUF on disk: {summary['gguf_gb']:.2f} GB",
+        f"* Model VRAM: {summary['model_vram_mb']} MiB",
+        f"* KV VRAM: {summary['kv_vram_mb']} MiB",
+        f"* Estimated Max Context: {summary['estimated_context_max']} tokens",
+    ]
+
+
+def run_variant_subprocess(tester_root: Path, variant_dir: Path) -> tuple[int, str]:
+    """Run python_runner for a variant directory; return (returncode, captured output)."""
+    proc = subprocess.run(
+        [sys.executable, "src/python_runner.py", str(variant_dir), "--quiet"],
+        cwd=tester_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    parts: list[str] = []
+    if proc.stdout:
+        parts.append(proc.stdout)
+    if proc.stderr:
+        parts.append(proc.stderr)
+    return proc.returncode, "".join(parts)

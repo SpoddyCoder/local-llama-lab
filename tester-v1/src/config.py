@@ -213,6 +213,53 @@ def load_client_config(path: str | Path) -> ClientConfig:
     )
 
 
+def parse_context_from_args(args: list[str]) -> int:
+    """Return context size from -c / --ctx-size flags in llama-server args."""
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in ("-c", "--ctx-size"):
+            if i + 1 >= len(args):
+                raise ValueError("server config args: -c / --ctx-size requires a value")
+            try:
+                ctx = int(args[i + 1])
+            except ValueError as exc:
+                raise ValueError(
+                    f"server config args: invalid context value {args[i + 1]!r}"
+                ) from exc
+            if ctx < 1:
+                raise ValueError(
+                    f"server config args: context size must be positive: {ctx}"
+                )
+            return ctx
+        if arg.startswith("-c="):
+            try:
+                ctx = int(arg.split("=", 1)[1])
+            except ValueError as exc:
+                raise ValueError(f"server config args: invalid context in {arg!r}") from exc
+            if ctx < 1:
+                raise ValueError(
+                    f"server config args: context size must be positive: {ctx}"
+                )
+            return ctx
+        if arg.startswith("--ctx-size="):
+            try:
+                ctx = int(arg.split("=", 1)[1])
+            except ValueError as exc:
+                raise ValueError(
+                    f"server config args: invalid context in {arg!r}"
+                ) from exc
+            if ctx < 1:
+                raise ValueError(
+                    f"server config args: context size must be positive: {ctx}"
+                )
+            return ctx
+        i += 1
+    raise ValueError(
+        "server config args: context size (-c / --ctx-size) is required but not found"
+    )
+
+
 def parse_port_from_args(args: list[str]) -> int | None:
     """Return port from --port / -p flags in llama-server args, or None."""
     i = 0

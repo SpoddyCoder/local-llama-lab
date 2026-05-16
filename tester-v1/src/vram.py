@@ -12,13 +12,32 @@ _NVIDIA_SMI_QUERY = [
     "--query-gpu=memory.used",
     "--format=csv,noheader,nounits",
 ]
+_NVIDIA_SMI_QUERY_TOTAL = [
+    "nvidia-smi",
+    "--query-gpu=memory.total",
+    "--format=csv,noheader,nounits",
+]
 
 
-def sample_vram_mb() -> int | None:
-    """Return max memory.used (MiB) across GPUs, or None if unavailable."""
+def _parse_nvidia_smi_csv_mb(stdout: str) -> int | None:
+    values: list[int] = []
+    for line in stdout.splitlines():
+        part = line.strip()
+        if not part:
+            continue
+        try:
+            values.append(int(float(part)))
+        except ValueError:
+            continue
+    if not values:
+        return None
+    return max(values)
+
+
+def _run_nvidia_smi_query(query: list[str]) -> int | None:
     try:
         proc = subprocess.run(
-            _NVIDIA_SMI_QUERY,
+            query,
             capture_output=True,
             text=True,
             timeout=5,
@@ -29,20 +48,17 @@ def sample_vram_mb() -> int | None:
 
     if proc.returncode != 0 or not proc.stdout.strip():
         return None
+    return _parse_nvidia_smi_csv_mb(proc.stdout)
 
-    values: list[int] = []
-    for line in proc.stdout.splitlines():
-        part = line.strip()
-        if not part:
-            continue
-        try:
-            values.append(int(float(part)))
-        except ValueError:
-            continue
 
-    if not values:
-        return None
-    return max(values)
+def sample_vram_mb() -> int | None:
+    """Return max memory.used (MiB) across GPUs, or None if unavailable."""
+    return _run_nvidia_smi_query(_NVIDIA_SMI_QUERY)
+
+
+def query_gpu_total_mb() -> int | None:
+    """Return max memory.total (MiB) across GPUs, or None if unavailable."""
+    return _run_nvidia_smi_query(_NVIDIA_SMI_QUERY_TOTAL)
 
 
 def _update_peak(current: int | None, sample: int | None) -> int | None:

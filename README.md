@@ -81,34 +81,48 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
 From the repo root, use the harness under `tester-v1/`:
 
 ```bash
-cd tester-v1
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 See [tester-v1/README.md](tester-v1/README.md). Results for various cases are stored in [tester-v1/results/](tester-v1/results/)
 
-## Tests
+### Run A Server
+
+Start a server using one of the test configurations (the `client.conf` is unused in this mode):
+```bash
+cd tester-v1
+./single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/ --test-server
+```
+
+Use a browser to view the llama web UI while it's running (may vary depending on what the `server.conf` defines)...
+
+[https://localhost:8080](https://localhost:8080)
+
+
+### Tests
 For a new model, run the calibration tests first...
 
 ```bash
 python3 model_calibration.py test-configs/test1/qwen3.5-9b-q8
 ```
 
-Then run tests cases...
+Then run test cases (default: probe metrics on stdout, no JSON file):
 
 ```bash
 python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/
 ```
 
-### Test 1 - First Steps
+To keep a JSON artifact under `results/`, add `--save-result`.
+
+#### Test 1 - First Steps
 Simple smoke test prompt...
 
 ```text
 hi, write me hello world in 20 different programming languages.
 ```
 
-#### Summary
+##### Summary
 TODO:
 
 See [Test-1-First-Steps.md](Test-1-First-Steps.md) for more details.

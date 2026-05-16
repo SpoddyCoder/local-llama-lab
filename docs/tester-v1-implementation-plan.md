@@ -4,7 +4,7 @@ Local model benchmark harness for `llama-server` (`llama.cpp`). Goal: run one co
 
 ## Status (2026-05-16)
 
-**Phase 1 is implemented and usable.** The default command runs the full loop (server -> stream -> JSON -> stdout -> teardown).
+**Phase 1 is implemented and usable.** The default command runs the full loop (server -> stream -> metrics on stdout -> teardown). Pass `--save-result` to also write JSON under `results/`.
 
 ```bash
 cd tester-v1
@@ -13,7 +13,7 @@ pip install -r requirements.txt
 python single_test_runner.py
 ```
 
-Dev/test modes remain: `--test-server`, `--test-client`. Unit tests: `python3 -m unittest discover -s tests -v`.
+Dev mode: `--test-server` (hold until Ctrl+C). Unit tests: `python3 -m unittest discover -s tests -v`.
 
 ### Phase 1 checklist
 
@@ -63,8 +63,8 @@ Complete (2026-05-16): README baseline result, `server.yaml` `label`, re-run cri
 | Config format | **YAML** for both server and client configs |
 | Server config shape | **Structured:** `model` path + `args` list (not a raw command string) |
 | API | OpenAI-compatible `/v1/chat/completions` with `stream: true` (required for TTFT) |
-| Results | `results/{timestamp}_{model_slug}.json`; JSON includes **copies of server + client config** used for the run |
-| Output | JSON file + human-readable **summary on stdout** |
+| Results | With `--save-result`: `results/{timestamp}_{model_slug}.json`; JSON includes **copies of server + client config** used for the run |
+| Output | Default: metrics (+ preview) on stdout. With `--save-result`: JSON file + run summary on stdout (or stderr one-liner with `--quiet`) |
 
 ---
 
@@ -112,9 +112,10 @@ From `tester-v1/`, one command:
 2. Start `llama-server` with `model` + `args`
 3. Poll until the HTTP API is ready (or timeout with clear error)
 4. Send one streaming chat completion
-5. Record metrics + embedded configs -> `results/<timestamp>_<model_slug>.json`
-6. Print summary to stdout
-7. Stop the server process (and process group if spawned in a new session)
+5. Print metrics (and completion preview) to stdout
+6. Stop the server process (and process group if spawned in a new session)
+
+With `--save-result`, step 5 becomes: record metrics + embedded configs -> `results/<timestamp>_<model_slug>.json`, then print run summary (or stderr one-liner with `--quiet`).
 
 ### Module boundaries (minimal, growth-friendly)
 

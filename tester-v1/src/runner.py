@@ -51,24 +51,28 @@ def _result_path_display(result_path: Path) -> str:
         return str(result_path)
 
 
-def _run_default(
+def _run(
     server_path: Path,
     client_path: Path,
     config_dir: Path | None = None,
     *,
-    quiet: bool = False,
+    save_result: bool,
+    quiet: bool,
 ) -> int:
     server = _load_server(server_path, config_dir)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
     client = replace(client, base_url=base_url)
 
-    started_at = utc_now()
+    if not save_result:
+        print(f"Starting {server.binary} (model: {server.model_slug})...")
+        print(f"API URL: {base_url}")
+
+    started_at = utc_now() if save_result else None
     status = "ok"
     error: str | None = None
     metrics_dict: dict[str, float | int | None] | None = None
-    result_path: Path | None = None
-    run_id: str | None = None
+    completion = None
 
     try:
         with managed_server(server, base_url) as proc:
@@ -76,6 +80,8 @@ def _run_default(
             poller = VramPoller()
             poller.start()
             try:
+                if not save_result:
+                    print("Running streaming chat completion...")
                 completion = run_chat_completion(client, base_url=base_url)
             finally:
                 peak_vram_mb = poller.stop()
@@ -84,12 +90,29 @@ def _run_default(
             metrics_dict["idle_vram_mb"] = idle_vram_mb
             metrics_dict["peak_vram_mb"] = peak_vram_mb
     except (TimeoutError, RuntimeError, ValueError, KeyboardInterrupt) as exc:
-        status = "error"
-        error = str(exc)
-        if isinstance(exc, KeyboardInterrupt):
-            error = "interrupted"
+        if save_result:
+            status = "error"
+            error = str(exc)
+            if isinstance(exc, KeyboardInterrupt):
+                error = "interrupted"
+        else:
+            if isinstance(exc, KeyboardInterrupt):
+                raise
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+
+    if not save_result:
+        print(f"\nModel: {redact_model_path(server.model)}\n")
+        print(format_metrics_summary(metrics_dict or {}))
+        if completion and completion.completion_text:
+            snippet = completion.completion_text[:120].replace("\n", " ")
+            suffix = "..." if len(completion.completion_text) > 120 else ""
+            print(f"\n(completion preview: {snippet}{suffix})")
+        return 0
 
     finished_at = utc_now()
+    result_path: Path | None = None
+    run_id: str | None = None
 
     try:
         document = build_result_document(
@@ -194,45 +217,6 @@ def resolve_config_paths(
     return server, client
 
 
-def _run_test_client(
-    server_path: Path,
-    client_path: Path,
-    config_dir: Path | None = None,
-) -> int:
-    server = _load_server(server_path, config_dir)
-    client = load_client_config(client_path)
-    base_url = resolve_base_url(server, client.base_url)
-    client = replace(client, base_url=base_url)
-
-    print(f"Starting {server.binary} (model: {server.model_slug})...")
-    print(f"API URL: {base_url}")
-
-    try:
-        with managed_server(server, base_url) as proc:
-            idle_vram_mb = sample_vram_mb()
-            poller = VramPoller()
-            poller.start()
-            try:
-                print("Running streaming chat completion...")
-                result = run_chat_completion(client, base_url=base_url)
-            finally:
-                peak_vram_mb = poller.stop()
-            metrics = build_metrics_dict(result)
-            metrics["server_ready_s"] = proc.server_ready_s
-            metrics["idle_vram_mb"] = idle_vram_mb
-            metrics["peak_vram_mb"] = peak_vram_mb
-            print(f"\nModel: {redact_model_path(server.model)}\n")
-            print(format_metrics_summary(metrics))
-            if result.completion_text:
-                snippet = result.completion_text[:120].replace("\n", " ")
-                suffix = "..." if len(result.completion_text) > 120 else ""
-                print(f"\n(completion preview: {snippet}{suffix})")
-        return 0
-    except (TimeoutError, RuntimeError, ValueError) as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        return 1
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Local model tester v1")
     parser.add_argument(
@@ -259,14 +243,14 @@ def main(argv: list[str] | None = None) -> int:
         help="start llama-server, wait for health, hold until Ctrl+C",
     )
     parser.add_argument(
-        "--test-client",
+        "--save-result",
         action="store_true",
-        help="start server, run one streaming completion, print metrics, teardown",
+        help="write result JSON to results/ and print run summary",
     )
     parser.add_argument(
         "--quiet",
         action="store_true",
-        help="suppress stdout run summary; write one line to stderr on success",
+        help="only applies with --save-result; suppress stdout run summary; write one line to stderr on success",
     )
     args = parser.parse_args(argv)
 
@@ -282,8 +266,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     config_dir = args.config_dir
-    if args.test_client:
-        return _run_test_client(server_path, client_path, config_dir)
     if args.test_server:
         return _run_test_server(server_path, client_path, config_dir)
-    return _run_default(server_path, client_path, config_dir, quiet=args.quiet)
+    return _run(
+        server_path,
+        client_path,
+        config_dir,
+        save_result=args.save_result,
+        quiet=args.quiet if args.save_result else False,
+    )

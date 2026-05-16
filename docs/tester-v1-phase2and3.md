@@ -1,6 +1,6 @@
 # Tester v1: Phase 2 and 3 roadmap
 
-High-level direction only. Phase 1 (single run, JSON, teardown) is documented in [tester-v1/README.md](../tester-v1/README.md) and specified in [tester-v1-implementation-plan.md](tester-v1-implementation-plan.md).
+High-level direction only. Phase 1 (single run, default stdout probe, optional `--save-result` JSON, teardown) is documented in [tester-v1/README.md](../tester-v1/README.md) and specified in [tester-v1-implementation-plan.md](tester-v1-implementation-plan.md).
 
 ## Phase 2: Harness quality
 
@@ -24,6 +24,6 @@ Add automation when manual single runs are no longer enough.
 - Named server preset YAML files (`fast`, `quality`, `low_vram`, and similar)
 - Optional CI thresholds on metrics such as `decode_tok_s` for a pinned model
 
-Phase 3 wraps the Phase 1 core (`server` to `client` to `results`). Manual `python single_test_runner.py` stays the default until you want sweeps or batch compare.
+Phase 3 wraps the Phase 1 core (`server` to `client` to optional `results` via `--save-result`). Manual `python single_test_runner.py` stays the default probe until you want sweeps or batch compare.
 
 For detailed Phase 2/3 notes and Phase 1 acceptance criteria, see [tester-v1-implementation-plan.md](tester-v1-implementation-plan.md).

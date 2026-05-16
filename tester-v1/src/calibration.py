@@ -118,7 +118,7 @@ def run_variant_subprocess(tester_root: Path, variant_dir: Path) -> tuple[int, s
     """Run single_test_runner for a variant directory; return (returncode, captured output)."""
     runner = tester_root / "single_test_runner.py"
     proc = subprocess.run(
-        [sys.executable, str(runner), str(variant_dir), "--quiet"],
+        [sys.executable, str(runner), str(variant_dir), "--save-result", "--quiet"],
         cwd=tester_root,
         capture_output=True,
         text=True,

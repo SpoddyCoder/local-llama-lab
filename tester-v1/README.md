@@ -1,18 +1,19 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server, run one streaming chat completion, write a JSON result, print a metrics summary, then tear down. For the full Phase 1 design (modules, acceptance criteria, verified behavior), see [docs/tester-v1-implementation-plan.md](../docs/tester-v1-implementation-plan.md).
+Single-run harness for `llama-server`: start the server, run one streaming chat completion, print metrics (and a short completion preview) on stdout, then tear down. Pass `--save-result` to also write `results/{timestamp}_{slug}.json` and print the full run summary. For the full Phase 1 design (modules, acceptance criteria, verified behavior), see [docs/tester-v1-implementation-plan.md](../docs/tester-v1-implementation-plan.md).
 
 ## What it does
 
-One invocation of `python single_test_runner.py`:
+One invocation of `python single_test_runner.py` (default probe):
 
 1. Load `server.yaml` and `client.yaml`
 2. Start `llama-server` with the configured model and flags
 3. Poll until the API is healthy
 4. POST one streaming `/v1/chat/completions` request
-5. Write `results/{timestamp}_{slug}.json`
-6. Print metrics on stdout
-7. Stop the server process
+5. Print metrics and a completion preview on stdout
+6. Stop the server process
+
+With `--save-result`, step 5 is replaced by writing `results/{timestamp}_{slug}.json` and printing `format_run_summary` on stdout (or, with `--save-result --quiet`, a single `Wrote ...` line on stderr).
 
 ## Quick start
 
@@ -39,19 +40,19 @@ Without a config directory, the runner uses `server.yaml` and `client.yaml` in `
 
 1. Pick or create a variant directory under `test-configs/` (see layout below). Each leaf holds `server.yaml` and `client.yaml` for one run configuration.
 2. Tune model path, server flags, prompt, and API params in that pair of files.
-3. Run the variant:
+3. Run the variant (probe: metrics on stdout, no JSON):
 
    ```bash
    python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
    ```
 
-4. Compare new files under `results/` (timestamps and path-derived slugs distinguish runs).
+4. When you want a recorded run, add `--save-result` and compare files under `results/` (timestamps and path-derived slugs distinguish runs).
 
 Use separate variant directories (for example `baseline` vs `no-mmap`) instead of editing root-level yamls when comparing configurations.
 
 ## Model calibration
 
-Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. `model_calibration.py` runs each variant via `single_test_runner.py --quiet`, writes result JSON under `results/` as usual, then reads `idle_vram_mb` from the latest footprint and ctx-probe results to compute the summary.
+Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. `model_calibration.py` runs each variant via `single_test_runner.py --save-result --quiet`, writes result JSON under `results/`, then reads `idle_vram_mb` from the latest footprint and ctx-probe results to compute the summary.
 
 Each model config directory (for example `test-configs/test1/qwen3.5-9b-q8/`) must include two calibration variants:
 
@@ -181,25 +182,33 @@ Custom paths without a config directory (model file stem as slug):
 python3 single_test_runner.py --server /path/to/server.yaml --client /path/to/client.yaml
 ```
 
-Debug modes (same config resolution as above; pass `config_dir` when testing a variant):
+Flags (same config resolution as above; pass `config_dir` when testing a variant):
 
 
-| Flag            | Behavior                                                                              |
-| --------------- | ------------------------------------------------------------------------------------- |
-| `--test-server` | Start server, wait for health, hold until Ctrl+C (no completion, no JSON)             |
-| `--test-client` | Full server plus one streaming completion and metrics on stdout; no result JSON write |
+| Flag             | Behavior                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| (default)        | Full run; metrics and completion preview on stdout; no JSON                                                   |
+| `--save-result`  | Write `results/{run_id}.json`; print full run summary on stdout                                               |
+| `--quiet`        | Only with `--save-result`: suppress stdout summary; on success print `Wrote results/...` to stderr              |
+| `--test-server`  | Start server, wait for health, hold until Ctrl+C (no completion, no JSON)                                     |
 
 
 Examples:
 
 ```bash
+# Probe (stdout only)
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+
+# Recorded run
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline --save-result
+
+# Server-only debug
 python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline --test-server
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/no-mmap --test-client
 ```
 
 ## Results
 
-Files land in `results/` as:
+With `--save-result`, files land in `results/` as:
 
 `{YYYYMMDDTHHMMSSZ}_{slug}.json`
 
@@ -220,7 +229,7 @@ Each JSON document includes:
 - `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `test-configs/`, also `test_config_path` e.g. `test1/qwen3.5-9b-q8/baseline/` plus `test_name`, `model`, and `test_config` from the first three path segments; each field is `null` when unavailable)
 - `metrics` (see table below)
 
-Stdout prints a rounded subset (`server_ready_s`, `wall_time_s`, `ttft_s`, token counts, `prefill_tok_s`, `decode_tok_s`, `idle_vram_mb`, `peak_vram_mb`). The JSON `metrics` object keeps full floating-point values for every field.
+Default probe stdout prints a rounded metrics block plus a short completion preview. With `--save-result`, stdout is the full run summary (unless `--quiet`). The JSON `metrics` object keeps full floating-point values for every field.
 
 
 | Metric              | What it measures                                                                                                 |
@@ -245,6 +254,6 @@ These are easy to miss from a quick read of the code:
 
 - **Model load time:** Recorded as `server_ready_s` (subprocess start to first health 200). The first start can take several minutes. If load exceeds `ready_timeout_s`, the run fails even though the server might still be loading. Raise `ready_timeout_s` for large models or slow disks.
 - **Token counts on this stack:** Many `llama-server` builds omit `usage` on stream chunks. The client reads `timings` (`prompt_n`, `predicted_n`) from the final chunk instead. TTFT is time to the first non-empty delta on `content`, `reasoning_content`, or `text`; models that stream reasoning before visible content can show a lower TTFT than "first answer token."
-- **Clean stop:** Use Ctrl+C in the terminal for a controlled interrupt. The runner records `status: error` and still writes JSON when possible. Killing the process from outside (or a hard external timeout) may leave `llama-server` running in the background.
+- **Clean stop:** Use Ctrl+C in the terminal for a controlled interrupt. With `--save-result`, the runner records `status: error` and still writes JSON when possible. Killing the process from outside (or a hard external timeout) may leave `llama-server` running in the background.
 - **No model flag in args:** Putting `-m` or `--model` in `server.yaml` `args` is rejected; the runner appends `-m` with the `model` path.
 - **Removed `label` field:** `server.yaml` must not contain `label`; use a config directory so the result slug reflects the variant path.

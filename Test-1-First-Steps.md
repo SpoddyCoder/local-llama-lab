@@ -20,6 +20,9 @@ Test Script Config:
 * Estimated Max Context: 150823 tokens
 
 ### `baseline` (no switches)
+
+Default probe: metrics on stdout only. Use `--save-result` when you want a file under `results/`.
+
 ```
 server_ready_s    3.12
 wall_time_s       11.66
@@ -53,6 +56,9 @@ peak_vram_mb      15203
 * Estimated Max Context: 446749 tokens
 
 ### `baseline` (no switches)
+
+Default probe (same as Qwen above).
+
 ```
 server_ready_s    2.58
 wall_time_s       8.66

@@ -17,6 +17,20 @@ _DEFAULT_READY_POLL_INTERVAL_S = 0.5
 _DEFAULT_BASE_URL = "http://127.0.0.1:8080"
 _DEFAULT_TIMEOUT_S = 600.0
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
+_HF_HUB_DIR_MARKER = "/hub/"
+_HF_MODELS_DIR_PREFIX = "models--"
+
+
+def redact_model_path(path: str) -> str:
+    """Strip home/cache prefixes from a model path for logs and result JSON."""
+    normalized = path.replace("\\", "/")
+    if _HF_HUB_DIR_MARKER in normalized:
+        idx = normalized.index(_HF_HUB_DIR_MARKER) + len(_HF_HUB_DIR_MARKER)
+        return normalized[idx:]
+    if _HF_MODELS_DIR_PREFIX in normalized:
+        idx = normalized.index(_HF_MODELS_DIR_PREFIX)
+        return normalized[idx:]
+    return Path(path).name
 
 
 @dataclass(frozen=True)
@@ -40,7 +54,7 @@ class ServerConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "model": self.model,
+            "model": redact_model_path(self.model),
             "args": list(self.args),
             "binary": self.binary,
             "ready_timeout_s": self.ready_timeout_s,

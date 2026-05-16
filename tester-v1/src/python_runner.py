@@ -14,6 +14,7 @@ from config import (
     ServerConfig,
     load_client_config,
     load_server_config,
+    redact_model_path,
     slug_from_config_dir,
 )
 from metadata import collect_run_metadata
@@ -209,7 +210,7 @@ def _run_test_client(
             metrics["server_ready_s"] = proc.server_ready_s
             metrics["idle_vram_mb"] = idle_vram_mb
             metrics["peak_vram_mb"] = peak_vram_mb
-            print(f"\nModel: {server.model}\n")
+            print(f"\nModel: {redact_model_path(server.model)}\n")
             print(format_metrics_summary(metrics))
             if result.completion_text:
                 snippet = result.completion_text[:120].replace("\n", " ")

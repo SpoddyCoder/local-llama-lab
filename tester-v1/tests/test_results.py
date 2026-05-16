@@ -12,7 +12,7 @@ from pathlib import Path
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
-from config import ClientConfig, ServerConfig  # noqa: E402
+from config import ClientConfig, ServerConfig, redact_model_path  # noqa: E402
 from results import (  # noqa: E402
     build_result_document,
     format_compact_utc,
@@ -20,6 +20,26 @@ from results import (  # noqa: E402
     make_run_id,
     write_result,
 )
+
+
+class TestRedactModelPath(unittest.TestCase):
+    def test_huggingface_hub_path(self) -> None:
+        full = (
+            "/home/fernpa/.cache/huggingface/hub/"
+            "models--bartowski--Qwen_Qwen3.5-9B-GGUF/snapshots/"
+            "ff13963796ee209598509a81340172bb1c3869fe/Qwen_Qwen3.5-9B-Q8_0.gguf"
+        )
+        self.assertEqual(
+            redact_model_path(full),
+            "models--bartowski--Qwen_Qwen3.5-9B-GGUF/snapshots/"
+            "ff13963796ee209598509a81340172bb1c3869fe/Qwen_Qwen3.5-9B-Q8_0.gguf",
+        )
+
+    def test_non_hub_path_uses_basename(self) -> None:
+        self.assertEqual(
+            redact_model_path("/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf"),
+            "Qwen_Qwen3.5-9B-Q8_0.gguf",
+        )
 
 
 class TestMakeRunId(unittest.TestCase):
@@ -78,7 +98,10 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertEqual(doc["finished_at"], "2026-05-16T13:47:12Z")
         self.assertEqual(doc["status"], "ok")
         self.assertIsNone(doc["error"])
-        self.assertEqual(doc["server_config"]["model"], self.server.model)
+        self.assertEqual(
+            doc["server_config"]["model"],
+            redact_model_path(self.server.model),
+        )
         self.assertEqual(doc["client_config"]["params"]["max_tokens"], 1024)
         self.assertEqual(doc["metrics"]["server_ready_s"], 45.2)
         self.assertIsNone(doc["metrics"]["idle_vram_mb"])
@@ -204,7 +227,7 @@ class TestFormatRunSummary(unittest.TestCase):
             tester_root=root,
         )
         self.assertIn("Run: 20260516T134500Z_Qwen_Qwen3.5-9B-Q8_0", text)
-        self.assertIn("Model: /path/Qwen_Qwen3.5-9B-Q8_0.gguf", text)
+        self.assertIn("Model: Qwen_Qwen3.5-9B-Q8_0.gguf", text)
         self.assertIn("Result: results/20260516T134500Z_Qwen_Qwen3.5-9B-Q8_0.json", text)
         self.assertIn("wall_time_s", text)
         self.assertIn("132.40", text)

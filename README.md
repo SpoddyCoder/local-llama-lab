@@ -80,7 +80,7 @@ Test Script Config:
 
 #### `Qwen_Qwen3.5-9B-Q8_0.gguf`
 
-##### Baseline - no switches
+##### `baseline` (no switches)
 ```
 server_ready_s    5.59
 wall_time_s       11.54

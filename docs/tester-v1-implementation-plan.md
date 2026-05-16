@@ -10,7 +10,7 @@ Local model benchmark harness for `llama-server` (`llama.cpp`). Goal: run one co
 cd tester-v1
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python src/python_runner.py
+python single_test_runner.py
 ```
 
 Dev/test modes remain: `--test-server`, `--test-client`. Unit tests: `python3 -m unittest discover -s tests -v`.
@@ -24,11 +24,11 @@ Dev/test modes remain: `--test-server`, `--test-client`. Unit tests: `python3 -m
 | 3 | Server subprocess + health poll + teardown (`src/server.py`) | Done |
 | 4 | Streaming client + metrics (`src/client.py`, `src/metrics.py`) | Done |
 | 5 | Result writer + filename generation (`src/results.py`) | Done |
-| 6 | Stdout summary + CLI `--server` / `--client` (`src/python_runner.py`) | Done |
+| 6 | Stdout summary + CLI `--server` / `--client` (`single_test_runner.py`) | Done |
 | 7 | Example `server.yaml` / `client.yaml` (README Test 1 baseline) | Done |
 | 8 | Run instructions in root `README.md` | Done |
 
-Orchestration lives in `python_runner.py` (no separate `runner.py` module).
+Orchestration lives in `src/runner.py`; `single_test_runner.py` at repo root is the CLI entrypoint.
 
 ### Phase 1 acceptance criteria
 
@@ -84,7 +84,10 @@ local-model-tests/
 |   |   |-- client.py
 |   |   |-- metrics.py
 |   |   |-- results.py
-|   |   `-- python_runner.py   # entrypoint + orchestration
+|   |   |-- runner.py            # single-run orchestration
+|   |   `-- calibration_cli.py
+|   |-- single_test_runner.py   # CLI entrypoint
+|   |-- model_calibration.py    # calibration CLI entrypoint
 |   |-- tests/
 |   |   |-- test_client_sse.py
 |   |   `-- test_results.py
@@ -93,7 +96,7 @@ local-model-tests/
 `-- README.md
 ```
 
-Invoke from `tester-v1/`: `python src/python_runner.py`. Packaging (`pyproject.toml`, `python -m`) deferred.
+Invoke from `tester-v1/`: `python single_test_runner.py`. Packaging (`pyproject.toml`, `python -m`) deferred.
 
 ---
 
@@ -124,7 +127,7 @@ Keep logic in small units under `src/` (single file acceptable initially if func
 | `client` | Streaming HTTP to `/v1/chat/completions`; TTFT + wall clock; parse usage from stream |
 | `metrics` | Assemble metric dict from client timings + token counts |
 | `results` | Build result document; write JSON; format stdout summary |
-| `python_runner` | Orchestrate: load configs -> server -> client -> results -> teardown |
+| `runner` | Orchestrate: load configs -> server -> client -> results -> teardown |
 
 Future phases add modules (e.g. `vram`, `sweep`) without changing the single-run orchestration contract.
 

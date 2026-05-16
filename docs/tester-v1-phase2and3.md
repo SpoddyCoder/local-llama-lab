@@ -24,6 +24,6 @@ Add automation when manual single runs are no longer enough.
 - Named server preset YAML files (`fast`, `quality`, `low_vram`, and similar)
 - Optional CI thresholds on metrics such as `decode_tok_s` for a pinned model
 
-Phase 3 wraps the Phase 1 core (`server` to `client` to `results`). Manual `python src/python_runner.py` stays the default until you want sweeps or batch compare.
+Phase 3 wraps the Phase 1 core (`server` to `client` to `results`). Manual `python single_test_runner.py` stays the default until you want sweeps or batch compare.
 
 For detailed Phase 2/3 notes and Phase 1 acceptance criteria, see [tester-v1-implementation-plan.md](tester-v1-implementation-plan.md).

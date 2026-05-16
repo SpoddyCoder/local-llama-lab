@@ -103,8 +103,8 @@ Target root: `tester-v1/test-configs/{test_name}/{model_slug}/`
 ## Safety rules
 
 - Never overwrite existing configs without explicit user confirmation.
-- Do not modify `tester-v1/src/calibration.py` or `tester-v1/src/model_calibration.py`.
-- Do not run live GPU calibration (`model_calibration.py` or `python_runner.py` against real hardware) unless the user explicitly asks to run tests.
+- Do not modify `tester-v1/src/calibration.py` or `tester-v1/src/calibration_cli.py`.
+- Do not run live GPU calibration (`model_calibration.py` or `single_test_runner.py` against real hardware) unless the user explicitly asks to run tests.
 - Do not change template comments, args, or client prompts except the `model:` line.
 - When adding a new standard variant, update `tester-v1/test-configs/reference/reference-model/` and the variant table in this skill in the same change.
 
@@ -113,7 +113,7 @@ Target root: `tester-v1/test-configs/{test_name}/{model_slug}/`
 Suggest running calibration from `tester-v1/`:
 
 ```bash
-python3 src/model_calibration.py test-configs/{test_name}/{model_slug}
+python3 model_calibration.py test-configs/{test_name}/{model_slug}
 ```
 
 For what the probes mean and how to interpret stdout, see [Model calibration](../../../tester-v1/README.md#model-calibration) in `tester-v1/README.md`.
@@ -126,4 +126,4 @@ User: scaffold tests for `test1` with GGUF `~/models/My_Model-Q4_0.gguf` (they s
 2. Verify the GGUF exists.
 3. Confirm `tester-v1/test-configs/test1/my-model-q4/` is absent (or get overwrite OK).
 4. Create YAML files from `reference/reference-model/` templates with `model: ~/models/My_Model-Q4_0.gguf` (preserve the user's path in YAML; only the directory name is kebab-case).
-5. Tell user: `python3 src/model_calibration.py test-configs/test1/my-model-q4` from `tester-v1/`.
+5. Tell user: `python3 model_calibration.py test-configs/test1/my-model-q4` from `tester-v1/`.

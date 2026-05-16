@@ -115,9 +115,10 @@ def format_summary_lines(summary: dict[str, float | int]) -> list[str]:
 
 
 def run_variant_subprocess(tester_root: Path, variant_dir: Path) -> tuple[int, str]:
-    """Run python_runner for a variant directory; return (returncode, captured output)."""
+    """Run single_test_runner for a variant directory; return (returncode, captured output)."""
+    runner = tester_root / "single_test_runner.py"
     proc = subprocess.run(
-        [sys.executable, "src/python_runner.py", str(variant_dir), "--quiet"],
+        [sys.executable, str(runner), str(variant_dir), "--quiet"],
         cwd=tester_root,
         capture_output=True,
         text=True,

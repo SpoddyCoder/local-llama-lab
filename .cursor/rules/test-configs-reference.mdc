@@ -22,7 +22,7 @@ Apply the same change under `reference/reference-model/` (and update the skill v
 
 ## Do not run on reference
 
-Do not run `python_runner.py` or `model_calibration.py` on paths under `test-configs/reference/`.
+Do not run `single_test_runner.py` or `model_calibration.py` on paths under `test-configs/reference/`.
 
 ## Fixed directory name
 

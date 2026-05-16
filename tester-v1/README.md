@@ -4,7 +4,7 @@ Single-run harness for `llama-server`: start the server, run one streaming chat 
 
 ## What it does
 
-One invocation of `python src/python_runner.py`:
+One invocation of `python single_test_runner.py`:
 
 1. Load `server.yaml` and `client.yaml`
 2. Start `llama-server` with the configured model and flags
@@ -22,7 +22,7 @@ From `tester-v1/`:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
 ```
 
 Unit tests:
@@ -40,7 +40,7 @@ Without a config directory, the runner uses `server.yaml` and `client.yaml` in `
 3. Run the variant:
 
    ```bash
-   python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+   python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
    ```
 
 4. Compare new files under `results/` (timestamps and path-derived slugs distinguish runs).
@@ -49,7 +49,7 @@ Use separate variant directories (for example `baseline` vs `no-mmap`) instead o
 
 ## Model calibration
 
-Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. `model_calibration.py` runs each variant via `python_runner.py --quiet`, writes result JSON under `results/` as usual, then reads `idle_vram_mb` from the latest footprint and ctx-probe results to compute the summary.
+Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. `model_calibration.py` runs each variant via `single_test_runner.py --quiet`, writes result JSON under `results/` as usual, then reads `idle_vram_mb` from the latest footprint and ctx-probe results to compute the summary.
 
 Each model config directory (for example `test-configs/test1/qwen3.5-9b-q8/`) must include two calibration variants:
 
@@ -61,7 +61,7 @@ Each model config directory (for example `test-configs/test1/qwen3.5-9b-q8/`) mu
 From `tester-v1/`:
 
 ```bash
-python3 src/model_calibration.py test-configs/test1/qwen3.5-9b-q8
+python3 model_calibration.py test-configs/test1/qwen3.5-9b-q8
 ```
 
 Progress and errors go to stderr. On success, stdout is a blank line then four summary lines:
@@ -154,19 +154,19 @@ If `server.yaml` sets `--port` / `-p`, keep `base_url` in sync (or omit port in 
 Default (root `server.yaml` / `client.yaml`, model file stem as slug):
 
 ```bash
-python3 src/python_runner.py
+python3 single_test_runner.py
 ```
 
 Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`, path-derived slug):
 
 ```bash
-python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
 ```
 
 Override one or both config files while still using the config directory for the slug:
 
 ```bash
-python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline \
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline \
   --server /path/to/server.yaml \
   --client /path/to/client.yaml
 ```
@@ -174,7 +174,7 @@ python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline \
 Custom paths without a config directory (model file stem as slug):
 
 ```bash
-python3 src/python_runner.py --server /path/to/server.yaml --client /path/to/client.yaml
+python3 single_test_runner.py --server /path/to/server.yaml --client /path/to/client.yaml
 ```
 
 Debug modes (same config resolution as above; pass `config_dir` when testing a variant):
@@ -189,8 +189,8 @@ Debug modes (same config resolution as above; pass `config_dir` when testing a v
 Examples:
 
 ```bash
-python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline --test-server
-python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/no-mmap --test-client
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline --test-server
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/no-mmap --test-client
 ```
 
 ## Results

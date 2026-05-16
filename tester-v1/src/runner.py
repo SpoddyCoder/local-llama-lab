@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Tester v1 entrypoint — single-run loop and test modes."""
+"""Single-run orchestration: load configs, server, client, results, teardown."""
 
 from __future__ import annotations
 
@@ -26,7 +25,7 @@ from results import (
     utc_now,
     write_result,
 )
-from server import build_argv, managed_server, resolve_base_url
+from server import managed_server, resolve_base_url
 from vram import VramPoller, sample_vram_mb
 
 _TESTER_ROOT = Path(__file__).resolve().parent.parent
@@ -288,7 +287,3 @@ def main(argv: list[str] | None = None) -> int:
     if args.test_server:
         return _run_test_server(server_path, client_path, config_dir)
     return _run_default(server_path, client_path, config_dir, quiet=args.quiet)
-
-
-if __name__ == "__main__":
-    sys.exit(main())

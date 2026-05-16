@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""CLI: run footprint + ctx-probe variants and print VRAM calibration summary."""
+"""VRAM calibration orchestration: probe runs and summary."""
 
 from __future__ import annotations
 
@@ -20,8 +19,7 @@ from calibration import (
 from config import load_server_config, parse_context_from_args, slug_from_config_dir
 from vram import query_gpu_total_mb
 
-_SRC_DIR = Path(__file__).resolve().parent
-_DEFAULT_TESTER_ROOT = _SRC_DIR.parent
+_DEFAULT_TESTER_ROOT = Path(__file__).resolve().parent.parent
 _RESULTS_DIRNAME = "results"
 _OUTPUT_TAIL_LINES = 40
 
@@ -84,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         "--tester-root",
         type=Path,
         default=_DEFAULT_TESTER_ROOT,
-        help="tester-v1 root (default: parent of src/)",
+        help="tester-v1 root (default: directory containing this package)",
     )
     args = parser.parse_args(argv)
 
@@ -173,7 +171,3 @@ def main(argv: list[str] | None = None) -> int:
     for line in format_summary_lines(summary):
         print(line)
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

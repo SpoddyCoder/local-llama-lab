@@ -51,6 +51,28 @@ Sat May 16 13:40:46 2026
 ./wsl-builder.sh ai cuda132,llama-cpp,huggingface-cli
 ```
 
+## Models
+
+Download a model from Hugging Face...
+
+```bash
+hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
+```
+
+Note: this example shows just one quantized model, if yu omit the 2nd argumanet the whole repo is downloaded (all variants of the model - normally huge!)
+
+* [Qwen_Qwen3.5-9B-Q8_0.gguf](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/tree/main)
+  * Broad multilingual support (100+ languages) and highly competitive, generalist benchmark scores.
+  * Vanilla setup:
+    * 9.55 GB on disk
+    * 10337 MiB model VRAM
+    * 4430 MiB KV VRAM (assuming 16Gb card)
+    * Estimated Max Context: 150823 tokens
+* [Gemma 4: E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
+  * Outstanding for local developer setups that require tool-calling capabilities and structured outputs.
+  * Vanilla setup:
+    * 
+
 ## Tester v1 (single-run harness)
 
 From the repo root, use the harness under `tester-v1/`:
@@ -67,13 +89,13 @@ See [tester-v1/README.md](tester-v1/README.md). Results for various cases are st
 For a new model, run the calibration tests first...
 
 ```bash
-python3 src/model_calibration.py test-configs/test1/qwen3.5-9b-q8
+python3 model_calibration.py test-configs/test1/qwen3.5-9b-q8
 ```
 
 Then run tests cases...
 
 ```bash
-python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/
+python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/
 ```
 
 ### Test 1 - First Steps
@@ -121,3 +143,5 @@ decode_tok_s      90.54
 idle_vram_mb      15133
 peak_vram_mb      15203
 ```
+
+#### ``

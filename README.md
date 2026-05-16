@@ -58,10 +58,10 @@ From the repo root, use the Phase 1 harness under `tester-v1/`:
 cd tester-v1
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python src/python_runner.py
+python3 src/python_runner.py
 ```
 
-That loads `server.yaml` and `client.yaml`, starts `llama-server`, runs one streaming completion, writes `results/{timestamp}_{model_slug}.json`, prints a metrics summary, and tears down the server. See `docs/tester-v1-implementation-plan.md` for config shape and result JSON fields.
+That loads `server.yaml` and `client.yaml`, starts `llama-server`, runs one streaming completion, writes `results/{timestamp}_{slug}.json`, prints a metrics summary, and tears down the server. To run a variant without editing the root yamls, pass a config directory: `python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline` (from `tester-v1/`). See [tester-v1/README.md](tester-v1/README.md)
 
 ## Tests
 

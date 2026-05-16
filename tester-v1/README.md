@@ -22,7 +22,7 @@ From `tester-v1/`:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python src/python_runner.py
+python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
 ```
 
 Unit tests:
@@ -31,18 +31,45 @@ Unit tests:
 python3 -m unittest discover -s tests -v
 ```
 
+Without a config directory, the runner uses `server.yaml` and `client.yaml` in `tester-v1/` (same as before).
+
 ## Workflow
 
-1. Tune the model and server flags in `server.yaml` (quant, context, GPU layers, port, and so on).
-2. Tune the prompt and API params in `client.yaml` (`messages`, `params`).
-3. Re-run `python src/python_runner.py`.
-4. Compare new files under `results/` (timestamps and slugs distinguish runs).
+1. Pick or create a variant directory under `test-configs/` (see layout below). Each leaf holds `server.yaml` and `client.yaml` for one run configuration.
+2. Tune model path, server flags, prompt, and API params in that pair of files.
+3. Run the variant:
 
-Use `label` in `server.yaml` when you want a short, stable slug in filenames instead of the model file stem.
+   ```bash
+   python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+   ```
+
+4. Compare new files under `results/` (timestamps and path-derived slugs distinguish runs).
+
+Use separate variant directories (for example `baseline` vs `no-mmap`) instead of editing root-level yamls when comparing configurations.
+
+## test-configs layout
+
+Variant configs live under `test-configs/`. The directory tree is organizational only; the runner does not interpret segment names beyond building the result slug.
+
+Example:
+
+```text
+test-configs/
+  test1/                    # test or experiment group
+    qwen3.5-9b-q8/          # model family
+      baseline/
+        server.yaml
+        client.yaml
+      no-mmap/
+        server.yaml
+        client.yaml
+```
+
+Each leaf directory must contain both `server.yaml` and `client.yaml`. Intermediate folders (`test1`, `qwen3.5-9b-q8`, and so on) group related variants; they are not special-cased in code.
 
 ## Config essentials
 
-Example files: `server.yaml`, `client.yaml` (README Test 1 baseline).
+Example files: [test-configs/test1/qwen3.5-9b-q8/baseline/server.yaml](test-configs/test1/qwen3.5-9b-q8/baseline/server.yaml), [test-configs/test1/qwen3.5-9b-q8/baseline/client.yaml](test-configs/test1/qwen3.5-9b-q8/baseline/client.yaml). Root [server.yaml](server.yaml) and [client.yaml](client.yaml) remain the default when no config directory is passed.
 
 **server.yaml**
 
@@ -51,7 +78,6 @@ Example files: `server.yaml`, `client.yaml` (README Test 1 baseline).
 | ----------------------- | ---------------------------------------------------------------------------------------- |
 | `model`                 | Path to the GGUF file (required; file must exist)                                        |
 | `args`                  | Extra `llama-server` flags only; do not pass `-m` or `--model` (the runner injects `-m`) |
-| `label`                 | Optional; if set, used for the result filename slug instead of the model stem            |
 | `binary`                | Server executable (default `llama-server`)                                               |
 | `ready_timeout_s`       | Max seconds to wait for health (default 120)                                             |
 | `ready_poll_interval_s` | Poll interval (default 0.5)                                                              |
@@ -74,19 +100,33 @@ If `server.yaml` sets `--port` / `-p`, keep `base_url` in sync (or omit port in 
 
 ## CLI
 
-Default (full loop):
+Default (root `server.yaml` / `client.yaml`, model file stem as slug):
 
 ```bash
-python src/python_runner.py
+python3 src/python_runner.py
 ```
 
-Custom config paths:
+Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`, path-derived slug):
 
 ```bash
-python src/python_runner.py --server /path/to/server.yaml --client /path/to/client.yaml
+python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
 ```
 
-Debug modes (same config loading, different behavior):
+Override one or both config files while still using the config directory for the slug:
+
+```bash
+python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline \
+  --server /path/to/server.yaml \
+  --client /path/to/client.yaml
+```
+
+Custom paths without a config directory (model file stem as slug):
+
+```bash
+python3 src/python_runner.py --server /path/to/server.yaml --client /path/to/client.yaml
+```
+
+Debug modes (same config resolution as above; pass `config_dir` when testing a variant):
 
 
 | Flag            | Behavior                                                                              |
@@ -95,13 +135,28 @@ Debug modes (same config loading, different behavior):
 | `--test-client` | Full server plus one streaming completion and metrics on stdout; no result JSON write |
 
 
+Examples:
+
+```bash
+python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline --test-server
+python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/no-mmap --test-client
+```
+
 ## Results
 
 Files land in `results/` as:
 
 `{YYYYMMDDTHHMMSSZ}_{slug}.json`
 
-`slug` is the sanitized `label` if set, otherwise the model file stem (e.g. `Qwen_Qwen3.5-9B-Q8_0`).
+Example: `20260516T134500Z_test1-qwen3.5-9b-q8-baseline.json`
+
+Slug rules:
+
+- With `config_dir` under `test-configs/`: hyphen-join path segments relative to `test-configs/` (e.g. `test-configs/test1/qwen3.5-9b-q8/baseline` → `test1-qwen3.5-9b-q8-baseline`).
+- With `config_dir` outside `test-configs/`: hyphen-join all directory segments of the resolved absolute path (e.g. `/tmp/my-run` → `tmp-my-run`).
+- Without `config_dir`: sanitized stem of the model GGUF filename (e.g. `Qwen_Qwen3.5-9B-Q8_0`).
+
+Slugs are sanitized for filenames (unsafe characters become underscores).
 
 Each JSON document includes:
 
@@ -137,4 +192,4 @@ These are easy to miss from a quick read of the code:
 - **Token counts on this stack:** Many `llama-server` builds omit `usage` on stream chunks. The client reads `timings` (`prompt_n`, `predicted_n`) from the final chunk instead. TTFT is time to the first non-empty delta on `content`, `reasoning_content`, or `text`; models that stream reasoning before visible content can show a lower TTFT than "first answer token."
 - **Clean stop:** Use Ctrl+C in the terminal for a controlled interrupt. The runner records `status: error` and still writes JSON when possible. Killing the process from outside (or a hard external timeout) may leave `llama-server` running in the background.
 - **No model flag in args:** Putting `-m` or `--model` in `server.yaml` `args` is rejected; the runner appends `-m` with the `model` path.
-
+- **Removed `label` field:** `server.yaml` must not contain `label`; use a config directory so the result slug reflects the variant path.

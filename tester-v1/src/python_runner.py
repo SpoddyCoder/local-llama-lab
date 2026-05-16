@@ -10,7 +10,12 @@ from dataclasses import replace
 from pathlib import Path
 
 from client import run_chat_completion
-from config import load_client_config, load_server_config
+from config import (
+    ServerConfig,
+    load_client_config,
+    load_server_config,
+    slug_from_config_dir,
+)
 from metadata import collect_run_metadata
 from metrics import build_metrics_dict, format_metrics_summary
 from results import (
@@ -29,8 +34,22 @@ _DEFAULT_CLIENT = _TESTER_ROOT / "client.yaml"
 _RESULTS_DIR = _TESTER_ROOT / "results"
 
 
-def _run_default(server_path: Path, client_path: Path) -> int:
+def _load_server(server_path: Path, config_dir: Path | None) -> ServerConfig:
     server = load_server_config(server_path)
+    if config_dir is not None:
+        server = replace(
+            server,
+            run_slug=slug_from_config_dir(config_dir, _TESTER_ROOT),
+        )
+    return server
+
+
+def _run_default(
+    server_path: Path,
+    client_path: Path,
+    config_dir: Path | None = None,
+) -> int:
+    server = _load_server(server_path, config_dir)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
     client = replace(client, base_url=base_url)
@@ -103,8 +122,12 @@ def _run_default(server_path: Path, client_path: Path) -> int:
     return 1
 
 
-def _run_test_server(server_path: Path, client_path: Path) -> int:
-    server = load_server_config(server_path)
+def _run_test_server(
+    server_path: Path,
+    client_path: Path,
+    config_dir: Path | None = None,
+) -> int:
+    server = _load_server(server_path, config_dir)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
 
@@ -126,8 +149,41 @@ def _run_test_server(server_path: Path, client_path: Path) -> int:
         return 1
 
 
-def _run_test_client(server_path: Path, client_path: Path) -> int:
-    server = load_server_config(server_path)
+def resolve_config_paths(
+    config_dir: Path | None,
+    server_override: Path | None,
+    client_override: Path | None,
+    tester_root: Path,
+) -> tuple[Path, Path]:
+    if config_dir is None:
+        server = server_override or tester_root / "server.yaml"
+        client = client_override or tester_root / "client.yaml"
+        return server, client
+
+    if not config_dir.is_dir():
+        raise FileNotFoundError(f"Config directory not found: {config_dir}")
+
+    server = server_override or config_dir / "server.yaml"
+    client = client_override or config_dir / "client.yaml"
+
+    missing: list[str] = []
+    if not server.is_file():
+        missing.append(server.name)
+    if not client.is_file():
+        missing.append(client.name)
+    if missing:
+        names = ", ".join(missing)
+        raise FileNotFoundError(f"Config files missing in {config_dir}: {names}")
+
+    return server, client
+
+
+def _run_test_client(
+    server_path: Path,
+    client_path: Path,
+    config_dir: Path | None = None,
+) -> int:
+    server = _load_server(server_path, config_dir)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
     client = replace(client, base_url=base_url)
@@ -164,16 +220,22 @@ def _run_test_client(server_path: Path, client_path: Path) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Local model tester v1")
     parser.add_argument(
+        "config_dir",
+        nargs="?",
+        type=Path,
+        help="directory containing server.yaml and client.yaml",
+    )
+    parser.add_argument(
         "--server",
         type=Path,
-        default=_DEFAULT_SERVER,
-        help=f"server.yaml path (default: {_DEFAULT_SERVER})",
+        default=None,
+        help=f"server.yaml path (default: {_DEFAULT_SERVER}, or config_dir/server.yaml)",
     )
     parser.add_argument(
         "--client",
         type=Path,
-        default=_DEFAULT_CLIENT,
-        help=f"client.yaml path (default: {_DEFAULT_CLIENT})",
+        default=None,
+        help=f"client.yaml path (default: {_DEFAULT_CLIENT}, or config_dir/client.yaml)",
     )
     parser.add_argument(
         "--test-server",
@@ -187,11 +249,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    try:
+        server_path, client_path = resolve_config_paths(
+            args.config_dir,
+            args.server,
+            args.client,
+            _TESTER_ROOT,
+        )
+    except FileNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    config_dir = args.config_dir
     if args.test_client:
-        return _run_test_client(args.server, args.client)
+        return _run_test_client(server_path, client_path, config_dir)
     if args.test_server:
-        return _run_test_server(args.server, args.client)
-    return _run_default(args.server, args.client)
+        return _run_test_server(server_path, client_path, config_dir)
+    return _run_default(server_path, client_path, config_dir)
 
 
 if __name__ == "__main__":

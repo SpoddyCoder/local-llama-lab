@@ -40,7 +40,6 @@ class TestBuildResultDocument(unittest.TestCase):
         self.server = ServerConfig(
             model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
             args=["--host", "0.0.0.0", "--port", "8080"],
-            label=None,
         )
         self.client = ClientConfig(
             messages=[{"role": "user", "content": "hi"}],
@@ -126,6 +125,25 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertIsNone(doc["metrics"]["server_ready_s"])
         self.assertIsNone(doc["metrics"]["idle_vram_mb"])
         self.assertIsNone(doc["metrics"]["peak_vram_mb"])
+
+    def test_run_slug_drives_run_id(self) -> None:
+        server = ServerConfig(
+            model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
+            args=[],
+            run_slug="test1-qwen3.5-9b-q8-baseline",
+        )
+        doc = build_result_document(
+            server_config=server,
+            client_config=self.client,
+            metrics_dict=self.metrics,
+            status="ok",
+            started_at=self.started,
+            finished_at=self.finished,
+        )
+        self.assertEqual(
+            doc["run_id"],
+            "20260516T134500Z_test1-qwen3.5-9b-q8-baseline",
+        )
 
     def test_json_serializable(self) -> None:
         doc = build_result_document(

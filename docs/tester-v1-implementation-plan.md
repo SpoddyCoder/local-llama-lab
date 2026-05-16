@@ -133,9 +133,6 @@ Future phases add modules (e.g. `vram`, `sweep`) without changing the single-run
 #### `server.yaml`
 
 ```yaml
-# Optional short name for result filenames and stdout (defaults to model file stem)
-label: qwen3.5-9b-q8-baseline
-
 # Path to .gguf (supports ~)
 model: ~/.cache/huggingface/hub/.../Qwen_Qwen3.5-9B-Q8_0.gguf
 
@@ -153,6 +150,8 @@ args:
 ready_timeout_s: 120
 ready_poll_interval_s: 0.5
 ```
+
+`label` in `server.yaml` was removed; result filenames use path-derived slugs when a config directory is passed (see [tester-v1/README.md](../tester-v1/README.md)).
 
 Validation (Phase 1):
 

@@ -23,15 +23,15 @@ _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
 class ServerConfig:
     model: str
     args: list[str]
-    label: str | None = None
+    run_slug: str | None = None
     binary: str = _DEFAULT_BINARY
     ready_timeout_s: float = _DEFAULT_READY_TIMEOUT_S
     ready_poll_interval_s: float = _DEFAULT_READY_POLL_INTERVAL_S
 
     @property
     def model_slug(self) -> str:
-        if self.label:
-            return _sanitize_slug(self.label)
+        if self.run_slug:
+            return _sanitize_slug(self.run_slug)
         return _sanitize_slug(Path(self.model).stem)
 
     @property
@@ -42,11 +42,23 @@ class ServerConfig:
         return {
             "model": self.model,
             "args": list(self.args),
-            "label": self.label,
             "binary": self.binary,
             "ready_timeout_s": self.ready_timeout_s,
             "ready_poll_interval_s": self.ready_poll_interval_s,
         }
+
+
+def slug_from_config_dir(config_dir: Path, tester_root: Path) -> str:
+    """Derive a result filename slug from a config directory path."""
+    config_dir = config_dir.resolve()
+    test_configs_root = (tester_root / "test-configs").resolve()
+    try:
+        parts = config_dir.relative_to(test_configs_root).parts
+        joined = "-".join(parts)
+    except ValueError:
+        parts = [p for p in config_dir.parts if p]
+        joined = "-".join(parts)
+    return _sanitize_slug(joined)
 
 
 @dataclass(frozen=True)
@@ -86,9 +98,11 @@ def load_server_config(path: str | Path) -> ServerConfig:
     args = list(args_raw)
     _validate_args_no_model_flag(args, path)
 
-    label = raw.get("label")
-    if label is not None and (not isinstance(label, str) or not label.strip()):
-        raise ValueError(f"server config 'label' must be a non-empty string when set: {path}")
+    if "label" in raw:
+        raise ValueError(
+            f"'label' is removed; use test-configs/... directory layout "
+            f"for result filenames: {path}"
+        )
 
     binary = raw.get("binary", _DEFAULT_BINARY)
     if not isinstance(binary, str) or not binary.strip():
@@ -110,7 +124,6 @@ def load_server_config(path: str | Path) -> ServerConfig:
     return ServerConfig(
         model=model,
         args=args,
-        label=label.strip() if isinstance(label, str) else None,
         binary=binary.strip(),
         ready_timeout_s=ready_timeout_s,
         ready_poll_interval_s=ready_poll_interval_s,

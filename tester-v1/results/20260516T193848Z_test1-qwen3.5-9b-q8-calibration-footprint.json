@@ -1,0 +1,63 @@
+{
+  "run_id": "20260516T193848Z_test1-qwen3.5-9b-q8-calibration-footprint",
+  "started_at": "2026-05-16T19:38:48Z",
+  "finished_at": "2026-05-16T19:38:50Z",
+  "server_config": {
+    "model": "models--bartowski--Qwen_Qwen3.5-9B-GGUF/snapshots/ff13963796ee209598509a81340172bb1c3869fe/Qwen_Qwen3.5-9B-Q8_0.gguf",
+    "args": [
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "8080",
+      "--fit",
+      "off",
+      "-c",
+      "4096",
+      "--parallel",
+      "1"
+    ],
+    "binary": "llama-server",
+    "ready_timeout_s": 120.0,
+    "ready_poll_interval_s": 0.5
+  },
+  "client_config": {
+    "base_url": "http://127.0.0.1:8080",
+    "messages": [
+      {
+        "role": "user",
+        "content": "ok"
+      }
+    ],
+    "params": {
+      "max_tokens": 1,
+      "temperature": 0
+    },
+    "timeout_s": 600.0
+  },
+  "metrics": {
+    "wall_time_s": 0.0731735609988391,
+    "ttft_s": 0.07303444299759576,
+    "completion_time_s": 0.0001391180012433324,
+    "prompt_tokens": 11,
+    "completion_tokens": 1,
+    "total_tokens": 12,
+    "prefill_tok_s": 150.6138685874843,
+    "decode_tok_s": 7188.142375988367,
+    "tokens_per_second": 13.666138238316229,
+    "server_ready_s": 2.0616442350001307,
+    "idle_vram_mb": 10337,
+    "peak_vram_mb": 10337
+  },
+  "metadata": {
+    "server_version": "version: 9158 (3e037f313)",
+    "gpu_name": "NVIDIA GeForce RTX 5080",
+    "driver_version": "596.49",
+    "test_config_path": "test1/qwen3.5-9b-q8/calibration-footprint/",
+    "test_name": "test1",
+    "model": "qwen3.5-9b-q8",
+    "test_config": "calibration-footprint"
+  },
+  "status": "ok",
+  "error": null,
+  "notes": null
+}

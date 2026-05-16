@@ -10,6 +10,7 @@ First forays into local model usage, this is about tuning and understanding the 
   * TurboQuant is relatively new way to quantize with minimal quality loss.
 * Performance: Server Flags...
   * `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
+    * Negatively affects startup time tho.
 * Limited VRAM: Server Flags to help...
   * `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
   * `--n-gpu-layers 999 --n-cpu-moe 41` - use MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
@@ -87,24 +88,32 @@ Test Script Config:
 #### `Qwen_Qwen3.5-9B-Q8_0.gguf`
 
 * GGUF on disk: 9.55 GB
-* Model VRAM: 10379 MiB
-* KV VRAM: 4388 MiB
-* Estimated Max Context: 143064 tokens
+* Model VRAM: 10337 MiB
+* KV VRAM: 4430 MiB
+* Estimated Max Context: 150823 tokens
 
 ##### `baseline` (no switches)
 ```
-server_ready_s    5.59
-wall_time_s       11.54
+server_ready_s    3.12
+wall_time_s       11.66
 ttft_s            0.18
 prompt_tokens     24
 completion_tokens 1024
-prefill_tok_s     130.51
-decode_tok_s      90.20
-idle_vram_mb      15149
-peak_vram_mb      15219
+prefill_tok_s     133.26
+decode_tok_s      89.23
+idle_vram_mb      15134
+peak_vram_mb      15222
 ```
 
 ##### `--no-mmap`
 ```
-
+server_ready_s    21.34
+wall_time_s       11.56
+ttft_s            0.25
+prompt_tokens     24
+completion_tokens 1024
+prefill_tok_s     95.35
+decode_tok_s      90.54
+idle_vram_mb      15133
+peak_vram_mb      15203
 ```

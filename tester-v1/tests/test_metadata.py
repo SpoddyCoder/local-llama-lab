@@ -90,6 +90,10 @@ class TestCollectRunMetadata(unittest.TestCase):
                     "server_version": "version: 1",
                     "gpu_name": "GPU A",
                     "driver_version": "535.00",
+                    "test_config_path": None,
+                    "test_name": None,
+                    "model": None,
+                    "test_config": None,
                 },
             )
 

@@ -91,7 +91,11 @@ def _run_default(
             started_at=started_at,
             finished_at=finished_at,
             error=error,
-            metadata=collect_run_metadata(server),
+            metadata=collect_run_metadata(
+                server,
+                config_dir=config_dir,
+                tester_root=_TESTER_ROOT,
+            ),
         )
         run_id = document["run_id"]
         result_path = write_result(_RESULTS_DIR, document)

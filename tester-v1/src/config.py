@@ -61,6 +61,38 @@ def slug_from_config_dir(config_dir: Path, tester_root: Path) -> str:
     return _sanitize_slug(joined)
 
 
+def config_dir_metadata(
+    config_dir: Path | None,
+    tester_root: Path,
+) -> dict[str, str | None]:
+    """Derive test-config path fields for result JSON metadata."""
+    empty: dict[str, str | None] = {
+        "test_config_path": None,
+        "test_name": None,
+        "model": None,
+        "test_config": None,
+    }
+    if config_dir is None:
+        return empty
+
+    config_dir = config_dir.resolve()
+    test_configs_root = (tester_root / "test-configs").resolve()
+    try:
+        parts = config_dir.relative_to(test_configs_root).parts
+    except ValueError:
+        return empty
+
+    if not parts:
+        return empty
+
+    return {
+        "test_config_path": "/".join(parts) + "/",
+        "test_name": parts[0],
+        "model": parts[1] if len(parts) >= 2 else None,
+        "test_config": parts[2] if len(parts) >= 3 else None,
+    }
+
+
 @dataclass(frozen=True)
 class ClientConfig:
     messages: list[dict[str, Any]]

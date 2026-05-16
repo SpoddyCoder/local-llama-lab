@@ -162,7 +162,7 @@ Each JSON document includes:
 
 - `run_id`, `started_at`, `finished_at`, `status`, `error`, `notes`
 - `server_config` and `client_config` (embedded copies of what ran)
-- `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; each field is `null` when unavailable)
+- `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `test-configs/`, also `test_config_path` e.g. `test1/qwen3.5-9b-q8/baseline/` plus `test_name`, `model`, and `test_config` from the first three path segments; each field is `null` when unavailable)
 - `metrics` (see table below)
 
 Stdout prints a rounded subset (`server_ready_s`, `wall_time_s`, `ttft_s`, token counts, `prefill_tok_s`, `decode_tok_s`, `idle_vram_mb`, `peak_vram_mb`). The JSON `metrics` object keeps full floating-point values for every field.

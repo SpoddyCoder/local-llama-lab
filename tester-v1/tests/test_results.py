@@ -89,6 +89,10 @@ class TestBuildResultDocument(unittest.TestCase):
                 "server_version": None,
                 "gpu_name": None,
                 "driver_version": None,
+                "test_config_path": None,
+                "test_name": None,
+                "model": None,
+                "test_config": None,
             },
         )
 
@@ -97,6 +101,10 @@ class TestBuildResultDocument(unittest.TestCase):
             "server_version": "version: 9158 (abc)",
             "gpu_name": "NVIDIA GeForce RTX 4090",
             "driver_version": "550.54.15",
+            "test_config_path": "test1/qwen3.5-9b-q8/baseline/",
+            "test_name": "test1",
+            "model": "qwen3.5-9b-q8",
+            "test_config": "baseline",
         }
         doc = build_result_document(
             server_config=self.server,

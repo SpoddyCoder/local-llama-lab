@@ -10,7 +10,12 @@ from pathlib import Path
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
-from config import ServerConfig, load_server_config, slug_from_config_dir  # noqa: E402
+from config import (  # noqa: E402
+    ServerConfig,
+    config_dir_metadata,
+    load_server_config,
+    slug_from_config_dir,
+)
 from python_runner import _TESTER_ROOT  # noqa: E402
 
 
@@ -29,6 +34,44 @@ class TestSlugFromConfigDir(unittest.TestCase):
         self.assertEqual(
             slug_from_config_dir(config_dir, _TESTER_ROOT),
             "tmp-my-run",
+        )
+
+
+class TestConfigDirMetadata(unittest.TestCase):
+    def test_under_test_configs(self) -> None:
+        config_dir = (
+            _TESTER_ROOT / "test-configs" / "test1" / "qwen3.5-9b-q8" / "baseline"
+        )
+        self.assertEqual(
+            config_dir_metadata(config_dir, _TESTER_ROOT),
+            {
+                "test_config_path": "test1/qwen3.5-9b-q8/baseline/",
+                "test_name": "test1",
+                "model": "qwen3.5-9b-q8",
+                "test_config": "baseline",
+            },
+        )
+
+    def test_none_config_dir(self) -> None:
+        self.assertEqual(
+            config_dir_metadata(None, _TESTER_ROOT),
+            {
+                "test_config_path": None,
+                "test_name": None,
+                "model": None,
+                "test_config": None,
+            },
+        )
+
+    def test_outside_test_configs(self) -> None:
+        self.assertEqual(
+            config_dir_metadata(Path("/tmp/my-run"), _TESTER_ROOT),
+            {
+                "test_config_path": None,
+                "test_name": None,
+                "model": None,
+                "test_config": None,
+            },
         )
 
 

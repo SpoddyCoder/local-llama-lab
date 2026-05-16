@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import subprocess
 
-from config import ServerConfig
+from pathlib import Path
+
+from config import ServerConfig, config_dir_metadata
 
 _NVIDIA_SMI_GPU_QUERY = [
     "nvidia-smi",
@@ -20,6 +22,10 @@ def empty_metadata() -> dict[str, str | None]:
         "server_version": None,
         "gpu_name": None,
         "driver_version": None,
+        "test_config_path": None,
+        "test_name": None,
+        "model": None,
+        "test_config": None,
     }
 
 
@@ -88,14 +94,21 @@ def query_gpu_info() -> tuple[str | None, str | None]:
     return gpu_name, driver_version
 
 
-def collect_run_metadata(server: ServerConfig) -> dict[str, str | None]:
+def collect_run_metadata(
+    server: ServerConfig,
+    *,
+    config_dir: Path | None = None,
+    tester_root: Path | None = None,
+) -> dict[str, str | None]:
     """Gather optional metadata fields for a result JSON document."""
     gpu_name, driver_version = query_gpu_info()
-    return {
-        "server_version": query_server_version(server.binary),
-        "gpu_name": gpu_name,
-        "driver_version": driver_version,
-    }
+    meta = empty_metadata()
+    meta["server_version"] = query_server_version(server.binary)
+    meta["gpu_name"] = gpu_name
+    meta["driver_version"] = driver_version
+    if config_dir is not None and tester_root is not None:
+        meta.update(config_dir_metadata(config_dir, tester_root))
+    return meta
 
 
 def _combine_output(stdout: str, stderr: str) -> str:

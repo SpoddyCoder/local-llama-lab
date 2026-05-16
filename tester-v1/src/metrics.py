@@ -42,6 +42,7 @@ def build_metrics_dict(result: CompletionResult) -> dict[str, float | int | None
         "prefill_tok_s": prefill_tok_s,
         "decode_tok_s": decode_tok_s,
         "tokens_per_second": tokens_per_second,
+        "server_ready_s": None,
         "idle_vram_mb": None,
         "peak_vram_mb": None,
     }
@@ -61,6 +62,7 @@ def format_metrics_summary(metrics: dict[str, float | int | None]) -> str:
         return f"{key:<{width}}{text}"
 
     lines = [
+        _fmt("server_ready_s"),
         _fmt("wall_time_s"),
         _fmt("ttft_s"),
         _fmt("prompt_tokens"),

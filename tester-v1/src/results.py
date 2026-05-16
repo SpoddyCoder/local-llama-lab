@@ -49,6 +49,7 @@ def empty_metrics() -> dict[str, float | int | None]:
         "prefill_tok_s": None,
         "decode_tok_s": None,
         "tokens_per_second": None,
+        "server_ready_s": None,
         "idle_vram_mb": None,
         "peak_vram_mb": None,
     }
@@ -67,6 +68,8 @@ def build_result_document(
 ) -> dict[str, Any]:
     run_id = make_run_id(started_at, server_config.model_slug)
     metrics = dict(metrics_dict) if metrics_dict is not None else empty_metrics()
+    if "server_ready_s" not in metrics:
+        metrics["server_ready_s"] = None
     if "idle_vram_mb" not in metrics:
         metrics["idle_vram_mb"] = None
     if "peak_vram_mb" not in metrics:

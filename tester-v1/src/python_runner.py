@@ -42,7 +42,7 @@ def _run_default(server_path: Path, client_path: Path) -> int:
     run_id: str | None = None
 
     try:
-        with managed_server(server, base_url):
+        with managed_server(server, base_url) as proc:
             idle_vram_mb = sample_vram_mb()
             poller = VramPoller()
             poller.start()
@@ -51,6 +51,7 @@ def _run_default(server_path: Path, client_path: Path) -> int:
             finally:
                 peak_vram_mb = poller.stop()
             metrics_dict = build_metrics_dict(completion)
+            metrics_dict["server_ready_s"] = proc.server_ready_s
             metrics_dict["idle_vram_mb"] = idle_vram_mb
             metrics_dict["peak_vram_mb"] = peak_vram_mb
     except (TimeoutError, RuntimeError, ValueError, KeyboardInterrupt) as exc:
@@ -133,7 +134,7 @@ def _run_test_client(server_path: Path, client_path: Path) -> int:
     print(f"API URL: {base_url}")
 
     try:
-        with managed_server(server, base_url):
+        with managed_server(server, base_url) as proc:
             idle_vram_mb = sample_vram_mb()
             poller = VramPoller()
             poller.start()
@@ -143,6 +144,7 @@ def _run_test_client(server_path: Path, client_path: Path) -> int:
             finally:
                 peak_vram_mb = poller.stop()
             metrics = build_metrics_dict(result)
+            metrics["server_ready_s"] = proc.server_ready_s
             metrics["idle_vram_mb"] = idle_vram_mb
             metrics["peak_vram_mb"] = peak_vram_mb
             print(f"\nModel: {server.model}\n")

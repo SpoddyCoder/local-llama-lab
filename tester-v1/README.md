@@ -109,11 +109,12 @@ Each JSON document includes:
 - `server_config` and `client_config` (embedded copies of what ran)
 - `metrics` (see table below)
 
-Stdout prints a rounded subset (`wall_time_s`, `ttft_s`, token counts, `prefill_tok_s`, `decode_tok_s`, `idle_vram_mb`, `peak_vram_mb`). The JSON `metrics` object keeps full floating-point values for every field.
+Stdout prints a rounded subset (`server_ready_s`, `wall_time_s`, `ttft_s`, token counts, `prefill_tok_s`, `decode_tok_s`, `idle_vram_mb`, `peak_vram_mb`). The JSON `metrics` object keeps full floating-point values for every field.
 
 
 | Metric              | What it measures                                                                                                 |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `server_ready_s`    | Seconds from `llama-server` start until the first successful `/health` or `/v1/models` check (proxy for load).   |
 | `wall_time_s`       | Total time from sending the request until the stream ends.                                                       |
 | `ttft_s`            | Time until the first streamed token (first non-empty `content`, `reasoning_content`, or `text` delta).           |
 | `completion_time_s` | `wall_time_s` minus `ttft_s`; time spent after the first token (decode phase).                                   |
@@ -131,7 +132,7 @@ Stdout prints a rounded subset (`wall_time_s`, `ttft_s`, token counts, `prefill_
 
 These are easy to miss from a quick read of the code:
 
-- **Model load time:** The first start can take several minutes before `/health` returns 200. If load exceeds `ready_timeout_s`, the run fails even though the server might still be loading. Raise `ready_timeout_s` for large models or slow disks.
+- **Model load time:** Recorded as `server_ready_s` (subprocess start to first health 200). The first start can take several minutes. If load exceeds `ready_timeout_s`, the run fails even though the server might still be loading. Raise `ready_timeout_s` for large models or slow disks.
 - **Token counts on this stack:** Many `llama-server` builds omit `usage` on stream chunks. The client reads `timings` (`prompt_n`, `predicted_n`) from the final chunk instead. TTFT is time to the first non-empty delta on `content`, `reasoning_content`, or `text`; models that stream reasoning before visible content can show a lower TTFT than "first answer token."
 - **Clean stop:** Use Ctrl+C in the terminal for a controlled interrupt. The runner records `status: error` and still writes JSON when possible. Killing the process from outside (or a hard external timeout) may leave `llama-server` running in the background.
 - **No model flag in args:** Putting `-m` or `--model` in `server.yaml` `args` is rejected; the runner appends `-m` with the `model` path.

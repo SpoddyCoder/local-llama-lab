@@ -56,6 +56,8 @@ class ServerProcess:
         self._reader_threads: list[threading.Thread] = []
         self._stopped = False
         self.ready_endpoint: str | None = None
+        self.server_ready_s: float | None = None
+        self._start_monotonic: float | None = None
 
     def start(self) -> None:
         if self._proc is not None:
@@ -86,6 +88,7 @@ class ServerProcess:
         ]
         for t in self._reader_threads:
             t.start()
+        self._start_monotonic = time.monotonic()
 
     def wait_ready(self) -> None:
         if self._proc is None:
@@ -107,6 +110,8 @@ class ServerProcess:
                 endpoint = _probe_health(client, self.base_url)
                 if endpoint is not None:
                     self.ready_endpoint = endpoint
+                    if self._start_monotonic is not None:
+                        self.server_ready_s = time.monotonic() - self._start_monotonic
                     return
 
                 last_error = "health endpoints not ready"

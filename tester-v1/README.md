@@ -25,6 +25,12 @@ pip install -r requirements.txt
 python src/python_runner.py
 ```
 
+Unit tests:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 ## Workflow
 
 1. Tune the model and server flags in `server.yaml` (quant, context, GPU layers, port, and so on).
@@ -95,9 +101,22 @@ Each JSON document includes:
 
 - `run_id`, `started_at`, `finished_at`, `status`, `error`, `notes`
 - `server_config` and `client_config` (embedded copies of what ran)
-- `metrics`: wall time, TTFT, token counts, derived prefill/decode rates, `peak_vram_mb` (always `null` in Phase 1)
+- `metrics` (see table below)
 
-Stdout shows rounded metrics; the JSON keeps full floating-point values.
+Stdout prints a rounded subset (`wall_time_s`, `ttft_s`, token counts, `prefill_tok_s`, `decode_tok_s`). The JSON `metrics` object keeps full floating-point values for every field.
+
+| Metric | What it measures |
+|--------|------------------|
+| `wall_time_s` | Total time from sending the request until the stream ends. |
+| `ttft_s` | Time until the first streamed token (first non-empty `content`, `reasoning_content`, or `text` delta). |
+| `completion_time_s` | `wall_time_s` minus `ttft_s`; time spent after the first token (decode phase). |
+| `prompt_tokens` | Input token count from the server (`usage` or `timings.prompt_n`). |
+| `completion_tokens` | Generated token count (`usage` or `timings.predicted_n`). |
+| `total_tokens` | Prompt plus completion when both counts are known; otherwise `null`. |
+| `prefill_tok_s` | `prompt_tokens` / `ttft_s`; approximate prompt-processing rate. |
+| `decode_tok_s` | `completion_tokens` / `completion_time_s`; approximate generation rate after the first token. |
+| `tokens_per_second` | `completion_tokens` / `wall_time_s`; end-to-end completion throughput including TTFT. |
+| `peak_vram_mb` | Peak GPU memory in MB; not collected in Phase 1 (always `null`). |
 
 ## Critical gotchas
 
@@ -107,13 +126,3 @@ These are easy to miss from a quick read of the code:
 - **Token counts on this stack:** Many `llama-server` builds omit `usage` on stream chunks. The client reads `timings` (`prompt_n`, `predicted_n`) from the final chunk instead. TTFT is time to the first non-empty delta on `content`, `reasoning_content`, or `text`; models that stream reasoning before visible content can show a lower TTFT than "first answer token."
 - **Clean stop:** Use Ctrl+C in the terminal for a controlled interrupt. The runner records `status: error` and still writes JSON when possible. Killing the process from outside (or a hard external timeout) may leave `llama-server` running in the background.
 - **No model flag in args:** Putting `-m` or `--model` in `server.yaml` `args` is rejected; the runner appends `-m` with the `model` path.
-
-## Tests
-
-From `tester-v1/`:
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
-Covers config validation, SSE parsing, metrics, and result filename generation.

@@ -21,10 +21,11 @@ Sat May 16 13:40:46 2026
 +-----------------------------------------+------------------------+----------------------+
 ```
 
-## Install
+## Dependencies
 
 ```bash
-./wsl-builder.sh ai cuda132,llama-cpp
+./wsl-builder dev-python python3
+./wsl-builder.sh ai cuda132,llama-cpp,huggingface-cli
 ```
 
 ## Tester v1 (single-run harness)

@@ -71,7 +71,10 @@ Note: this example shows just one quantized model, if yu omit the 2nd argumanet 
 * [Gemma 4: E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
   * Outstanding for local developer setups that require tool-calling capabilities and structured outputs.
   * Vanilla setup:
-    * 
+    * 8.03 GB on disk
+    * 7022 MiB model VRAM
+    * 7745 MiB KV VRAM (assuming 16Gb card)
+    * Estimated Max Context: 446749 tokens
 
 ## Tester v1 (single-run harness)
 
@@ -144,4 +147,35 @@ idle_vram_mb      15133
 peak_vram_mb      15203
 ```
 
-#### ``
+#### `Gemma 4: E4B-IT-Q8_0.gguf`
+
+* GGUF on disk: 8.03 GB
+* Model VRAM: 7022 MiB
+* KV VRAM: 7745 MiB
+* Estimated Max Context: 446749 tokens
+
+##### `baseline` (no switches)
+```
+server_ready_s    2.58
+wall_time_s       8.66
+ttft_s            0.28
+prompt_tokens     30
+completion_tokens 1024
+prefill_tok_s     106.54
+decode_tok_s      122.19
+idle_vram_mb      9035
+peak_vram_mb      9107
+```
+
+##### `--no-mmap`
+```
+server_ready_s    4.58
+wall_time_s       8.61
+ttft_s            0.24
+prompt_tokens     30
+completion_tokens 1024
+prefill_tok_s     124.71
+decode_tok_s      122.40
+idle_vram_mb      9054
+peak_vram_mb      9126
+```

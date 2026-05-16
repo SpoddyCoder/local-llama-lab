@@ -1,0 +1,34 @@
+---
+description: Do not run tester harness CLIs that write results without user permission
+alwaysApply: true
+---
+
+# Tester harness CLIs (permission required)
+
+## Do not run without asking
+
+Do **not** run report- or artifact-generating tools in this repo unless the user has explicitly asked you to run them in this conversation, or they clearly need a fresh run to complete an explicit request (e.g. "run calibration now").
+
+**Ask for permission first** when you would otherwise invoke:
+
+- `tester-v1/model_calibration.py` (runs footprint + ctx-probe via `single_test_runner`, writes JSON under `tester-v1/results/`)
+- `tester-v1/single_test_runner.py` (starts `llama-server`, writes JSON under `tester-v1/results/`)
+
+Same rule for equivalent `./model_calibration.py` / `./single_test_runner.py` from `tester-v1/`.
+
+## Prefer existing artifacts
+
+When filling docs, comparing models, or answering VRAM/context questions:
+
+1. Read the latest matching JSON in `tester-v1/results/` (or values already copied into README).
+2. Recompute from those files if needed (`idle_vram_mb`, calibration math).
+3. Only suggest or run a new harness invocation if results are missing, stale for the user's question, or the user wants a new run.
+
+## Exceptions (no extra ask)
+
+- User message explicitly requests running a test, calibration, or benchmark.
+- User is implementing or debugging the harness itself and a run is required to verify the change.
+
+## Reference paths
+
+Never run these CLIs on `tester-v1/test-configs/reference/` (see `test-configs-reference.mdc`).

@@ -60,6 +60,7 @@ class TestBuildResultDocument(unittest.TestCase):
             "prefill_tok_s": 49.4,
             "decode_tok_s": 7.5,
             "tokens_per_second": 7.4,
+            "idle_vram_mb": None,
             "peak_vram_mb": None,
         }
 
@@ -79,6 +80,7 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertIsNone(doc["error"])
         self.assertEqual(doc["server_config"]["model"], self.server.model)
         self.assertEqual(doc["client_config"]["params"]["max_tokens"], 1024)
+        self.assertIsNone(doc["metrics"]["idle_vram_mb"])
         self.assertIsNone(doc["metrics"]["peak_vram_mb"])
 
     def test_error_status_with_empty_metrics(self) -> None:
@@ -94,6 +96,7 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertEqual(doc["status"], "error")
         self.assertEqual(doc["error"], "server not ready")
         self.assertIsNone(doc["metrics"]["wall_time_s"])
+        self.assertIsNone(doc["metrics"]["idle_vram_mb"])
         self.assertIsNone(doc["metrics"]["peak_vram_mb"])
 
     def test_json_serializable(self) -> None:

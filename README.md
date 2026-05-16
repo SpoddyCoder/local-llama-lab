@@ -1,6 +1,28 @@
 # Local Model Testing (`llama.cpp`)
 First forays into local model usage, this is about tuning and understanding the most efficient models and configurations for the llama.cpp server.
 
+## Key Highlights / Conclusions
+* Quantization is important for squeezing things into a consumer graphics card:
+  * FP16 - near full quality, considered lossless, huge
+  * Q8 considered relatively lossless, >2x smaller
+  * Q4 quality reduced, answers slip, >4x smaller
+  * Q2 quality significantly reduced, answers slip more, very model dependant how they react to this much quantization, >8x smaller
+  * TurboQuant is relatively new way to quantize with minimal quality loss.
+* Performance: Server Flags...
+  * `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
+* Limited VRAM: Server Flags to help...
+  * `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
+  * `--n-gpu-layers 999 --n-cpu-moe 41` - use MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
+    * Tune 42 down to use more gpu vram (more experts on vram)
+    * Any VRAM not used by the model is used by the KV cache (context length), so you should wnat to leave 1-4Gb free.
+  * `--cache-type-k turbo4 --cache-type-v turbo3` - use turbo4 for cache keys and turbo3 for cache values (TurboQuant).
+    * Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
+  * ``
+
+### Further Things to Explore
+* Optimisation for fitting large models too big for the GPU VRAM...
+  * Use MoE models (not dense models), put small experts on gpus
+
 
 ## Setup
 Running on a WSL2 instance on Windows machine...
@@ -59,12 +81,7 @@ Test Script Config:
 #### `Qwen_Qwen3.5-9B-Q8_0.gguf`
 
 ##### Baseline - no switches
-Result ([tester-v1/results/20260516T142121Z_Qwen_Qwen3.5-9B-Q8_0.json](tester-v1/results/20260516T142121Z_Qwen_Qwen3.5-9B-Q8_0.json); run before `server.yaml` `label` was added):
-
 ```
-Run: 20260516T142121Z_Qwen_Qwen3.5-9B-Q8_0
-Result: tester-v1/results/20260516T142121Z_Qwen_Qwen3.5-9B-Q8_0.json
-
 wall_time_s       11.71
 ttft_s             0.20
 prompt_tokens         24
@@ -74,4 +91,4 @@ decode_tok_s        89.02
 tokens_per_second   87.47
 ```
 
-Full server and client config for this run are in the JSON (`server_config`, `client_config`). New runs use `server.yaml` `label: qwen3.5-9b-q8-baseline`, so result filenames become `{timestamp}_qwen3.5-9b-q8-baseline.json` instead of the model stem slug; existing JSON names are unchanged.
+##### 

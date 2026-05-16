@@ -20,6 +20,7 @@ from results import (
     write_result,
 )
 from server import build_argv, managed_server, resolve_base_url
+from vram import VramPoller, sample_vram_mb
 
 _TESTER_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_SERVER = _TESTER_ROOT / "server.yaml"
@@ -42,8 +43,16 @@ def _run_default(server_path: Path, client_path: Path) -> int:
 
     try:
         with managed_server(server, base_url):
-            completion = run_chat_completion(client, base_url=base_url)
+            idle_vram_mb = sample_vram_mb()
+            poller = VramPoller()
+            poller.start()
+            try:
+                completion = run_chat_completion(client, base_url=base_url)
+            finally:
+                peak_vram_mb = poller.stop()
             metrics_dict = build_metrics_dict(completion)
+            metrics_dict["idle_vram_mb"] = idle_vram_mb
+            metrics_dict["peak_vram_mb"] = peak_vram_mb
     except (TimeoutError, RuntimeError, ValueError, KeyboardInterrupt) as exc:
         status = "error"
         error = str(exc)
@@ -125,9 +134,17 @@ def _run_test_client(server_path: Path, client_path: Path) -> int:
 
     try:
         with managed_server(server, base_url):
-            print("Running streaming chat completion...")
-            result = run_chat_completion(client, base_url=base_url)
+            idle_vram_mb = sample_vram_mb()
+            poller = VramPoller()
+            poller.start()
+            try:
+                print("Running streaming chat completion...")
+                result = run_chat_completion(client, base_url=base_url)
+            finally:
+                peak_vram_mb = poller.stop()
             metrics = build_metrics_dict(result)
+            metrics["idle_vram_mb"] = idle_vram_mb
+            metrics["peak_vram_mb"] = peak_vram_mb
             print(f"\nModel: {server.model}\n")
             print(format_metrics_summary(metrics))
             if result.completion_text:

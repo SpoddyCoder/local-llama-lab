@@ -42,6 +42,7 @@ def build_metrics_dict(result: CompletionResult) -> dict[str, float | int | None
         "prefill_tok_s": prefill_tok_s,
         "decode_tok_s": decode_tok_s,
         "tokens_per_second": tokens_per_second,
+        "idle_vram_mb": None,
         "peak_vram_mb": None,
     }
 
@@ -66,5 +67,7 @@ def format_metrics_summary(metrics: dict[str, float | int | None]) -> str:
         _fmt("completion_tokens"),
         _fmt("prefill_tok_s"),
         _fmt("decode_tok_s"),
+        _fmt("idle_vram_mb"),
+        _fmt("peak_vram_mb"),
     ]
     return "\n".join(lines)

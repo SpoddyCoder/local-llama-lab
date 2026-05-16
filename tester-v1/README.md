@@ -80,12 +80,26 @@ To scaffold calibration-footprint, calibration-ctx-probe, baseline, and no-mmap 
 
 ## test-configs layout
 
-Variant configs live under `test-configs/`. The directory tree is organizational only; the runner does not interpret segment names beyond building the result slug.
+Variant configs live under `test-configs/`. The directory tree is organizational only; the runner does not interpret segment names beyond building the result slug. [test-configs/reference/README.md](test-configs/reference/README.md) documents the reference template tree.
 
 Example:
 
 ```text
 test-configs/
+  reference/
+    reference-model/        # templates only; not for runs; used by create-new-model-test skill
+      baseline/
+        server.yaml
+        client.yaml
+      calibration-footprint/   # VRAM cal: --fit off -c 4096
+        server.yaml
+        client.yaml
+      calibration-ctx-probe/   # VRAM cal: --fit off -c 16384
+        server.yaml
+        client.yaml
+      no-mmap/
+        server.yaml
+        client.yaml
   test1/                    # test or experiment group
     qwen3.5-9b-q8/          # model family
       baseline/
@@ -106,7 +120,7 @@ Each leaf directory must contain both `server.yaml` and `client.yaml`. Intermedi
 
 ## Config essentials
 
-Example files: [test-configs/test1/qwen3.5-9b-q8/baseline/server.yaml](test-configs/test1/qwen3.5-9b-q8/baseline/server.yaml), [test-configs/test1/qwen3.5-9b-q8/baseline/client.yaml](test-configs/test1/qwen3.5-9b-q8/baseline/client.yaml). Root [server.yaml](server.yaml) and [client.yaml](client.yaml) remain the default when no config directory is passed.
+Example files (variant shape): [test-configs/reference/reference-model/baseline/server.yaml](test-configs/reference/reference-model/baseline/server.yaml), [test-configs/reference/reference-model/baseline/client.yaml](test-configs/reference/reference-model/baseline/client.yaml). Root [server.yaml](server.yaml) and [client.yaml](client.yaml) remain the default when no config directory is passed.
 
 **server.yaml**
 

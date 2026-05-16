@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from config import ClientConfig, ServerConfig
+from metadata import empty_metadata
 from metrics import format_metrics_summary
 
 
@@ -65,6 +66,7 @@ def build_result_document(
     finished_at: datetime,
     error: str | None = None,
     notes: str | None = None,
+    metadata: dict[str, str | None] | None = None,
 ) -> dict[str, Any]:
     run_id = make_run_id(started_at, server_config.model_slug)
     metrics = dict(metrics_dict) if metrics_dict is not None else empty_metrics()
@@ -75,6 +77,10 @@ def build_result_document(
     if "peak_vram_mb" not in metrics:
         metrics["peak_vram_mb"] = None
 
+    meta = dict(metadata) if metadata is not None else empty_metadata()
+    for key in empty_metadata():
+        meta.setdefault(key, None)
+
     return {
         "run_id": run_id,
         "started_at": format_iso_utc(started_at),
@@ -82,6 +88,7 @@ def build_result_document(
         "server_config": server_config.to_dict(),
         "client_config": client_config.to_dict(),
         "metrics": metrics,
+        "metadata": meta,
         "status": status,
         "error": error,
         "notes": notes,

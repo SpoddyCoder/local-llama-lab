@@ -82,13 +82,18 @@ Test Script Config:
 
 ##### Baseline - no switches
 ```
-wall_time_s       11.71
-ttft_s             0.20
-prompt_tokens         24
-completion_tokens   1024
-prefill_tok_s      117.70
-decode_tok_s        89.02
-tokens_per_second   87.47
+server_ready_s    5.59
+wall_time_s       11.54
+ttft_s            0.18
+prompt_tokens     24
+completion_tokens 1024
+prefill_tok_s     130.51
+decode_tok_s      90.20
+idle_vram_mb      15149
+peak_vram_mb      15219
 ```
 
-##### 
+##### `--no-mmap`
+```
+
+```

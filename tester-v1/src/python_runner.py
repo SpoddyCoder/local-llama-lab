@@ -11,6 +11,7 @@ from pathlib import Path
 
 from client import run_chat_completion
 from config import load_client_config, load_server_config
+from metadata import collect_run_metadata
 from metrics import build_metrics_dict, format_metrics_summary
 from results import (
     build_result_document,
@@ -71,6 +72,7 @@ def _run_default(server_path: Path, client_path: Path) -> int:
             started_at=started_at,
             finished_at=finished_at,
             error=error,
+            metadata=collect_run_metadata(server),
         )
         run_id = document["run_id"]
         result_path = write_result(_RESULTS_DIR, document)

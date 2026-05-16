@@ -84,6 +84,31 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertEqual(doc["metrics"]["server_ready_s"], 45.2)
         self.assertIsNone(doc["metrics"]["idle_vram_mb"])
         self.assertIsNone(doc["metrics"]["peak_vram_mb"])
+        self.assertEqual(
+            doc["metadata"],
+            {
+                "server_version": None,
+                "gpu_name": None,
+                "driver_version": None,
+            },
+        )
+
+    def test_metadata_passed_through(self) -> None:
+        meta = {
+            "server_version": "version: 9158 (abc)",
+            "gpu_name": "NVIDIA GeForce RTX 4090",
+            "driver_version": "550.54.15",
+        }
+        doc = build_result_document(
+            server_config=self.server,
+            client_config=self.client,
+            metrics_dict=self.metrics,
+            status="ok",
+            started_at=self.started,
+            finished_at=self.finished,
+            metadata=meta,
+        )
+        self.assertEqual(doc["metadata"], meta)
 
     def test_error_status_with_empty_metrics(self) -> None:
         doc = build_result_document(

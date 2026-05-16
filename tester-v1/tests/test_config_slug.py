@@ -16,7 +16,7 @@ from config import (  # noqa: E402
     load_server_config,
     slug_from_config_dir,
 )
-from python_runner import _TESTER_ROOT  # noqa: E402
+from runner import _TESTER_ROOT  # noqa: E402
 
 
 class TestSlugFromConfigDir(unittest.TestCase):

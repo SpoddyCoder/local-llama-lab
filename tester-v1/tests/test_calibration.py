@@ -18,7 +18,7 @@ from calibration import (  # noqa: E402
     read_idle_vram_from_result,
 )
 from config import slug_from_config_dir  # noqa: E402
-from python_runner import _TESTER_ROOT  # noqa: E402
+from runner import _TESTER_ROOT  # noqa: E402
 
 
 def _write_result(path: Path, *, idle_vram_mb: int, status: str = "ok") -> None:

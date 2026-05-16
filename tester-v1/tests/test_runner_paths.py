@@ -1,4 +1,4 @@
-"""Unit tests for config path resolution in python_runner."""
+"""Unit tests for config path resolution in runner."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
-from python_runner import (  # noqa: E402
+from runner import (  # noqa: E402
     _TESTER_ROOT,
     resolve_config_paths,
 )

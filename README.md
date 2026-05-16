@@ -53,23 +53,27 @@ Sat May 16 13:40:46 2026
 
 ## Tester v1 (single-run harness)
 
-From the repo root, use the Phase 1 harness under `tester-v1/`:
+From the repo root, use the harness under `tester-v1/`:
 
 ```bash
 cd tester-v1
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python3 src/python_runner.py
 ```
 
-That loads `server.yaml` and `client.yaml`, starts `llama-server`, runs one streaming completion, writes `results/{timestamp}_{slug}.json`, prints a metrics summary, and tears down the server. To run a variant without editing the root yamls, pass a config directory: `python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline` (from `tester-v1/`). See [tester-v1/README.md](tester-v1/README.md)
+See [tester-v1/README.md](tester-v1/README.md). Results for various cases are stored in [tester-v1/results/](tester-v1/results/)
 
 ## Tests
-
-For a new model, fill the bullets after calibration...
+For a new model, run the calibration tests first...
 
 ```bash
-cd tester-v1 && python3 src/model_calibration.py test-configs/test1/qwen3.5-9b-q8
+python3 src/model_calibration.py test-configs/test1/qwen3.5-9b-q8
+```
+
+Then run tests cases...
+
+```bash
+python3 src/python_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/
 ```
 
 ### Test 1 - First Steps

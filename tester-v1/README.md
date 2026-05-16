@@ -22,8 +22,10 @@ From `tester-v1/`:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+./single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
 ```
+
+Both CLIs are executable (`#!/usr/bin/env python3`). Use `./single_test_runner.py` and `./model_calibration.py` from this directory, or `python3` with the same arguments if you prefer.
 
 Unit tests:
 
@@ -61,7 +63,7 @@ Each model config directory (for example `test-configs/test1/qwen3.5-9b-q8/`) mu
 From `tester-v1/`:
 
 ```bash
-python3 model_calibration.py test-configs/test1/qwen3.5-9b-q8
+./model_calibration.py test-configs/test1/qwen3.5-9b-q8
 ```
 
 Progress and errors go to stderr. On success, stdout is a blank line then four summary lines:
@@ -151,10 +153,12 @@ If `server.yaml` sets `--port` / `-p`, keep `base_url` in sync (or omit port in 
 
 ## CLI
 
+Run from `tester-v1/` as `./single_test_runner.py` or `./model_calibration.py` (see Quick start), or equivalently with `python3`.
+
 Default (root `server.yaml` / `client.yaml`, model file stem as slug):
 
 ```bash
-python3 single_test_runner.py
+./single_test_runner.py
 ```
 
 Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`, path-derived slug):

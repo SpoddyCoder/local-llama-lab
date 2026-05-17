@@ -80,7 +80,14 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
 
 ## Tester v1 (single-run harness)
 
-From the repo root, use the harness under `tester-v1/`:
+From the repo root, use the harness under `tester-v1/`. Python 3 is required. Check third-party deps (skip install if this prints `deps ok`):
+
+```bash
+cd tester-v1
+python3 -c "import httpx, yaml" 2>/dev/null && echo "deps ok" || echo "need install"
+```
+
+If you see `need install`, use a venv (avoids PEP 668 errors on system `pip`):
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate

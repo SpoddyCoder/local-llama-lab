@@ -17,12 +17,23 @@ With `--save-result`, step 5 is replaced by writing `results/{timestamp}_{slug}.
 
 ## Quick start
 
-From `tester-v1/`:
+From `tester-v1/`, check Python deps (`httpx`, PyYAML). Skip the venv block if this prints `deps ok`:
+
+```bash
+python3 -c "import httpx, yaml" 2>/dev/null && echo "deps ok" || echo "need install"
+```
+
+If you see `need install` (common on stock Debian `python3`; see repo root Dependencies for `wsl-builder dev-python`):
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+Run a probe:
+
+```bash
 ./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 ```
 

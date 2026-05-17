@@ -1,8 +1,8 @@
 # Reference test configs
 
-`reference/{variant}/` is the only template source for new model configs. When scaffolding a model under `configs/{model_slug}/`, copy these eight YAML files (four variants, each with `server.yaml` and `client.yaml`) and set `model:` to the target GGUF path.
+`reference/{variant}/` is the only template source for new model configs. Every variant subdirectory here is a global template: scaffold copies all of them into `configs/{model_slug}/` and sets `model:` to the target GGUF path.
 
-Variants: `calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`, `hello-world-no-mmap`.
+Current variants (three dirs, six YAML files): `calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`. Each has `server.yaml` and `client.yaml`. New dirs under `reference/` with both files are included automatically when scaffolding or syncing.
 
 Do not run `single_test_runner.py` or `model_calibration.py` against paths under `reference/`. These files are templates only, not runnable test trees.
 

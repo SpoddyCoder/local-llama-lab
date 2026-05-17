@@ -1,17 +1,24 @@
 ---
 name: create-model-configs
 description: >-
-  Scaffold four variant directories (calibration-footprint, calibration-ctx-probe,
-  hello-world-baseline, hello-world-no-mmap) under tester-v1/configs for a new GGUF
-  model. Model directories use lowercase kebab-case slugs with dots allowed for point
-  versions (e.g. qwen3.5-9b-q8). Use when the user adds a new model, asks to scaffold
-  model configs, create configs, set up calibration variants, or scaffold from the
-  reference templates at configs/reference/.
+  Scaffold all reference variant directories under tester-v1/configs for a new
+  GGUF model (calibration-footprint, calibration-ctx-probe, hello-world-baseline
+  as of this change; dynamic thereafter). Model directories use lowercase
+  kebab-case slugs with dots allowed for point versions (e.g. qwen3.5-9b-q8). Use
+  when the user adds a new model, asks to scaffold model configs, create configs,
+  set up calibration variants, or scaffold from the reference templates at
+  configs/reference/.
 ---
 
 # Create model configs
 
-Create `server.yaml` and `client.yaml` for four variants under `tester-v1/configs/{model_slug}/{variant}/`. Copy structure and comments from the reference templates; change only the `model:` path to the user's GGUF.
+Create `server.yaml` and `client.yaml` for every reference variant under `tester-v1/configs/{model_slug}/{variant}/`. Copy structure and comments from the reference templates; change only the `model:` path to the user's GGUF.
+
+## Core rule
+
+Every variant subdirectory under `tester-v1/configs/reference/` is a global template. When scaffolding a new model, copy **all** of them (not a fixed list). If the user adds a new dir under `reference/` with both YAML files, it is meant for every model.
+
+Model-only variants (for example `hello-world-no-mmap` on one model) are added manually under that model's slug; they do not live in `reference/` unless promoted there.
 
 ## Required inputs
 
@@ -47,23 +54,19 @@ If the user gives a non-conforming name (e.g. `Qwen3.5-9B-Q8`, `gemma_4_e4b`), d
 
 ## Reference templates
 
-The canonical template source is `tester-v1/configs/reference/`. Enumerate its variant subdirectories; each must contain `server.yaml` and `client.yaml`:
-
-- `calibration-footprint/`
-- `calibration-ctx-probe/`
-- `hello-world-baseline/`
-- `hello-world-no-mmap/`
+The canonical template source is `tester-v1/configs/reference/`. List `reference/*/` and include only subdirs that contain both `server.yaml` and `client.yaml`. Do not copy from live model dirs (`qwen3.5-9b-q8/`, etc.).
 
 Keep all comments and YAML structure. Replace only the `model:` value with `gguf_path` (use the path the user gave, including `~` if they provided it that way).
 
 ## Variant summary
 
-| Variant | `server.yaml` | `client.yaml` |
-|---------|---------------|---------------|
-| `calibration-footprint/` | `model` + args: `--host 127.0.0.1`, `--port 8080`, `--fit off`, `-c 4096`, `--parallel 1` | `user: "ok"`, `max_tokens: 1`, `temperature: 0` |
-| `calibration-ctx-probe/` | Same as calibration-footprint but `-c 16384` | Same as calibration-footprint |
-| `hello-world-baseline/` | `model` + host/port only (no `--fit off`) | Hello-world prompt (multi-language) |
-| `hello-world-no-mmap/` | hello-world-baseline server + `--no-mmap` | Same as hello-world-baseline client |
+Illustrative; enumeration under `configs/reference/` is authoritative.
+
+| Variant | Purpose (brief) |
+|---------|-----------------|
+| `calibration-footprint/` | VRAM cal, `-c 4096`, `--fit off` |
+| `calibration-ctx-probe/` | VRAM cal, `-c 16384`, `--fit off` |
+| `hello-world-baseline/` | Smoke probe, default server flags |
 
 ## Directory layout
 
@@ -79,9 +82,6 @@ tester-v1/configs/
     hello-world-baseline/
       server.yaml
       client.yaml
-    hello-world-no-mmap/
-      server.yaml
-      client.yaml
 ```
 
 Target root: `tester-v1/configs/{model_slug}/`
@@ -90,12 +90,12 @@ Target root: `tester-v1/configs/{model_slug}/`
 
 1. **Collect inputs** — `model_slug` (or a label to derive it), `gguf_path`. Stop and ask if any are missing. Normalize `model_slug` before any path checks or writes.
 2. **Verify GGUF** — Resolve `~` if needed; confirm the file exists. Do not proceed if missing.
-3. **Check target tree** — List subdirs under `configs/reference/` (each must have `server.yaml` + `client.yaml`); list the same variant paths that would be created under `{model_slug}/` (two YAML files per variant).
+3. **List reference variants** — Subdirs under `configs/reference/` with both `server.yaml` and `client.yaml`; list the same variant paths that would be created under `{model_slug}/` (two YAML files per variant).
 4. **Collision handling**
-   - If nothing exists under `{model_slug}/`, create all four variants.
+   - If nothing exists under `{model_slug}/`, create one dir per reference variant.
    - If any variant dir or YAML already exists, show what is present and **do not overwrite** without explicit user confirmation.
    - On confirmed overwrite, only replace files the user named; prefer creating missing variants only.
-5. **Read templates** — Load reference YAML from each subdir of `tester-v1/configs/reference/` (`server.yaml` and `client.yaml` per variant).
+5. **Read templates** — Load reference YAML from each qualifying subdir of `tester-v1/configs/reference/`.
 6. **Write files** — For each variant, write `server.yaml` and `client.yaml` with the same content as the template except `model:` set to `gguf_path`.
 7. **Summarize** — List created paths and remind the user of the calibration command (below).
 
@@ -126,5 +126,5 @@ User: scaffold configs for GGUF `~/models/My_Model-Q4_0.gguf` (they said "my mod
 1. Normalize slug → `my-model-q4` (from user words or basename if clearer).
 2. Verify the GGUF exists.
 3. Confirm `tester-v1/configs/my-model-q4/` is absent (or get overwrite OK).
-4. Create YAML files from `configs/reference/` templates with `model: ~/models/My_Model-Q4_0.gguf` (preserve the user's path in YAML; only the directory name is normalized).
+4. Create YAML files from all `configs/reference/` variants with `model: ~/models/My_Model-Q4_0.gguf` (preserve the user's path in YAML; only the directory name is normalized).
 5. Tell user: `python3 model_calibration.py configs/my-model-q4` from `tester-v1/`.

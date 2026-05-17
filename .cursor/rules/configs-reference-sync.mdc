@@ -1,0 +1,47 @@
+---
+description: Propagate configs/reference template changes to all live model directories
+globs: tester-v1/configs/reference/**
+alwaysApply: false
+---
+
+# Reference to live models sync
+
+When `reference/` changes, follow this rule after edits unless the user explicitly says not to sync.
+
+## Live model set
+
+All immediate subdirectories of `tester-v1/configs/` except `reference/`. Discover dynamically; do not hardcode slug names.
+
+## Propagation workflow
+
+For each live `{model_slug}/`:
+
+1. **Add missing variants:** For each `reference/{variant}/` with both `server.yaml` and `client.yaml`, if `{model_slug}/{variant}/` is missing, create it by copying from reference and set `model:` in `server.yaml` to the existing value from any sibling variant on that model, or from an existing `server.yaml` on that model if present. If the model dir is new or empty, ask the user for `gguf_path` before writing.
+
+2. **Update existing reference-backed variants:** For each `reference/{variant}/` that also exists under `{model_slug}/{variant}/`, update `server.yaml` and `client.yaml` from reference except preserve the current `model:` line in `server.yaml` on the live copy.
+
+3. **Do not delete** variant directories on live models when they are absent from `reference/`. Model-specific dirs (for example `hello-world-no-mmap`) stay.
+
+4. **Do not overwrite** `model:` from reference into live models.
+
+## Overwrite policy
+
+When reference content changes, overwrite live `server.yaml` and `client.yaml` for variants that exist in both reference and that model (except `model:`). Reference is source of truth for shared variants; model-specific dirs are untouched.
+
+## User notification (required)
+
+After propagation, report explicitly:
+
+- Which `model_slug` directories were touched.
+- Per model: which variants were **created** vs **updated** (file paths).
+- Which reference variants were not propagated because of missing `model:` (if any; ask the user).
+- Reminder: variants removed from `reference/` were **not** deleted from live models.
+
+Example:
+
+```text
+Synced reference → models:
+- qwen3.5-9b-q8: updated hello-world-baseline (server.yaml, client.yaml)
+- gemma-4-e4b-it-q8: updated hello-world-baseline (server.yaml, client.yaml)
+Not deleted: hello-world-no-mmap on both models (not in reference).
+```

@@ -8,17 +8,24 @@ alwaysApply: false
 
 ## Template source
 
-`tester-v1/configs/reference/` is canonical. The create-model-configs skill copies from here only — never from `qwen3.5-9b-q8/` or other live model dirs.
+`tester-v1/configs/reference/` is canonical. The create-model-configs skill copies from here only; never from `qwen3.5-9b-q8/` or other live model dirs.
 
-## Keep reference updated
+## What belongs in reference
 
-When you:
+- **In reference:** variants that should exist on every model (scaffold + propagate).
+- **Not in reference:** model-specific experiments (for example `complex-webapp-build` on one slug only). Do not add those to `reference/` unless the user intends global rollout.
 
-- Add, remove, or rename a variant directory under any real `configs/{model_slug}/`
-- Change shared server.yaml / client.yaml structure, args, or default prompts intended for all new models
-- Update the variant table in the create-model-configs skill
+## Promoting and demoting variants
 
-Apply the same change under `configs/reference/` (and update the skill variant table if variants changed). Prefer editing reference first, then real models if the user asks.
+- **Promote to global:** add a variant under `reference/`, then propagate to all models (see [configs-reference-sync.mdc](configs-reference-sync.mdc)).
+- **Demote from global:** remove the variant from `reference/` only. Do not delete that variant from live models automatically; model-only copies may remain.
+
+## Editing shared behavior
+
+- **Default:** edit `reference/` first for shared behavior; propagate to models.
+- **Exception:** one-off tweaks on a single model stay on that model only and must not be copied into `reference/` unless the user promotes them.
+
+When `reference/` changes, follow [configs-reference-sync.mdc](configs-reference-sync.mdc).
 
 ## Do not run on reference
 

@@ -59,7 +59,7 @@ Each model directory (for example `configs/qwen3.5-9b-q8/`) must include two cal
 - **`calibration-footprint/`** — `server.yaml` with `--fit off`, `-c 4096` (or your chosen footprint context), `--parallel 1`; `client.yaml` with a minimal prompt (`ok`) and `max_tokens: 1`. Idle VRAM after ready is the model footprint at that context.
 - **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
 
-`hello-world-baseline` and `hello-world-no-mmap` are probe variants for smoke runs; calibration does not run them.
+`hello-world-baseline` is the standard smoke probe variant; calibration does not run it. Live models may also have extra probe dirs (for example `hello-world-no-mmap`) that are not in `reference/`.
 
 From `tester-v1/`:
 
@@ -95,7 +95,7 @@ Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). C
 ./model_calibration.py configs/qwen3.5-9b-q8 --save-result
 ```
 
-To scaffold calibration-footprint, calibration-ctx-probe, hello-world-baseline, and hello-world-no-mmap configs for a new model, use the [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) project skill.
+To scaffold all reference variants for a new model, use the [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) project skill (copies every variant under `configs/reference/`).
 
 ## configs layout
 
@@ -105,16 +105,15 @@ Example:
 
 ```text
 configs/
-  reference/           # templates only
-    hello-world-baseline/
-    hello-world-no-mmap/
-    calibration-footprint/
-    calibration-ctx-probe/
-  qwen3.5-9b-q8/
+  reference/           # global templates (three variants)
     calibration-footprint/
     calibration-ctx-probe/
     hello-world-baseline/
-    hello-world-no-mmap/
+  qwen3.5-9b-q8/       # live model; may include extra dirs
+    calibration-footprint/
+    calibration-ctx-probe/
+    hello-world-baseline/
+    hello-world-no-mmap/   # optional, model-specific
 ```
 
 Each variant directory must contain both `server.yaml` and `client.yaml`. Model folders (for example `qwen3.5-9b-q8`) group related variants; they are not special-cased in code beyond metadata and the result slug.

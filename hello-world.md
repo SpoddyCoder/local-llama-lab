@@ -1,6 +1,13 @@
 # Hello world probe run
 
-Simple smoke test prompt used by the hello-world variants under [configs/qwen3.5-9b-q8/hello-world-baseline](tester-v1/configs/qwen3.5-9b-q8/hello-world-baseline) and [configs/qwen3.5-9b-q8/hello-world-no-mmap](tester-v1/configs/qwen3.5-9b-q8/hello-world-no-mmap) (and the same variant names for [gemma-4-e4b-it-q8](tester-v1/configs/gemma-4-e4b-it-q8/)).
+Simple smoke test prompt used by `hello-world-baseline` (standard probe in `configs/reference/`) and optionally by per-model `hello-world-no-mmap` variants.
+
+Paths:
+
+- [qwen3.5-9b-q8/hello-world-baseline](tester-v1/configs/qwen3.5-9b-q8/hello-world-baseline)
+- [qwen3.5-9b-q8/hello-world-no-mmap](tester-v1/configs/qwen3.5-9b-q8/hello-world-no-mmap) (optional, model-specific)
+- [gemma-4-e4b-it-q8/hello-world-baseline](tester-v1/configs/gemma-4-e4b-it-q8/hello-world-baseline)
+- [gemma-4-e4b-it-q8/hello-world-no-mmap](tester-v1/configs/gemma-4-e4b-it-q8/hello-world-no-mmap) (optional, model-specific)
 
 ```text
 hi, write me hello world in 20 different programming languages.
@@ -45,6 +52,8 @@ peak_vram_mb      15222
 
 ### hello-world-no-mmap
 
+Optional variant; same client prompt as baseline, server adds `--no-mmap`.
+
 ```text
 server_ready_s    21.34
 wall_time_s       11.56
@@ -81,6 +90,8 @@ peak_vram_mb      9107
 ```
 
 ### hello-world-no-mmap
+
+Optional variant; same client prompt as baseline, server adds `--no-mmap`.
 
 ```text
 server_ready_s    4.58

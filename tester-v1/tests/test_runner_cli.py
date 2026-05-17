@@ -221,7 +221,7 @@ class TestRunStdoutDefault(unittest.TestCase):
             server = self._fake_server(tmp)
             client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
             result_path = (
-                _TESTER_ROOT
+                Path(tmp)
                 / "results"
                 / "qwen3.5-9b-q8"
                 / "hello-world-baseline"

@@ -1,0 +1,41 @@
+---
+description: Unit tests must not write artifacts under tester-v1/results/
+globs: tester-v1/tests/**/*.py
+alwaysApply: false
+---
+
+# Tester unit tests (no writes under results/)
+
+## Do not create files under `tester-v1/results/`
+
+Harness runs write JSON and optional `{stem}-output.txt` under `tester-v1/results/{model}/{variant}/`. Unit tests must **not** create, update, or leave artifacts there.
+
+Reading existing result JSON for parser or layout tests is fine. Any test-driven **write** must use an isolated directory.
+
+## Pattern: mocked paths under `TemporaryDirectory`
+
+When a test mocks `write_result` (or returns a result path) but production code still performs real I/O from that path (for example `--full-output` writing `{stem}-output.txt` next to the JSON), the mocked path must live under a temp root, not `_TESTER_ROOT / "results"`.
+
+```python
+with tempfile.TemporaryDirectory() as tmp:
+    result_path = (
+        Path(tmp)
+        / "results"
+        / "qwen3.5-9b-q8"
+        / "hello-world-baseline"
+        / "20260101T000000Z.json"
+    )
+    output_path = result_path.with_name("20260101T000000Z-output.txt")
+    ...
+    patch("runner.write_result", return_value=result_path),
+```
+
+The temp dir is removed on exit, so stray `-output.txt` files cannot accumulate in the real tree.
+
+Reference: `tester-v1/tests/test_runner_cli.py` (`test_full_output_with_save_result_writes_output_txt`).
+
+## Other cases
+
+- Prefer `tempfile.TemporaryDirectory()`, `tempfile.NamedTemporaryFile`, or in-memory buffers for any test output.
+- Using `_TESTER_ROOT / "configs/..."` for read-only config fixtures is OK; do not treat `results/` the same way for writes.
+- If a test must assert filesystem behavior, assert under `Path(tmp)`, not under `tester-v1/results/`.

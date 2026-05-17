@@ -47,7 +47,7 @@ class TestRunSaveResult(unittest.TestCase):
                     Path(tmp) / "client.yaml",
                     save_result=True,
                     quiet=False,
-                    full_output=False,
+                    include_output=False,
                 )
             self.assertEqual(code, 1)
             self.assertIn("--save-result requires config_dir", stderr.getvalue())
@@ -95,7 +95,7 @@ class TestRunSaveResult(unittest.TestCase):
                     _CONFIG_DIR,
                     save_result=True,
                     quiet=True,
-                    full_output=False,
+                    include_output=False,
                 )
 
             self.assertEqual(code, 0)
@@ -147,7 +147,7 @@ class TestRunSaveResult(unittest.TestCase):
                     _CONFIG_DIR,
                     save_result=True,
                     quiet=False,
-                    full_output=False,
+                    include_output=False,
                 )
 
             self.assertEqual(code, 0)
@@ -203,7 +203,7 @@ class TestRunStdoutDefault(unittest.TestCase):
                     Path(tmp) / "client.yaml",
                     save_result=False,
                     quiet=False,
-                    full_output=False,
+                    include_output=False,
                 )
 
             self.assertEqual(code, 0)
@@ -216,7 +216,7 @@ class TestRunStdoutDefault(unittest.TestCase):
             self.assertNotIn("completion preview", out)
             self.assertEqual(stderr.getvalue(), "")
 
-    def test_full_output_with_save_result_writes_output_txt(self) -> None:
+    def test_include_output_with_save_result_writes_output_txt(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             server = self._fake_server(tmp)
             client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
@@ -261,7 +261,7 @@ class TestRunStdoutDefault(unittest.TestCase):
                     _CONFIG_DIR,
                     save_result=True,
                     quiet=True,
-                    full_output=True,
+                    include_output=True,
                 )
 
             self.assertEqual(code, 0)
@@ -269,6 +269,51 @@ class TestRunStdoutDefault(unittest.TestCase):
             self.assertEqual(
                 output_path.read_text(encoding="utf-8"), "hello from model"
             )
+
+    def test_include_output_without_save_result_prints_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            server = self._fake_server(tmp)
+            client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
+
+            @contextmanager
+            def fake_managed_server(*_args, **_kwargs):
+                proc = MagicMock()
+                proc.server_ready_s = 0.1
+                yield proc
+
+            completion = MagicMock()
+            completion.completion_text = "hello from model"
+            with (
+                patch("runner._load_server", return_value=server),
+                patch("runner.load_client_config", return_value=client),
+                patch("runner.resolve_base_url", return_value="http://127.0.0.1:8080"),
+                patch("runner.managed_server", fake_managed_server),
+                patch("runner.run_chat_completion", return_value=completion),
+                patch("runner.sample_vram_mb", return_value=None),
+                patch("runner.VramPoller") as poller_cls,
+                patch(
+                    "runner.build_metrics_dict",
+                    return_value=self._PROBE_METRICS.copy(),
+                ),
+                patch("runner.write_result") as write_result,
+                _capture_output() as (stdout, stderr),
+            ):
+                poller = poller_cls.return_value
+                poller.stop.return_value = None
+                code = _run(
+                    Path(tmp) / "server.yaml",
+                    Path(tmp) / "client.yaml",
+                    save_result=False,
+                    quiet=False,
+                    include_output=True,
+                )
+
+            self.assertEqual(code, 0)
+            write_result.assert_not_called()
+            out = stdout.getvalue()
+            self.assertIn("wall_time_s", out)
+            self.assertIn("hello from model", out)
+            self.assertEqual(stderr.getvalue(), "")
 
 
 class TestMainArgparse(unittest.TestCase):
@@ -290,28 +335,30 @@ class TestMainArgparse(unittest.TestCase):
         kwargs = run.call_args.kwargs
         self.assertTrue(kwargs["save_result"])
         self.assertTrue(kwargs["quiet"])
-        self.assertFalse(kwargs["full_output"])
+        self.assertFalse(kwargs["include_output"])
         self.assertIsNone(kwargs["session_id"])
 
-    def test_main_full_output_requires_save_result(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
-        with patch("runner.resolve_config_paths") as resolve:
-            resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
-            with _capture_output() as (_stdout, stderr):
-                code = main([config, "--full-output"])
-        self.assertEqual(code, 1)
-        self.assertIn("--full-output requires --save-result", stderr.getvalue())
-
-    def test_main_full_output_with_save_result_passes_bool(self) -> None:
+    def test_main_include_output_without_save_result_passes_bool(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
             with patch("runner._run", return_value=0) as run:
-                main([config, "--save-result", "--full-output"])
+                main([config, "--include-output"])
+        run.assert_called_once()
+        kwargs = run.call_args.kwargs
+        self.assertFalse(kwargs["save_result"])
+        self.assertTrue(kwargs["include_output"])
+
+    def test_main_include_output_with_save_result_passes_bool(self) -> None:
+        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        with patch("runner.resolve_config_paths") as resolve:
+            resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
+            with patch("runner._run", return_value=0) as run:
+                main([config, "--save-result", "--include-output"])
         run.assert_called_once()
         kwargs = run.call_args.kwargs
         self.assertTrue(kwargs["save_result"])
-        self.assertTrue(kwargs["full_output"])
+        self.assertTrue(kwargs["include_output"])
 
     def test_main_session_id_passed_through(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
@@ -332,7 +379,7 @@ class TestMainArgparse(unittest.TestCase):
         kwargs = run.call_args.kwargs
         self.assertFalse(kwargs["save_result"])
         self.assertFalse(kwargs["quiet"])
-        self.assertFalse(kwargs["full_output"])
+        self.assertFalse(kwargs["include_output"])
 
     def test_main_rejects_removed_test_client_flag(self) -> None:
         stderr = io.StringIO()

@@ -1,6 +1,6 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server, run one streaming chat completion, print all twelve metrics plus a headline footer on stdout, then tear down. Pass `--save-result` with a config directory to write JSON under `results/{model}/{variant}/` and print the full run summary. Add `--full-output` (requires `--save-result`) to also write `{timestamp}-output.txt` beside the JSON.
+Single-run harness for `llama-server`: start the server, run one streaming chat completion, print all twelve metrics plus a headline footer on stdout, then tear down. Pass `--save-result` with a config directory to write JSON under `results/{model}/{variant}/` and print the full run summary. Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
 
 ## What it does
 
@@ -13,7 +13,7 @@ One invocation of `python single_test_runner.py` (default probe):
 5. Print a rounded metrics block, a blank line, and a three-line headline footer on stdout (end-to-end time, peak VRAM in GiB, generation throughput).
 6. Stop the server process
 
-With `--save-result`, step 5 also writes `results/{model}/{variant}/{timestamp}.json` and prints `format_run_summary` on stdout (run metadata plus the same metrics block and headlines; or, with `--save-result --quiet`, a single `Wrote ...` line on stderr). With `--save-result --full-output`, the completion text is written to `{timestamp}-output.txt` next to the JSON.
+With `--save-result`, step 5 also writes `results/{model}/{variant}/{timestamp}.json` and prints `format_run_summary` on stdout (run metadata plus the same metrics block and headlines; or, with `--save-result --quiet`, a single `Wrote ...` line on stderr). With `--include-output`, completion text is printed on stdout after the metrics block; with `--save-result --include-output`, it is also written to `{timestamp}-output.txt` next to the JSON.
 
 ## Quick start
 
@@ -191,7 +191,7 @@ Flags (same config resolution as above; pass `config_dir` when testing a variant
 | (default)        | Full run; all twelve metrics plus headline footer on stdout; no JSON                                          |
 | `--save-result`  | Requires `config_dir`; write `results/{model}/{variant}/{timestamp}.json`; print full run summary on stdout |
 | `--quiet`        | Only with `--save-result`: suppress stdout summary; on success print `Wrote results/...` to stderr              |
-| `--full-output`  | Boolean; requires `--save-result`; write `{timestamp}-output.txt` beside the JSON                             |
+| `--include-output` | Print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON |
 | `--session-id`   | Optional; set on saved JSON (used by `model_calibration` subprocesses)                                      |
 | `--test-server`  | Start server, wait for health, hold until Ctrl+C (no completion, no JSON)                                     |
 
@@ -202,9 +202,13 @@ Examples:
 # Probe (stdout only)
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 
+# Probe with completion text on stdout
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
+  --include-output
+
 # Recorded run with completion text beside JSON
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
-  --save-result --full-output
+  --save-result --include-output
 
 # Recorded run (metrics JSON only)
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --save-result
@@ -222,7 +226,7 @@ results/
   {model}/
     {variant}/
       {YYYYMMDDTHHMMSSZ}.json
-      {YYYYMMDDTHHMMSSZ}-output.txt   # only with --save-result --full-output
+      {YYYYMMDDTHHMMSSZ}-output.txt   # only with --save-result --include-output
     calibration-sessions/
       {session_id}.json
   _other/
@@ -246,7 +250,7 @@ Each JSON document includes:
 
 **Calibration sessions:** `model_calibration --save-result` generates one `session_id`, passes it to both probe subprocesses, reads the latest JSON from each variant directory, and writes `results/{model}/calibration-sessions/{session_id}.json` (four summary numbers plus probe `run_id` and path refs).
 
-Default probe stdout prints every metric key below (rounded, `n/a` when missing), then a blank line and three headline lines derived from `wall_time_s` (end-to-end time), `peak_vram_mb` (peak VRAM as GiB), and `decode_tok_s` (generation throughput). Completion text is not printed on stdout; use `--save-result --full-output` to save it beside the JSON. With `--save-result`, stdout is the run summary (run id, model, result path, then the same metrics block and headlines) unless `--quiet`. The JSON `metrics` object keeps full floating-point values for every field.
+Default probe stdout prints every metric key below (rounded, `n/a` when missing), then a blank line and three headline lines derived from `wall_time_s` (end-to-end time), `peak_vram_mb` (peak VRAM as GiB), and `decode_tok_s` (generation throughput). Completion text is omitted unless you pass `--include-output` (printed after the headlines). With `--save-result --include-output`, the same text is also saved beside the JSON. With `--save-result`, stdout is the run summary (run id, model, result path, then the same metrics block and headlines) unless `--quiet`. The JSON `metrics` object keeps full floating-point values for every field.
 
 Example probe tail (after `Model: ...`):
 

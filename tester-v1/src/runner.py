@@ -51,7 +51,7 @@ def _run(
     *,
     save_result: bool,
     quiet: bool,
-    full_output: bool = False,
+    include_output: bool = False,
     session_id: str | None = None,
 ) -> int:
     if save_result and config_dir is None:
@@ -105,6 +105,9 @@ def _run(
     if not save_result:
         print(f"\nModel: {redact_model_path(server.model)}\n")
         print(format_probe_stdout(metrics_dict or {}))
+        if include_output:
+            print()
+            print(completion.completion_text if completion else "")
         return 0
 
     finished_at = utc_now()
@@ -146,7 +149,7 @@ def _run(
         return 1
 
     if status == "ok" and metrics_dict is not None and run_id is not None:
-        if full_output:
+        if include_output:
             try:
                 output_path = completion_output_path(result_path)
                 output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -278,9 +281,9 @@ def main(argv: list[str] | None = None) -> int:
         help="only applies with --save-result; suppress stdout run summary; write one line to stderr on success",
     )
     parser.add_argument(
-        "--full-output",
+        "--include-output",
         action="store_true",
-        help="with --save-result, write completion text beside result JSON",
+        help="print completion text on stdout; with --save-result, also write beside result JSON",
     )
     parser.add_argument(
         "--session-id",
@@ -309,16 +312,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.test_server:
         return _run_test_server(server_path, client_path, config_dir)
 
-    if args.full_output and not args.save_result:
-        print("Error: --full-output requires --save-result", file=sys.stderr)
-        return 1
-
     return _run(
         server_path,
         client_path,
         config_dir,
         save_result=args.save_result,
         quiet=args.quiet if args.save_result else False,
-        full_output=args.full_output,
+        include_output=args.include_output,
         session_id=args.session_id,
     )

@@ -14,7 +14,7 @@ Reading existing result JSON for parser or layout tests is fine. Any test-driven
 
 ## Pattern: mocked paths under `TemporaryDirectory`
 
-When a test mocks `write_result` (or returns a result path) but production code still performs real I/O from that path (for example `--full-output` writing `{stem}-output.txt` next to the JSON), the mocked path must live under a temp root, not `_TESTER_ROOT / "results"`.
+When a test mocks `write_result` (or returns a result path) but production code still performs real I/O from that path (for example `--include-output` writing `{stem}-output.txt` next to the JSON), the mocked path must live under a temp root, not `_TESTER_ROOT / "results"`.
 
 ```python
 with tempfile.TemporaryDirectory() as tmp:
@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
 The temp dir is removed on exit, so stray `-output.txt` files cannot accumulate in the real tree.
 
-Reference: `tester-v1/tests/test_runner_cli.py` (`test_full_output_with_save_result_writes_output_txt`).
+Reference: `tester-v1/tests/test_runner_cli.py` (`test_include_output_with_save_result_writes_output_txt`).
 
 ## Other cases
 

@@ -3,7 +3,7 @@ name: tester-unit-tests
 description: >-
   Write or change unittest tests under tester-v1/tests/. Use when adding unit
   tests, fixing test_runner_cli or results tests, or mocking save-result /
-  full-output paths. Ensures tests do not write artifacts under tester-v1/results/.
+  include-output paths. Ensures tests do not write artifacts under tester-v1/results/.
 ---
 
 # Tester unit tests
@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
 Do **not** use `_TESTER_ROOT / "results" / ...` as the mocked return value unless the test only reads and never triggers a real write from that path.
 
-Canonical example: `test_full_output_with_save_result_writes_output_txt` in `tester-v1/tests/test_runner_cli.py`.
+Canonical example: `test_include_output_with_save_result_writes_output_txt` in `tester-v1/tests/test_runner_cli.py`.
 
 ## Reads vs writes
 

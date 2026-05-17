@@ -17,7 +17,7 @@ from config import (
     slug_from_config_dir,
 )
 from metadata import collect_run_metadata
-from metrics import build_metrics_dict, format_metrics_summary
+from metrics import build_metrics_dict, format_probe_stdout
 from results import (
     build_result_document,
     format_error_summary,
@@ -56,6 +56,7 @@ def _run(
     *,
     save_result: bool,
     quiet: bool,
+    full_output: Path | None = None,
 ) -> int:
     server = _load_server(server_path, config_dir)
     client = load_client_config(client_path)
@@ -101,11 +102,17 @@ def _run(
 
     if not save_result:
         print(f"\nModel: {redact_model_path(server.model)}\n")
-        print(format_metrics_summary(metrics_dict or {}))
-        if completion and completion.completion_text:
-            snippet = completion.completion_text[:120].replace("\n", " ")
-            suffix = "..." if len(completion.completion_text) > 120 else ""
-            print(f"\n(completion preview: {snippet}{suffix})")
+        print(format_probe_stdout(metrics_dict or {}))
+        if full_output is not None:
+            try:
+                full_output.parent.mkdir(parents=True, exist_ok=True)
+                full_output.write_text(
+                    completion.completion_text if completion else "",
+                    encoding="utf-8",
+                )
+            except OSError as exc:
+                print(f"Failed to write completion text: {exc}", file=sys.stderr)
+                return 1
         return 0
 
     finished_at = utc_now()
@@ -132,7 +139,7 @@ def _run(
     except OSError as exc:
         print(f"Failed to write result JSON: {exc}", file=sys.stderr)
         if status == "ok":
-            print(format_metrics_summary(metrics_dict or {}))
+            print(format_probe_stdout(metrics_dict or {}))
         elif error:
             print(f"Error: {error}", file=sys.stderr)
         return 1
@@ -258,6 +265,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="only applies with --save-result; suppress stdout run summary; write one line to stderr on success",
     )
+    parser.add_argument(
+        "--full-output",
+        type=Path,
+        metavar="FILE",
+        help="write full model completion text to FILE (default probe only)",
+    )
     args = parser.parse_args(argv)
 
     if args.config_dir is None and args.server is None and args.client is None:
@@ -278,10 +291,20 @@ def main(argv: list[str] | None = None) -> int:
     config_dir = args.config_dir
     if args.test_server:
         return _run_test_server(server_path, client_path, config_dir)
+
+    full_output = args.full_output
+    if args.save_result and full_output is not None:
+        print(
+            "Warning: --full-output is ignored when using --save-result",
+            file=sys.stderr,
+        )
+        full_output = None
+
     return _run(
         server_path,
         client_path,
         config_dir,
         save_result=args.save_result,
         quiet=args.quiet if args.save_result else False,
+        full_output=full_output,
     )

@@ -214,6 +214,7 @@ class TestFormatRunSummary(unittest.TestCase):
             "completion_tokens": 980,
             "prefill_tok_s": 49.4,
             "decode_tok_s": 7.5,
+            "peak_vram_mb": 8192,
         }
         root = Path("/tmp/tester-v1")
         result_path = root / "results" / "20260516T134500Z_Qwen_Qwen3.5-9B-Q8_0.json"
@@ -229,6 +230,12 @@ class TestFormatRunSummary(unittest.TestCase):
         self.assertIn("Result: results/20260516T134500Z_Qwen_Qwen3.5-9B-Q8_0.json", text)
         self.assertIn("wall_time_s", text)
         self.assertIn("132.40", text)
+        self.assertIn("End-to-end time", text)
+        self.assertIn("Peak VRAM", text)
+        self.assertIn("Generation throughput", text)
+        self.assertIn("132.40 s", text)
+        self.assertIn("8.00 GiB", text)
+        self.assertIn("7.50 tok/s", text)
 
 
 if __name__ == "__main__":

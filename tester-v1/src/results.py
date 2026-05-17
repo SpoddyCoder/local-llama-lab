@@ -9,7 +9,7 @@ from typing import Any
 
 from config import ClientConfig, ServerConfig, redact_model_path
 from metadata import empty_metadata
-from metrics import format_metrics_summary
+from metrics import format_probe_stdout
 
 
 def utc_now() -> datetime:
@@ -130,7 +130,7 @@ def format_run_summary(
         f"Model: {redact_model_path(server_config.model)}",
         f"Result: {result_display}",
         "",
-        format_metrics_summary(metrics_dict),
+        format_probe_stdout(metrics_dict),
     ]
     return "\n".join(lines)
 

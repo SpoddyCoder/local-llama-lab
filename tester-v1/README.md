@@ -1,6 +1,6 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server, run one streaming chat completion, print metrics (and a short completion preview) on stdout, then tear down. Pass `--save-result` to also write `results/{timestamp}_{slug}.json` and print the full run summary.
+Single-run harness for `llama-server`: start the server, run one streaming chat completion, print all twelve metrics plus a headline footer on stdout, then tear down. Pass `--save-result` to also write `results/{timestamp}_{slug}.json` and print the full run summary. On a probe run, `--full-output FILE` writes the full completion text to a file (stdout stays metrics only).
 
 ## What it does
 
@@ -10,10 +10,10 @@ One invocation of `python single_test_runner.py` (default probe):
 2. Start `llama-server` with the configured model and flags
 3. Poll until the API is healthy
 4. POST one streaming `/v1/chat/completions` request
-5. Print metrics and a completion preview on stdout
+5. Print a rounded metrics block, a blank line, and a three-line headline footer on stdout (end-to-end time, peak VRAM in GiB, generation throughput). Optionally write full completion text to a file with `--full-output`.
 6. Stop the server process
 
-With `--save-result`, step 5 is replaced by writing `results/{timestamp}_{slug}.json` and printing `format_run_summary` on stdout (or, with `--save-result --quiet`, a single `Wrote ...` line on stderr).
+With `--save-result`, step 5 is replaced by writing `results/{timestamp}_{slug}.json` and printing `format_run_summary` on stdout (run metadata plus the same metrics block and headlines; or, with `--save-result --quiet`, a single `Wrote ...` line on stderr). `--full-output` is not used with `--save-result` (warning on stderr, no file write).
 
 ## Quick start
 
@@ -38,7 +38,7 @@ python3 -m unittest discover -s tests -v
 
 1. Pick or create a variant directory under `configs/` (see layout below). Each leaf holds `server.yaml` and `client.yaml` for one run configuration.
 2. Tune model path, server flags, prompt, and API params in that pair of files.
-3. Run the variant (probe: metrics on stdout, no JSON):
+3. Run the variant (probe: metrics block and headline footer on stdout, no JSON; optional `--full-output` for completion text):
 
    ```bash
    python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
@@ -65,7 +65,7 @@ From `tester-v1/`:
 ./model_calibration.py configs/qwen3.5-9b-q8
 ```
 
-Progress and errors go to stderr. On success, stdout is each probe's metrics (default mode), then a blank line and four summary lines (unless `--save-result --quiet`):
+Progress and errors go to stderr. On success, stdout is each probe's metrics block and headline footer (default mode), then a blank line and four calibration summary lines (unless `--save-result --quiet`):
 
 ```text
 
@@ -176,9 +176,10 @@ Flags (same config resolution as above; pass `config_dir` when testing a variant
 
 | Flag             | Behavior                                                                                                      |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
-| (default)        | Full run; metrics and completion preview on stdout; no JSON                                                   |
-| `--save-result`  | Write `results/{run_id}.json`; print full run summary on stdout                                               |
+| (default)        | Full run; all twelve metrics plus headline footer on stdout; no JSON                                          |
+| `--save-result`  | Write `results/{run_id}.json`; print full run summary on stdout (includes metrics block and headlines)        |
 | `--quiet`        | Only with `--save-result`: suppress stdout summary; on success print `Wrote results/...` to stderr              |
+| `--full-output`  | Probe only: write full completion text to `FILE` (creates parent dirs). Ignored with `--save-result` (stderr warning, no write) |
 | `--test-server`  | Start server, wait for health, hold until Ctrl+C (no completion, no JSON)                                     |
 
 
@@ -187,6 +188,10 @@ Examples:
 ```bash
 # Probe (stdout only)
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
+
+# Probe with completion text saved to a file
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
+  --full-output /tmp/completion.txt
 
 # Recorded run
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --save-result
@@ -218,7 +223,28 @@ Each JSON document includes:
 - `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `configs/`, also `config_path` e.g. `qwen3.5-9b-q8/hello-world-baseline/` plus `model` and `variant` from the path; each field is `null` when unavailable)
 - `metrics` (see table below)
 
-Default probe stdout prints a rounded metrics block plus a short completion preview. With `--save-result`, stdout is the full run summary (unless `--quiet`). The JSON `metrics` object keeps full floating-point values for every field.
+Default probe stdout prints every metric key below (rounded, `n/a` when missing), then a blank line and three headline lines derived from `wall_time_s` (end-to-end time), `peak_vram_mb` (peak VRAM as GiB), and `decode_tok_s` (generation throughput). Completion text is not printed; use `--full-output FILE` on a probe run to save it. With `--save-result`, stdout is the run summary (run id, model, result path, then the same metrics block and headlines) unless `--quiet`. The JSON `metrics` object keeps full floating-point values for every field.
+
+Example probe tail (after `Model: ...`):
+
+```text
+server_ready_s      1.50
+wall_time_s         9.14
+ttft_s              0.42
+completion_time_s   8.72
+prompt_tokens       128
+completion_tokens   256
+total_tokens        384
+prefill_tok_s       304.76
+decode_tok_s        116.32
+tokens_per_second   28.01
+idle_vram_mb        8000
+peak_vram_mb        8961
+
+End-to-end time         9.14 s
+Peak VRAM               8.75 GiB
+Generation throughput   116.32 tok/s
+```
 
 
 | Metric              | What it measures                                                                                                 |

@@ -68,7 +68,7 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
     * Model VRAM: 10337 MiB
     * KV VRAM: 4430 MiB
     * Estimated Max Context: 150823 tokens
-    * Typical Tok/s: TODO
+    * Generation throughput: ~91 tok/s
 * [Gemma-4-E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
   * Outstanding for local developer setups that require tool-calling capabilities and structured outputs.
   * Vanilla setup:
@@ -76,7 +76,7 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
     * Model VRAM: 7022 MiB
     * KV VRAM: 7745 MiB
     * Estimated Max Context: 446749 tokens
-    * Typical Tok/s: TODO
+    * Generation throughput: ~114 tok/s
 
 ## Tester v1 (single-run harness)
 
@@ -91,7 +91,7 @@ See [tester-v1/README.md](tester-v1/README.md). Results for various cases are st
 
 ### Run a server
 
-Start a server using one of the variant configs (client yaml is unused in this mode):
+Start a server using one of the variant configs (`client.yaml` is unused in this mode):
 
 ```bash
 cd tester-v1

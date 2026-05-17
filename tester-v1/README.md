@@ -126,11 +126,12 @@ Example files (variant shape): [configs/reference/hello-world-baseline/server.ya
 | Field                   | Role                                                                                     |
 | ----------------------- | ---------------------------------------------------------------------------------------- |
 | `model`                 | Path to the GGUF file (required; file must exist)                                        |
-| `args`                  | Extra `llama-server` flags only; do not pass `-m` or `--model` (the runner injects `-m`) |
+| `args`                  | Extra `llama-server` flags (block scalar only; see below). Do not pass `-m` or `--model` (the runner injects `-m`) |
 | `binary`                | Server executable (default `llama-server`)                                               |
 | `ready_timeout_s`       | Max seconds to wait for health (default 120)                                             |
 | `ready_poll_interval_s` | Poll interval (default 0.5)                                                              |
 
+`args` must be a multiline block scalar (`args: |`). Put one flag per line. Space seperated `key value` forms (for example `--host 127.0.0.1`, `-c 4096`); the loader splits each into separate argv tokens for `llama-server`. Flags without a value (for example `--no-mmap`) stay on one line. Omit `args` or use an empty block for no extra flags. Example: [configs/reference/hello-world-baseline/server.yaml](configs/reference/hello-world-baseline/server.yaml).
 
 **client.yaml**
 

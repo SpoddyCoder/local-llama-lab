@@ -1,8 +1,6 @@
 # Template hello-world-baseline — copy via create-model-configs skill
 model: ~/.cache/huggingface/hub/models--ggml-org--gemma-4-E4B-it-GGUF/snapshots/2714b5519c6c3516b1000e7c5e1eba998dfe1fe8/gemma-4-E4B-it-Q8_0.gguf
 
-args:
-  - --host
-  - "127.0.0.1"
-  - --port
-  - "8080"
+args: |
+  --host 127.0.0.1
+  --port 8080

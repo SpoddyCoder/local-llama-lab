@@ -1,6 +1,6 @@
 # Hello world probe run
 
-Simple smoke test prompt used by `hello-world-baseline` (standard probe in `configs/reference/`).
+Simple smoke test prompt, standard probe in `configs/reference/`.
 
 ```text
 hi, write me hello world in 20 different programming languages.
@@ -23,67 +23,29 @@ From `tester-v1/`:
 ## Qwen3.5-9B-Q8
 
 ### hello-world-baseline
-
-Default probe: metrics on stdout only. Use `--save-result` when you want a file under `results/`.
-
 ```text
-server_ready_s    3.12
-wall_time_s       11.66
-ttft_s            0.18
-prompt_tokens     24
-completion_tokens 1024
-prefill_tok_s     133.26
-decode_tok_s      89.23
-idle_vram_mb      15134
-peak_vram_mb      15222
+End-to-end time         11.59 s
+Peak VRAM               14.72 GiB
+Generation throughput   89.84 tok/s
 ```
 
 ### hello-world-no-mmap
-
-Optional variant; same client prompt as baseline, server adds `--no-mmap`.
-
 ```text
-server_ready_s    21.34
-wall_time_s       11.56
-ttft_s            0.25
-prompt_tokens     24
-completion_tokens 1024
-prefill_tok_s     95.35
-decode_tok_s      90.54
-idle_vram_mb      15133
-peak_vram_mb      15203
+End-to-end time         11.78 s
+Peak VRAM               14.72 GiB
+Generation throughput   88.53 tok/s
 ```
 
 ## Gemma 4 E4B-IT-Q8
 
 ### hello-world-baseline
-
-Default probe (same as Qwen above).
-
 ```text
-server_ready_s    2.58
-wall_time_s       8.66
-ttft_s            0.28
-prompt_tokens     30
-completion_tokens 1024
-prefill_tok_s     106.54
-decode_tok_s      122.19
-idle_vram_mb      9035
-peak_vram_mb      9107
+End-to-end time         9.18 s
+Peak VRAM               8.82 GiB
+Generation throughput   115.11 tok/s
 ```
 
 ### hello-world-no-mmap
-
-Optional variant; same client prompt as baseline, server adds `--no-mmap`.
-
 ```text
-server_ready_s    4.58
-wall_time_s       8.61
-ttft_s            0.24
-prompt_tokens     30
-completion_tokens 1024
-prefill_tok_s     124.71
-decode_tok_s      122.40
-idle_vram_mb      9054
-peak_vram_mb      9126
+
 ```

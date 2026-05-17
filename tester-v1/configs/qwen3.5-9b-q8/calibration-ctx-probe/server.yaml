@@ -1,14 +1,9 @@
 # Template calibration-ctx-probe — copy via create-model-configs skill
 model: ~/.cache/huggingface/hub/models--bartowski--Qwen_Qwen3.5-9B-GGUF/snapshots/ff13963796ee209598509a81340172bb1c3869fe/Qwen_Qwen3.5-9B-Q8_0.gguf
 
-args:
-  - --host
-  - "127.0.0.1"
-  - --port
-  - "8080"
-  - --fit
-  - "off"
-  - -c
-  - "16384"
-  - --parallel
-  - "1"
+args: |
+  --host 127.0.0.1
+  --port 8080
+  --fit off
+  -c 16384
+  --parallel 1

@@ -56,7 +56,7 @@ If the user gives a non-conforming name (e.g. `Qwen3.5-9B-Q8`, `gemma_4_e4b`), d
 
 The canonical template source is `tester-v1/configs/reference/`. List `reference/*/` and include only subdirs that contain both `server.yaml` and `client.yaml`. Do not copy from live model dirs (`qwen3.5-9b-q8/`, etc.).
 
-Keep all comments and YAML structure. Replace only the `model:` value with `gguf_path` (use the path the user gave, including `~` if they provided it that way).
+Reference `server.yaml` files use block-scalar `args: |` (one `llama-server` flag per line). Copy structure verbatim; replace only the `model:` value with `gguf_path` (use the path the user gave, including `~` if they provided it that way). Do not use YAML list format for `args`.
 
 ## Variant summary
 

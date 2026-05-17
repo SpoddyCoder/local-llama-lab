@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -122,6 +123,31 @@ class ClientConfig:
         }
 
 
+def parse_args_block(text: str, path: str | Path | None = None) -> list[str]:
+    """Parse server args from a YAML block scalar.
+
+    One flag per line; space-separated flag and value (e.g. ``--host 127.0.0.1``).
+    Flag-only lines like ``--no-mmap`` are OK.
+    """
+    if not text or not text.strip():
+        return []
+    result: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" in stripped:
+            msg = (
+                f"server config args: use space-separated flags, not flag=value: "
+                f"{stripped!r}"
+            )
+            if path is not None:
+                msg += f" ({path})"
+            raise ValueError(msg)
+        result.extend(shlex.split(stripped))
+    return result
+
+
 def load_server_config(path: str | Path) -> ServerConfig:
     raw = _load_yaml(path)
     if not isinstance(raw, dict):
@@ -135,12 +161,19 @@ def load_server_config(path: str | Path) -> ServerConfig:
     if not os.path.isfile(model):
         raise ValueError(f"server config model file does not exist: {model}")
 
-    args_raw = raw.get("args", [])
+    args_raw = raw.get("args")
     if args_raw is None:
-        args_raw = []
-    if not isinstance(args_raw, list) or not all(isinstance(a, str) for a in args_raw):
-        raise ValueError(f"server config 'args' must be a list of strings: {path}")
-    args = list(args_raw)
+        args = []
+    elif isinstance(args_raw, list):
+        raise ValueError(
+            f"server config 'args' must be a multiline string (YAML block scalar): {path}"
+        )
+    elif not isinstance(args_raw, str):
+        raise ValueError(
+            f"server config 'args' must be a multiline string (YAML block scalar): {path}"
+        )
+    else:
+        args = parse_args_block(args_raw, path)
     _validate_args_no_model_flag(args, path)
 
     if "label" in raw:

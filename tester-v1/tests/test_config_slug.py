@@ -100,7 +100,7 @@ class TestLoadServerConfigRejectsLabel(unittest.TestCase):
             yaml_path.write_text(
                 "label: old-label\n"
                 f"model: {model_path}\n"
-                "args: []\n",
+                "args: |\n",
                 encoding="utf-8",
             )
             with self.assertRaises(ValueError) as ctx:

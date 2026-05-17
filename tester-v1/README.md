@@ -57,7 +57,7 @@ python3 -m unittest discover -s tests -v
 
 4. When you want a recorded run, add `--save-result` and compare files under `results/{model}/{variant}/` (newest timestamp stem wins).
 
-Use separate variant directories (for example `hello-world-baseline` vs `hello-world-no-mmap`) instead of editing root-level yamls when comparing configurations.
+Use separate variant directories (for example `hello-world-baseline` vs `hello-world-bench`) instead of editing root-level yamls when comparing configurations.
 
 ## Model calibration
 
@@ -68,7 +68,7 @@ Each model directory (for example `configs/qwen3.5-9b-q8/`) must include two cal
 - **`calibration-footprint/`** — `server.yaml` with `--fit off`, `-c 4096` (or your chosen footprint context), `--parallel 1`; `client.yaml` with a minimal prompt (`ok`) and `max_tokens: 1`. Idle VRAM after ready is the model footprint at that context.
 - **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
 
-`hello-world-baseline` is the standard smoke probe variant; calibration does not run it. Live models may also have extra probe dirs (for example `hello-world-no-mmap`) that are not in `reference/`.
+`hello-world-baseline` is the standard smoke probe variant; calibration does not run it. Live models may also have extra probe dirs (for example `hello-world-bench`) that are not in `reference/`.
 
 From `tester-v1/`:
 
@@ -125,7 +125,7 @@ configs/
     calibration-footprint/
     calibration-ctx-probe/
     hello-world-baseline/
-    hello-world-no-mmap/   # optional, model-specific
+    hello-world-bench/     # optional, model-specific
 ```
 
 Each variant directory must contain both `server.yaml` and `client.yaml`. Model folders (for example `qwen3.5-9b-q8`) group related variants; they are not special-cased in code beyond metadata and the results path layout.

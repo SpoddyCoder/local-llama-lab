@@ -129,7 +129,7 @@ Then run a probe variant (default: metrics on stdout, no JSON file):
 
 ```bash
 ./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
-./single_test_runner.py configs/gemma-4-e4b-it-q8/hello-world-no-mmap
+./single_test_runner.py configs/gemma-4-e4b-it-q8/hello-world-baseline
 ```
 
 To keep a JSON artifact under `tester-v1/results/{model}/{variant}/`, add `--save-result`.

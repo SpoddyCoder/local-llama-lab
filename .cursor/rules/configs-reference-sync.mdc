@@ -20,7 +20,7 @@ For each live `{model_slug}/`:
 
 2. **Update existing reference-backed variants:** For each `reference/{variant}/` that also exists under `{model_slug}/{variant}/`, update `server.yaml` and `client.yaml` from reference except preserve the current `model:` line in `server.yaml` on the live copy.
 
-3. **Do not delete** variant directories on live models when they are absent from `reference/`. Model-specific dirs (for example `hello-world-no-mmap`) stay.
+3. **Do not delete** variant directories on live models when they are absent from `reference/`. Model-specific dirs (for example `hello-world-bench`) stay.
 
 4. **Do not overwrite** `model:` from reference into live models.
 
@@ -43,5 +43,5 @@ Example:
 Synced reference → models:
 - qwen3.5-9b-q8: updated hello-world-baseline (server.yaml, client.yaml)
 - gemma-4-e4b-it-q8: updated hello-world-baseline (server.yaml, client.yaml)
-Not deleted: hello-world-no-mmap on both models (not in reference).
+Not deleted: hello-world-bench on gemma (not in reference).
 ```

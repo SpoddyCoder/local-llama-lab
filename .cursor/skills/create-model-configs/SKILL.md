@@ -18,7 +18,7 @@ Create `server.yaml` and `client.yaml` for every reference variant under `tester
 
 Every variant subdirectory under `tester-v1/configs/reference/` is a global template. When scaffolding a new model, copy **all** of them (not a fixed list). If the user adds a new dir under `reference/` with both YAML files, it is meant for every model.
 
-Model-only variants (for example `hello-world-no-mmap` on one model) are added manually under that model's slug; they do not live in `reference/` unless promoted there.
+Model-only variants (for example `hello-world-bench` on one model) are added manually under that model's slug; they do not live in `reference/` unless promoted there.
 
 ## Required inputs
 

@@ -1,6 +1,6 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server, run one streaming chat completion, print metrics (and a short completion preview) on stdout, then tear down. Pass `--save-result` to also write `results/{timestamp}_{slug}.json` and print the full run summary. For the full Phase 1 design (modules, acceptance criteria, verified behavior), see [docs/tester-v1-implementation-plan.md](../docs/tester-v1-implementation-plan.md).
+Single-run harness for `llama-server`: start the server, run one streaming chat completion, print metrics (and a short completion preview) on stdout, then tear down. Pass `--save-result` to also write `results/{timestamp}_{slug}.json` and print the full run summary.
 
 ## What it does
 
@@ -33,8 +33,6 @@ Unit tests:
 ```bash
 python3 -m unittest discover -s tests -v
 ```
-
-Without a config directory, the runner uses `server.yaml` and `client.yaml` in `tester-v1/` (same as before).
 
 ## Workflow
 
@@ -152,12 +150,6 @@ If `server.yaml` sets `--port` / `-p`, keep `base_url` in sync (or omit port in 
 ## CLI
 
 Run from `tester-v1/` as `./single_test_runner.py` or `./model_calibration.py` (see Quick start), or equivalently with `python3`.
-
-Default (root `server.yaml` / `client.yaml`, model file stem as slug):
-
-```bash
-./single_test_runner.py
-```
 
 Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`, path-derived slug):
 

@@ -171,21 +171,31 @@ class TestRunStdoutDefault(unittest.TestCase):
 
 
 class TestMainArgparse(unittest.TestCase):
+    def test_main_no_args_prints_help(self) -> None:
+        stdout = io.StringIO()
+        with patch("sys.stdout", stdout):
+            code = main([])
+        self.assertEqual(code, 0)
+        self.assertIn("usage:", stdout.getvalue())
+        self.assertIn("config_dir", stdout.getvalue())
+
     def test_main_save_result_quiet_passes_flags_to_run(self) -> None:
+        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
             with patch("runner._run", return_value=0) as run:
-                main(["--save-result", "--quiet"])
+                main([config, "--save-result", "--quiet"])
         run.assert_called_once()
         kwargs = run.call_args.kwargs
         self.assertTrue(kwargs["save_result"])
         self.assertTrue(kwargs["quiet"])
 
     def test_main_quiet_without_save_result_is_noop(self) -> None:
+        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
             with patch("runner._run", return_value=0) as run:
-                main(["--quiet"])
+                main([config, "--quiet"])
         run.assert_called_once()
         kwargs = run.call_args.kwargs
         self.assertFalse(kwargs["save_result"])

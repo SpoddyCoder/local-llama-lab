@@ -104,7 +104,7 @@ Use a browser to view the llama web UI while it is running (port depends on `ser
 
 ### Probe runs
 
-Configs live under [tester-v1/configs/](tester-v1/configs/). Current models: `qwen3.5-9b-q8`, `gemma-4-e4b-it-q8`. Global templates under `configs/reference/` are whatever variant dirs exist there today (`calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`). Each live model has those reference-backed dirs; Qwen and Gemma also keep an optional per-model `hello-world-no-mmap` probe variant.
+Configuratuion pairs (`server.yaml` and `client.yaml`) live under [tester-v1/configs/](tester-v1/configs/). 
 
 For a new model, run calibration first (default: probe stdout plus four-line summary; no JSON):
 
@@ -125,5 +125,6 @@ Then run a probe variant (default: metrics on stdout, no JSON file):
 
 To keep a JSON artifact under `results/`, add `--save-result`.
 
-See [hello-world.md](hello-world.md) for the shared smoke prompt and recorded metrics for both models.
 
+### Tests
+* [hello-world.md](hello-world.md) - simple smoke prompt.

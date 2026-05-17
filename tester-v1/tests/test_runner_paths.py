@@ -78,10 +78,18 @@ class TestResolveConfigPaths(unittest.TestCase):
                 self.assertEqual(server, custom_server)
                 self.assertEqual(client, custom_client)
 
-    def test_no_config_dir_uses_tester_root_defaults(self) -> None:
-        server, client = resolve_config_paths(None, None, None, _TESTER_ROOT)
-        self.assertEqual(server, _TESTER_ROOT / "server.yaml")
-        self.assertEqual(client, _TESTER_ROOT / "client.yaml")
+    def test_no_config_dir_without_overrides_raises(self) -> None:
+        with self.assertRaises(FileNotFoundError) as ctx:
+            resolve_config_paths(None, None, None, _TESTER_ROOT)
+        self.assertIn("config_dir is required", str(ctx.exception))
+
+    def test_no_config_dir_partial_override_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            custom_server = Path(tmp) / "s.yaml"
+            custom_server.write_text("server: {}\n")
+            with self.assertRaises(FileNotFoundError) as ctx:
+                resolve_config_paths(None, custom_server, None, _TESTER_ROOT)
+            self.assertIn("--client", str(ctx.exception))
 
     def test_no_config_dir_respects_overrides(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

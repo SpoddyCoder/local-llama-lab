@@ -1,19 +1,12 @@
 # Hello world probe run
 
-Simple smoke test prompt used by `hello-world-baseline` (standard probe in `configs/reference/`) and optionally by per-model `hello-world-no-mmap` variants.
-
-Paths:
-
-- [qwen3.5-9b-q8/hello-world-baseline](tester-v1/configs/qwen3.5-9b-q8/hello-world-baseline)
-- [qwen3.5-9b-q8/hello-world-no-mmap](tester-v1/configs/qwen3.5-9b-q8/hello-world-no-mmap) (optional, model-specific)
-- [gemma-4-e4b-it-q8/hello-world-baseline](tester-v1/configs/gemma-4-e4b-it-q8/hello-world-baseline)
-- [gemma-4-e4b-it-q8/hello-world-no-mmap](tester-v1/configs/gemma-4-e4b-it-q8/hello-world-no-mmap) (optional, model-specific)
+Simple smoke test prompt used by `hello-world-baseline` (standard probe in `configs/reference/`).
 
 ```text
 hi, write me hello world in 20 different programming languages.
 ```
 
-Client params in each variant `client.yaml`:
+`client.yaml`:
 
 ```text
 "max_tokens": 1024,
@@ -28,11 +21,6 @@ From `tester-v1/`:
 ```
 
 ## Qwen3.5-9B-Q8
-
-* GGUF on disk: 9.55 GB
-* Model VRAM: 10337 MiB
-* KV VRAM: 4430 MiB
-* Estimated Max Context: 150823 tokens
 
 ### hello-world-baseline
 
@@ -67,11 +55,6 @@ peak_vram_mb      15203
 ```
 
 ## Gemma 4 E4B-IT-Q8
-
-* GGUF on disk: 8.03 GB
-* Model VRAM: 7022 MiB
-* KV VRAM: 7745 MiB
-* Estimated Max Context: 446749 tokens
 
 ### hello-world-baseline
 

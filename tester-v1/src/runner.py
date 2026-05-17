@@ -29,8 +29,6 @@ from server import managed_server, resolve_base_url
 from vram import VramPoller, sample_vram_mb
 
 _TESTER_ROOT = Path(__file__).resolve().parent.parent
-_DEFAULT_SERVER = _TESTER_ROOT / "server.yaml"
-_DEFAULT_CLIENT = _TESTER_ROOT / "client.yaml"
 _RESULTS_DIR = _TESTER_ROOT / "results"
 
 
@@ -195,9 +193,17 @@ def resolve_config_paths(
     tester_root: Path,
 ) -> tuple[Path, Path]:
     if config_dir is None:
-        server = server_override or tester_root / "server.yaml"
-        client = client_override or tester_root / "client.yaml"
-        return server, client
+        if server_override is None or client_override is None:
+            missing = []
+            if server_override is None:
+                missing.append("--server")
+            if client_override is None:
+                missing.append("--client")
+            raise FileNotFoundError(
+                "config_dir is required, or pass both "
+                + " and ".join(missing)
+            )
+        return server_override, client_override
 
     if not config_dir.is_dir():
         raise FileNotFoundError(f"Config directory not found: {config_dir}")
@@ -229,13 +235,13 @@ def main(argv: list[str] | None = None) -> int:
         "--server",
         type=Path,
         default=None,
-        help=f"server.yaml path (default: {_DEFAULT_SERVER}, or config_dir/server.yaml)",
+        help="server.yaml path (default: config_dir/server.yaml)",
     )
     parser.add_argument(
         "--client",
         type=Path,
         default=None,
-        help=f"client.yaml path (default: {_DEFAULT_CLIENT}, or config_dir/client.yaml)",
+        help="client.yaml path (default: config_dir/client.yaml)",
     )
     parser.add_argument(
         "--test-server",
@@ -253,6 +259,10 @@ def main(argv: list[str] | None = None) -> int:
         help="only applies with --save-result; suppress stdout run summary; write one line to stderr on success",
     )
     args = parser.parse_args(argv)
+
+    if args.config_dir is None and args.server is None and args.client is None:
+        parser.print_help()
+        return 0
 
     try:
         server_path, client_path = resolve_config_paths(

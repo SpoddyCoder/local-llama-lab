@@ -106,8 +106,7 @@ class TestFindLatestResult(unittest.TestCase):
     def test_picks_newest_by_run_id_timestamp(self) -> None:
         config_dir = (
             _TESTER_ROOT
-            / "test-configs"
-            / "test1"
+            / "configs"
             / "qwen3.5-9b-q8"
             / "calibration-footprint"
         )

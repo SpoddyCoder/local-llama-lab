@@ -112,10 +112,9 @@ class TestBuildResultDocument(unittest.TestCase):
                 "server_version": None,
                 "gpu_name": None,
                 "driver_version": None,
-                "test_config_path": None,
-                "test_name": None,
+                "config_path": None,
                 "model": None,
-                "test_config": None,
+                "variant": None,
             },
         )
 
@@ -124,10 +123,9 @@ class TestBuildResultDocument(unittest.TestCase):
             "server_version": "version: 9158 (abc)",
             "gpu_name": "NVIDIA GeForce RTX 4090",
             "driver_version": "550.54.15",
-            "test_config_path": "test1/qwen3.5-9b-q8/baseline/",
-            "test_name": "test1",
+            "config_path": "qwen3.5-9b-q8/hello-world-baseline/",
             "model": "qwen3.5-9b-q8",
-            "test_config": "baseline",
+            "variant": "hello-world-baseline",
         }
         doc = build_result_document(
             server_config=self.server,
@@ -161,7 +159,7 @@ class TestBuildResultDocument(unittest.TestCase):
         server = ServerConfig(
             model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
             args=[],
-            run_slug="test1-qwen3.5-9b-q8-baseline",
+            run_slug="qwen3.5-9b-q8-hello-world-baseline",
         )
         doc = build_result_document(
             server_config=server,
@@ -173,7 +171,7 @@ class TestBuildResultDocument(unittest.TestCase):
         )
         self.assertEqual(
             doc["run_id"],
-            "20260516T134500Z_test1-qwen3.5-9b-q8-baseline",
+            "20260516T134500Z_qwen3.5-9b-q8-hello-world-baseline",
         )
 
     def test_json_serializable(self) -> None:

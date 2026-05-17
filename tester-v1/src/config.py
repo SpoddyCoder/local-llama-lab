@@ -65,9 +65,9 @@ class ServerConfig:
 def slug_from_config_dir(config_dir: Path, tester_root: Path) -> str:
     """Derive a result filename slug from a config directory path."""
     config_dir = config_dir.resolve()
-    test_configs_root = (tester_root / "test-configs").resolve()
+    configs_root = (tester_root / "configs").resolve()
     try:
-        parts = config_dir.relative_to(test_configs_root).parts
+        parts = config_dir.relative_to(configs_root).parts
         joined = "-".join(parts)
     except ValueError:
         parts = [p for p in config_dir.parts if p]
@@ -79,31 +79,30 @@ def config_dir_metadata(
     config_dir: Path | None,
     tester_root: Path,
 ) -> dict[str, str | None]:
-    """Derive test-config path fields for result JSON metadata."""
+    """Derive config path fields for result JSON metadata."""
     empty: dict[str, str | None] = {
-        "test_config_path": None,
-        "test_name": None,
+        "config_path": None,
         "model": None,
-        "test_config": None,
+        "variant": None,
     }
     if config_dir is None:
         return empty
 
     config_dir = config_dir.resolve()
-    test_configs_root = (tester_root / "test-configs").resolve()
+    configs_root = (tester_root / "configs").resolve()
     try:
-        parts = config_dir.relative_to(test_configs_root).parts
+        parts = config_dir.relative_to(configs_root).parts
     except ValueError:
         return empty
 
-    if not parts:
+    if len(parts) != 2:
         return empty
 
+    model = None if parts[0] == "reference" else parts[0]
     return {
-        "test_config_path": "/".join(parts) + "/",
-        "test_name": parts[0],
-        "model": parts[1] if len(parts) >= 2 else None,
-        "test_config": parts[2] if len(parts) >= 3 else None,
+        "config_path": f"{parts[0]}/{parts[1]}/",
+        "model": model,
+        "variant": parts[1],
     }
 
 
@@ -146,7 +145,7 @@ def load_server_config(path: str | Path) -> ServerConfig:
 
     if "label" in raw:
         raise ValueError(
-            f"'label' is removed; use test-configs/... directory layout "
+            f"'label' is removed; use configs/... directory layout "
             f"for result filenames: {path}"
         )
 

@@ -89,39 +89,41 @@ pip install -r requirements.txt
 
 See [tester-v1/README.md](tester-v1/README.md). Results for various cases are stored in [tester-v1/results/](tester-v1/results/)
 
-### Run A Server
+### Run a server
 
-Start a server using one of the test configurations (the `client.conf` is unused in this mode):
+Start a server using one of the variant configs (client yaml is unused in this mode):
+
 ```bash
 cd tester-v1
-./single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/ --test-server
+./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --test-server
 ```
 
-Use a browser to view the llama web UI while it's running (may vary depending on what the `server.conf` defines)...
+Use a browser to view the llama web UI while it is running (port depends on `server.yaml`):
 
 [https://localhost:8080](https://localhost:8080)
 
+### Probe runs
 
-### Tests
+Configs live under [tester-v1/configs/](tester-v1/configs/). Current models: `qwen3.5-9b-q8`, `gemma-4-e4b-it-q8`. Each model has calibration variants (`calibration-footprint`, `calibration-ctx-probe`) and hello-world probe variants (`hello-world-baseline`, `hello-world-no-mmap`).
+
 For a new model, run calibration first (default: probe stdout plus four-line summary; no JSON):
 
 ```bash
-./model_calibration.py test-configs/test1/qwen3.5-9b-q8
+cd tester-v1
+./model_calibration.py configs/qwen3.5-9b-q8
+./model_calibration.py configs/gemma-4-e4b-it-q8
 ```
 
 Add `--save-result` on calibration or single runs when you want probe JSON under `results/`.
 
-Then run test cases (default: probe metrics on stdout, no JSON file):
+Then run a probe variant (default: metrics on stdout, no JSON file):
 
 ```bash
-./single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/
+./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
+./single_test_runner.py configs/gemma-4-e4b-it-q8/hello-world-no-mmap
 ```
 
 To keep a JSON artifact under `results/`, add `--save-result`.
 
-#### [Test 1 - First Steps](Test-1-First-Steps.md)
-Simple smoke test prompt...
-```text
-hi, write me hello world in 20 different programming languages.
-```
+See [hello-world.md](hello-world.md) for the shared smoke prompt and recorded metrics for both models.
 

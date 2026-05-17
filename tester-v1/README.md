@@ -23,7 +23,7 @@ From `tester-v1/`:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-./single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 ```
 
 Both CLIs are executable (`#!/usr/bin/env python3`). Use `./single_test_runner.py` and `./model_calibration.py` from this directory, or `python3` with the same arguments if you prefer.
@@ -38,33 +38,33 @@ Without a config directory, the runner uses `server.yaml` and `client.yaml` in `
 
 ## Workflow
 
-1. Pick or create a variant directory under `test-configs/` (see layout below). Each leaf holds `server.yaml` and `client.yaml` for one run configuration.
+1. Pick or create a variant directory under `configs/` (see layout below). Each leaf holds `server.yaml` and `client.yaml` for one run configuration.
 2. Tune model path, server flags, prompt, and API params in that pair of files.
 3. Run the variant (probe: metrics on stdout, no JSON):
 
    ```bash
-   python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+   python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
    ```
 
 4. When you want a recorded run, add `--save-result` and compare files under `results/` (timestamps and path-derived slugs distinguish runs).
 
-Use separate variant directories (for example `baseline` vs `no-mmap`) instead of editing root-level yamls when comparing configurations.
+Use separate variant directories (for example `hello-world-baseline` vs `hello-world-no-mmap`) instead of editing root-level yamls when comparing configurations.
 
 ## Model calibration
 
 Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. By default, `model_calibration.py` runs each calibration variant as a probe (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` and read `idle_vram_mb` from the latest footprint and ctx-probe files.
 
-Each model config directory (for example `test-configs/test1/qwen3.5-9b-q8/`) must include two calibration variants:
+Each model directory (for example `configs/qwen3.5-9b-q8/`) must include two calibration variants:
 
 - **`calibration-footprint/`** — `server.yaml` with `--fit off`, `-c 4096` (or your chosen footprint context), `--parallel 1`; `client.yaml` with a minimal prompt (`ok`) and `max_tokens: 1`. Idle VRAM after ready is the model footprint at that context.
 - **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
 
-`baseline` and `no-mmap` are normal variants for benchmarks; calibration does not run them.
+`hello-world-baseline` and `hello-world-no-mmap` are probe variants for smoke runs; calibration does not run them.
 
 From `tester-v1/`:
 
 ```bash
-./model_calibration.py test-configs/test1/qwen3.5-9b-q8
+./model_calibration.py configs/qwen3.5-9b-q8
 ```
 
 Progress and errors go to stderr. On success, stdout is each probe's metrics (default mode), then a blank line and four summary lines (unless `--save-result --quiet`):
@@ -89,57 +89,39 @@ Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). C
 
 ```bash
 # Probe calibration (stdout only)
-./model_calibration.py test-configs/test1/qwen3.5-9b-q8
+./model_calibration.py configs/qwen3.5-9b-q8
 
 # Record probe JSON under results/
-./model_calibration.py test-configs/test1/qwen3.5-9b-q8 --save-result
+./model_calibration.py configs/qwen3.5-9b-q8 --save-result
 ```
 
-To scaffold calibration-footprint, calibration-ctx-probe, baseline, and no-mmap configs for a new model, use the [create-new-model-test](../.cursor/skills/create-new-model-test/SKILL.md) project skill.
+To scaffold calibration-footprint, calibration-ctx-probe, hello-world-baseline, and hello-world-no-mmap configs for a new model, use the [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) project skill.
 
-## test-configs layout
+## configs layout
 
-Variant configs live under `test-configs/`. The directory tree is organizational only; the runner does not interpret segment names beyond building the result slug. [test-configs/reference/README.md](test-configs/reference/README.md) documents the reference template tree.
+Variant configs live under `configs/`. The directory tree is organizational only; the runner does not interpret segment names beyond building the result slug. [configs/reference/README.md](configs/reference/README.md) documents the reference template tree.
 
 Example:
 
 ```text
-test-configs/
-  reference/
-    reference-model/        # templates only; not for runs; used by create-new-model-test skill
-      baseline/
-        server.yaml
-        client.yaml
-      calibration-footprint/   # VRAM cal: --fit off -c 4096
-        server.yaml
-        client.yaml
-      calibration-ctx-probe/   # VRAM cal: --fit off -c 16384
-        server.yaml
-        client.yaml
-      no-mmap/
-        server.yaml
-        client.yaml
-  test1/                    # test or experiment group
-    qwen3.5-9b-q8/          # model family
-      baseline/
-        server.yaml
-        client.yaml
-      calibration-footprint/   # VRAM cal: --fit off -c 4096
-        server.yaml
-        client.yaml
-      calibration-ctx-probe/   # VRAM cal: --fit off -c 16384
-        server.yaml
-        client.yaml
-      no-mmap/
-        server.yaml
-        client.yaml
+configs/
+  reference/           # templates only
+    hello-world-baseline/
+    hello-world-no-mmap/
+    calibration-footprint/
+    calibration-ctx-probe/
+  qwen3.5-9b-q8/
+    calibration-footprint/
+    calibration-ctx-probe/
+    hello-world-baseline/
+    hello-world-no-mmap/
 ```
 
-Each leaf directory must contain both `server.yaml` and `client.yaml`. Intermediate folders (`test1`, `qwen3.5-9b-q8`, and so on) group related variants; they are not special-cased in code.
+Each variant directory must contain both `server.yaml` and `client.yaml`. Model folders (for example `qwen3.5-9b-q8`) group related variants; they are not special-cased in code beyond metadata and the result slug.
 
 ## Config essentials
 
-Example files (variant shape): [test-configs/reference/reference-model/baseline/server.yaml](test-configs/reference/reference-model/baseline/server.yaml), [test-configs/reference/reference-model/baseline/client.yaml](test-configs/reference/reference-model/baseline/client.yaml). Root [server.yaml](server.yaml) and [client.yaml](client.yaml) remain the default when no config directory is passed.
+Example files (variant shape): [configs/reference/hello-world-baseline/server.yaml](configs/reference/hello-world-baseline/server.yaml), [configs/reference/hello-world-baseline/client.yaml](configs/reference/hello-world-baseline/client.yaml). Root [server.yaml](server.yaml) and [client.yaml](client.yaml) remain the default when no config directory is passed.
 
 **server.yaml**
 
@@ -181,13 +163,13 @@ Default (root `server.yaml` / `client.yaml`, model file stem as slug):
 Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`, path-derived slug):
 
 ```bash
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 ```
 
 Override one or both config files while still using the config directory for the slug:
 
 ```bash
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline \
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
   --server /path/to/server.yaml \
   --client /path/to/client.yaml
 ```
@@ -213,13 +195,13 @@ Examples:
 
 ```bash
 # Probe (stdout only)
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 
 # Recorded run
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline --save-result
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --save-result
 
 # Server-only debug
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline --test-server
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --test-server
 ```
 
 ## Results
@@ -228,12 +210,12 @@ With `--save-result`, files land in `results/` as:
 
 `{YYYYMMDDTHHMMSSZ}_{slug}.json`
 
-Example: `20260516T134500Z_test1-qwen3.5-9b-q8-baseline.json`
+Example: `20260516T134500Z_qwen3.5-9b-q8-hello-world-baseline.json`
 
 Slug rules:
 
-- With `config_dir` under `test-configs/`: hyphen-join path segments relative to `test-configs/` (e.g. `test-configs/test1/qwen3.5-9b-q8/baseline` → `test1-qwen3.5-9b-q8-baseline`).
-- With `config_dir` outside `test-configs/`: hyphen-join all directory segments of the resolved absolute path (e.g. `/tmp/my-run` → `tmp-my-run`).
+- With `config_dir` under `configs/`: hyphen-join path segments relative to `configs/` (e.g. `configs/qwen3.5-9b-q8/hello-world-baseline` → `qwen3.5-9b-q8-hello-world-baseline`).
+- With `config_dir` outside `configs/`: hyphen-join all directory segments of the resolved absolute path (e.g. `/tmp/my-run` → `tmp-my-run`).
 - Without `config_dir`: sanitized stem of the model GGUF filename (e.g. `Qwen_Qwen3.5-9B-Q8_0`).
 
 Slugs are sanitized for filenames (unsafe characters become underscores).
@@ -242,7 +224,7 @@ Each JSON document includes:
 
 - `run_id`, `started_at`, `finished_at`, `status`, `error`, `notes`
 - `server_config` and `client_config` (embedded copies of what ran)
-- `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `test-configs/`, also `test_config_path` e.g. `test1/qwen3.5-9b-q8/baseline/` plus `test_name`, `model`, and `test_config` from the first three path segments; each field is `null` when unavailable)
+- `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `configs/`, also `config_path` e.g. `qwen3.5-9b-q8/hello-world-baseline/` plus `model` and `variant` from the path; each field is `null` when unavailable)
 - `metrics` (see table below)
 
 Default probe stdout prints a rounded metrics block plus a short completion preview. With `--save-result`, stdout is the full run summary (unless `--quiet`). The JSON `metrics` object keeps full floating-point values for every field.

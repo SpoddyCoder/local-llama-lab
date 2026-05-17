@@ -31,4 +31,4 @@ When filling docs, comparing models, or answering VRAM/context questions:
 
 ## Reference paths
 
-Never run these CLIs on `tester-v1/test-configs/reference/` (see `test-configs-reference.mdc`).
+Never run these CLIs on `tester-v1/configs/reference/` (see `configs-reference.mdc`).

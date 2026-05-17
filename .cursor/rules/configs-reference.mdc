@@ -1,0 +1,25 @@
+---
+description: Keep configs reference templates in sync; do not run reference paths
+globs: tester-v1/configs/**,.cursor/skills/create-model-configs/**
+alwaysApply: false
+---
+
+# Configs reference templates
+
+## Template source
+
+`tester-v1/configs/reference/` is canonical. The create-model-configs skill copies from here only — never from `qwen3.5-9b-q8/` or other live model dirs.
+
+## Keep reference updated
+
+When you:
+
+- Add, remove, or rename a variant directory under any real `configs/{model_slug}/`
+- Change shared server.yaml / client.yaml structure, args, or default prompts intended for all new models
+- Update the variant table in the create-model-configs skill
+
+Apply the same change under `configs/reference/` (and update the skill variant table if variants changed). Prefer editing reference first, then real models if the user asks.
+
+## Do not run on reference
+
+Do not run `single_test_runner.py` or `model_calibration.py` on paths under `configs/reference/`.

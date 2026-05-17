@@ -22,10 +22,9 @@ def empty_metadata() -> dict[str, str | None]:
         "server_version": None,
         "gpu_name": None,
         "driver_version": None,
-        "test_config_path": None,
-        "test_name": None,
+        "config_path": None,
         "model": None,
-        "test_config": None,
+        "variant": None,
     }
 
 

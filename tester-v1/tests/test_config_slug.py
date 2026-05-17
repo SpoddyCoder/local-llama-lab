@@ -20,16 +20,16 @@ from runner import _TESTER_ROOT  # noqa: E402
 
 
 class TestSlugFromConfigDir(unittest.TestCase):
-    def test_under_test_configs(self) -> None:
+    def test_under_configs(self) -> None:
         config_dir = (
-            _TESTER_ROOT / "test-configs" / "test1" / "qwen3.5-9b-q8" / "baseline"
+            _TESTER_ROOT / "configs" / "qwen3.5-9b-q8" / "hello-world-baseline"
         )
         self.assertEqual(
             slug_from_config_dir(config_dir, _TESTER_ROOT),
-            "test1-qwen3.5-9b-q8-baseline",
+            "qwen3.5-9b-q8-hello-world-baseline",
         )
 
-    def test_outside_test_configs(self) -> None:
+    def test_outside_configs(self) -> None:
         config_dir = Path("/tmp/my-run")
         self.assertEqual(
             slug_from_config_dir(config_dir, _TESTER_ROOT),
@@ -38,17 +38,16 @@ class TestSlugFromConfigDir(unittest.TestCase):
 
 
 class TestConfigDirMetadata(unittest.TestCase):
-    def test_under_test_configs(self) -> None:
+    def test_under_configs(self) -> None:
         config_dir = (
-            _TESTER_ROOT / "test-configs" / "test1" / "qwen3.5-9b-q8" / "baseline"
+            _TESTER_ROOT / "configs" / "qwen3.5-9b-q8" / "hello-world-baseline"
         )
         self.assertEqual(
             config_dir_metadata(config_dir, _TESTER_ROOT),
             {
-                "test_config_path": "test1/qwen3.5-9b-q8/baseline/",
-                "test_name": "test1",
+                "config_path": "qwen3.5-9b-q8/hello-world-baseline/",
                 "model": "qwen3.5-9b-q8",
-                "test_config": "baseline",
+                "variant": "hello-world-baseline",
             },
         )
 
@@ -56,21 +55,19 @@ class TestConfigDirMetadata(unittest.TestCase):
         self.assertEqual(
             config_dir_metadata(None, _TESTER_ROOT),
             {
-                "test_config_path": None,
-                "test_name": None,
+                "config_path": None,
                 "model": None,
-                "test_config": None,
+                "variant": None,
             },
         )
 
-    def test_outside_test_configs(self) -> None:
+    def test_outside_configs(self) -> None:
         self.assertEqual(
             config_dir_metadata(Path("/tmp/my-run"), _TESTER_ROOT),
             {
-                "test_config_path": None,
-                "test_name": None,
+                "config_path": None,
                 "model": None,
-                "test_config": None,
+                "variant": None,
             },
         )
 
@@ -87,9 +84,11 @@ class TestServerConfigSlug(unittest.TestCase):
         server = ServerConfig(
             model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
             args=[],
-            run_slug="test1-qwen3.5-9b-q8-baseline",
+            run_slug="qwen3.5-9b-q8-hello-world-baseline",
         )
-        self.assertEqual(server.model_slug, "test1-qwen3.5-9b-q8-baseline")
+        self.assertEqual(
+            server.model_slug, "qwen3.5-9b-q8-hello-world-baseline"
+        )
 
 
 class TestLoadServerConfigRejectsLabel(unittest.TestCase):

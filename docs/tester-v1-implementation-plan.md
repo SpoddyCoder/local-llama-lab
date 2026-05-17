@@ -25,7 +25,7 @@ Dev mode: `--test-server` (hold until Ctrl+C). Unit tests: `python3 -m unittest 
 | 4 | Streaming client + metrics (`src/client.py`, `src/metrics.py`) | Done |
 | 5 | Result writer + filename generation (`src/results.py`) | Done |
 | 6 | Stdout summary + CLI `--server` / `--client` (`single_test_runner.py`) | Done |
-| 7 | Example `server.yaml` / `client.yaml` (README Test 1 baseline) | Done |
+| 7 | Example `server.yaml` / `client.yaml` (hello-world-baseline shape) | Done |
 | 8 | Run instructions in root `README.md` | Done |
 
 Orchestration lives in `src/runner.py`; `single_test_runner.py` at repo root is the CLI entrypoint.
@@ -34,7 +34,7 @@ Orchestration lives in `src/runner.py`; `single_test_runner.py` at repo root is 
 
 | Criterion | Status | Notes |
 |-----------|--------|-------|
-| Single command runs Qwen Q8_0 + Test 1 without manual server | Verified | Live runs ~12-24s after model load |
+| Single command runs Qwen Q8_0 hello-world probe without manual server | Verified | Live runs ~12-24s after model load |
 | Server not left running after exit | Verified | Teardown via `managed_server()` + signal handler |
 | Result JSON with embedded configs + metrics | Verified | e.g. `results/20260516T142121Z_Qwen_Qwen3.5-9B-Q8_0.json` |
 | Stdout summary matches JSON metrics | Verified | Rounded on stdout; full precision in JSON |
@@ -331,10 +331,10 @@ Phase 3 must not remove the Phase 1 single-run path; sweeps wrap the same `serve
 
 ---
 
-## Relationship to README Test 1
+## Relationship to hello-world-baseline
 
-README defines the first real experiment (Qwen 9B Q8_0 baseline, fixed prompt, `max_tokens: 1024`, `temperature: 0`). `tester-v1/server.yaml` and `client.yaml` match that setup.
+README defines the first real experiment (Qwen 9B Q8_0, fixed prompt, `max_tokens: 1024`, `temperature: 0`). Root `tester-v1/server.yaml` and `client.yaml` match that setup; variant configs live under `configs/{model_slug}/hello-world-baseline/`.
 
-**Done:** README Test 1 baseline links `tester-v1/results/20260516T142121Z_Qwen_Qwen3.5-9B-Q8_0.json` with rounded metrics; `server.yaml` sets `label: qwen3.5-9b-q8-baseline` for shorter future result filenames.
+**Done:** README links `tester-v1/results/20260516T142121Z_Qwen_Qwen3.5-9B-Q8_0.json` with rounded metrics; config-tree runs use path-derived slugs (e.g. `qwen3.5-9b-q8-hello-world-baseline`).
 
 Longer-term README log columns (`model`, `quant`, `server_flags`, ...) map cleanly to Phase 3 CSV export; Phase 1 JSON already carries full configs for manual inspection.

@@ -106,7 +106,7 @@ Use a browser to view the llama web UI while it's running (may vary depending on
 For a new model, run calibration first (default: probe stdout plus four-line summary; no JSON):
 
 ```bash
-python3 model_calibration.py test-configs/test1/qwen3.5-9b-q8
+./model_calibration.py test-configs/test1/qwen3.5-9b-q8
 ```
 
 Add `--save-result` on calibration or single runs when you want probe JSON under `results/`.
@@ -114,19 +114,14 @@ Add `--save-result` on calibration or single runs when you want probe JSON under
 Then run test cases (default: probe metrics on stdout, no JSON file):
 
 ```bash
-python3 single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/
+./single_test_runner.py test-configs/test1/qwen3.5-9b-q8/baseline/
 ```
 
 To keep a JSON artifact under `results/`, add `--save-result`.
 
-#### Test 1 - First Steps
+#### [Test 1 - First Steps](Test-1-First-Steps.md)
 Simple smoke test prompt...
-
 ```text
 hi, write me hello world in 20 different programming languages.
 ```
 
-##### Summary
-TODO:
-
-See [Test-1-First-Steps.md](Test-1-First-Steps.md) for more details.

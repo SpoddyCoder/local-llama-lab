@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from config import slug_from_config_dir
+from results import format_iso_utc, utc_now
 
 VARIANT_FOOTPRINT = "calibration-footprint"
 VARIANT_CTX_PROBE = "calibration-ctx-probe"
@@ -45,23 +45,56 @@ def read_idle_vram_from_result(path: Path) -> int:
     return int(idle)
 
 
-def _run_id_timestamp_prefix(path: Path) -> str:
-    stem = path.stem
-    sep = stem.find("_")
-    if sep <= 0:
-        raise ValueError(f"result filename has no run_id timestamp prefix: {path.name}")
-    return stem[:sep]
+def _relative_result_path(path: Path, tester_root: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(tester_root.resolve()))
+    except ValueError:
+        return str(path)
 
 
-def find_latest_result(results_dir: Path, slug: str) -> Path:
-    """Return the newest result JSON matching *_{slug}.json by run_id timestamp."""
-    pattern = f"*_{slug}.json"
-    matches = sorted(results_dir.glob(pattern))
-    if not matches:
-        raise FileNotFoundError(
-            f"no result JSON matching {pattern!r} in {results_dir}"
-        )
-    return max(matches, key=_run_id_timestamp_prefix)
+def _probe_ref(path: Path, tester_root: Path) -> dict[str, str]:
+    with path.open(encoding="utf-8") as f:
+        document = json.load(f)
+    run_id = document.get("run_id")
+    if not isinstance(run_id, str) or not run_id:
+        raise ValueError(f"run_id missing in result: {path}")
+    return {"run_id": run_id, "path": _relative_result_path(path, tester_root)}
+
+
+def write_calibration_session_summary(
+    tester_root: Path,
+    model: str,
+    session_id: str,
+    summary: dict[str, float | int],
+    footprint_result: Path,
+    ctx_probe_result: Path,
+) -> Path:
+    """Write calibration session summary JSON under results/{model}/calibration-sessions/."""
+    tester_root = tester_root.resolve()
+    out_dir = tester_root / "results" / model / "calibration-sessions"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{session_id}.json"
+    document = {
+        "schema_version": "1",
+        "session_id": session_id,
+        "model": model,
+        "created_at": format_iso_utc(utc_now()),
+        "summary": {
+            "gguf_gb": summary["gguf_gb"],
+            "model_vram_mb": summary["model_vram_mb"],
+            "kv_vram_mb": summary["kv_vram_mb"],
+            "estimated_context_max": summary["estimated_context_max"],
+        },
+        "probes": {
+            "footprint": _probe_ref(footprint_result, tester_root),
+            "ctx_probe": _probe_ref(ctx_probe_result, tester_root),
+        },
+    }
+    out_path.write_text(
+        json.dumps(document, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return out_path
 
 
 def gguf_size_gb(model_path: str) -> float:
@@ -135,6 +168,7 @@ def run_variant_subprocess(
     *,
     save_result: bool,
     quiet: bool,
+    session_id: str | None = None,
 ) -> tuple[int, str]:
     """Run single_test_runner for a variant directory; return (returncode, captured output)."""
     runner = tester_root / "single_test_runner.py"
@@ -143,6 +177,8 @@ def run_variant_subprocess(
         cmd.append("--save-result")
     if save_result and quiet:
         cmd.append("--quiet")
+    if session_id is not None:
+        cmd.extend(["--session-id", session_id])
     proc = subprocess.run(
         cmd,
         cwd=tester_root,

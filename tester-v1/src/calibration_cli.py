@@ -10,14 +10,16 @@ from calibration import (
     VARIANT_CTX_PROBE,
     VARIANT_FOOTPRINT,
     compute_summary,
-    find_latest_result,
     format_summary_lines,
     gguf_size_gb,
     parse_idle_vram_from_metrics_stdout,
     read_idle_vram_from_result,
     run_variant_subprocess,
+    write_calibration_session_summary,
 )
-from config import load_server_config, parse_context_from_args, slug_from_config_dir
+from config import config_dir_metadata, load_server_config, parse_context_from_args
+from result_layout import find_latest_result
+from results import format_compact_utc, utc_now
 from vram import query_gpu_total_mb
 
 _DEFAULT_TESTER_ROOT = Path(__file__).resolve().parent.parent
@@ -89,6 +91,9 @@ def _run_calibration(
     results_dir = tester_root / _RESULTS_DIRNAME
     footprint_dir = _variant_dir(model_dir, VARIANT_FOOTPRINT)
     ctx_probe_dir = _variant_dir(model_dir, VARIANT_CTX_PROBE)
+    session_id: str | None = None
+    if save_result:
+        session_id = format_compact_utc(utc_now())
 
     variants = [
         (VARIANT_FOOTPRINT, footprint_dir, "Running calibration-footprint..."),
@@ -102,6 +107,7 @@ def _run_calibration(
             variant_dir,
             save_result=save_result,
             quiet=save_result and quiet,
+            session_id=session_id,
         )
         if returncode != 0:
             tail = _output_tail(output)
@@ -115,10 +121,12 @@ def _run_calibration(
 
     if save_result:
         try:
-            footprint_slug = slug_from_config_dir(footprint_dir, tester_root)
-            ctx_probe_slug = slug_from_config_dir(ctx_probe_dir, tester_root)
-            footprint_result = find_latest_result(results_dir, footprint_slug)
-            ctx_probe_result = find_latest_result(results_dir, ctx_probe_slug)
+            footprint_result = find_latest_result(
+                results_dir, footprint_dir, tester_root
+            )
+            ctx_probe_result = find_latest_result(
+                results_dir, ctx_probe_dir, tester_root
+            )
         except (FileNotFoundError, ValueError) as exc:
             return _fail(f"{exc}\n(results dir: {results_dir})")
 
@@ -183,6 +191,18 @@ def _run_calibration(
             f"{exc}\n"
             f"footprint config: {footprint_dir}\n"
             f"ctx-probe config: {ctx_probe_dir}"
+        )
+
+    if save_result:
+        meta = config_dir_metadata(model_dir, tester_root)
+        model = meta["model"] or model_dir.name
+        write_calibration_session_summary(
+            tester_root,
+            model,
+            session_id,
+            summary,
+            footprint_result,
+            ctx_probe_result,
         )
 
     if not (save_result and quiet):

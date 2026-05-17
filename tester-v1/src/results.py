@@ -34,9 +34,9 @@ def format_iso_utc(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def make_run_id(timestamp_utc: datetime, model_slug: str) -> str:
+def make_run_id(timestamp_utc: datetime, run_id_suffix: str) -> str:
     """e.g. 20260516T134500Z_Qwen_Qwen3.5-9B-Q8_0"""
-    return f"{format_compact_utc(timestamp_utc)}_{model_slug}"
+    return f"{format_compact_utc(timestamp_utc)}_{run_id_suffix}"
 
 
 def empty_metrics() -> dict[str, float | int | None]:
@@ -67,8 +67,30 @@ def build_result_document(
     error: str | None = None,
     notes: str | None = None,
     metadata: dict[str, str | None] | None = None,
+    config_dir: Path | None = None,
+    tester_root: Path | None = None,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
-    run_id = make_run_id(started_at, server_config.model_slug)
+    meta = dict(metadata) if metadata is not None else empty_metadata()
+    for key in empty_metadata():
+        meta.setdefault(key, None)
+
+    if config_dir is not None and tester_root is not None:
+        from result_layout import (
+            resolve_result_target,
+            run_id_from_started_at,
+            suite_from_variant,
+        )
+
+        target = resolve_result_target(config_dir, tester_root, started_at)
+        run_id = run_id_from_started_at(started_at, target.run_id_suffix)
+        suite = suite_from_variant(
+            meta.get("variant") if isinstance(meta.get("variant"), str) else None
+        )
+    else:
+        run_id = make_run_id(started_at, server_config.model_slug)
+        suite = "probe"
+
     metrics = dict(metrics_dict) if metrics_dict is not None else empty_metrics()
     if "server_ready_s" not in metrics:
         metrics["server_ready_s"] = None
@@ -77,12 +99,11 @@ def build_result_document(
     if "peak_vram_mb" not in metrics:
         metrics["peak_vram_mb"] = None
 
-    meta = dict(metadata) if metadata is not None else empty_metadata()
-    for key in empty_metadata():
-        meta.setdefault(key, None)
-
     return {
+        "schema_version": "1",
         "run_id": run_id,
+        "suite": suite,
+        "session_id": session_id,
         "started_at": format_iso_utc(started_at),
         "finished_at": format_iso_utc(finished_at),
         "server_config": server_config.to_dict(),
@@ -95,16 +116,24 @@ def build_result_document(
     }
 
 
-def write_result(results_dir: str | Path, document: dict[str, Any]) -> Path:
-    """Write document to results/{run_id}.json; create directory if needed."""
-    results_dir = Path(results_dir)
-    results_dir.mkdir(parents=True, exist_ok=True)
-    run_id = document["run_id"]
-    path = results_dir / f"{run_id}.json"
-    with path.open("w", encoding="utf-8") as f:
+def write_result(
+    results_dir: str | Path,
+    document: dict[str, Any],
+    *,
+    config_dir: Path,
+    tester_root: Path,
+    started_at: datetime,
+) -> Path:
+    """Write document to hierarchical result path."""
+    from result_layout import resolve_result_target
+
+    target = resolve_result_target(config_dir, tester_root, started_at)
+    json_path = target.json_path
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    with json_path.open("w", encoding="utf-8") as f:
         json.dump(document, f, indent=2)
         f.write("\n")
-    return path
+    return json_path
 
 
 def format_run_summary(

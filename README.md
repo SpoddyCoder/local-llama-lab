@@ -94,7 +94,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-See [tester-v1/README.md](tester-v1/README.md). Results for various cases are stored in [tester-v1/results/](tester-v1/results/)
+See [tester-v1/README.md](tester-v1/README.md). Saved probe JSON lives under [tester-v1/results/{model}/{variant}/](tester-v1/results/); see that README for [results](tester-v1/README.md#results) and [calibration-sessions](tester-v1/README.md#model-calibration).
 
 ### Run a server
 
@@ -121,7 +121,7 @@ cd tester-v1
 ./model_calibration.py configs/gemma-4-e4b-it-q8
 ```
 
-Add `--save-result` on calibration or single runs when you want probe JSON under `results/`.
+Add `--save-result` on calibration or single runs when you want probe JSON under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`).
 
 Then run a probe variant (default: metrics on stdout, no JSON file):
 
@@ -130,7 +130,7 @@ Then run a probe variant (default: metrics on stdout, no JSON file):
 ./single_test_runner.py configs/gemma-4-e4b-it-q8/hello-world-no-mmap
 ```
 
-To keep a JSON artifact under `results/`, add `--save-result`.
+To keep a JSON artifact under `tester-v1/results/{model}/{variant}/`, add `--save-result`.
 
 
 ### Tests

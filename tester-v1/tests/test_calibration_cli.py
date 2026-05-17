@@ -83,13 +83,20 @@ class TestRunCalibrationStdout(unittest.TestCase):
         model_dir = Path("/tmp/model")
         tester_root = Path("/tmp/tester")
         stdout = io.StringIO()
+        footprint_result = Path("/footprint.json")
+        ctx_probe_result = Path("/ctx_probe.json")
+
+        def fake_find_latest(
+            results_dir: Path, config_dir: Path, root: Path
+        ) -> Path:
+            if "footprint" in str(config_dir):
+                return footprint_result
+            return ctx_probe_result
+
         with (
             patch("calibration_cli.run_variant_subprocess", return_value=(0, "")),
-            patch("calibration_cli.slug_from_config_dir", side_effect=["fp", "cp"]),
-            patch(
-                "calibration_cli.find_latest_result",
-                side_effect=[Path("/a.json"), Path("/b.json")],
-            ),
+            patch("calibration_cli.format_compact_utc", return_value="sess123"),
+            patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
             patch("calibration_cli.read_idle_vram_from_result", side_effect=[1000, 1100]),
             patch("calibration_cli.load_server_config") as load_server,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
@@ -104,8 +111,96 @@ class TestRunCalibrationStdout(unittest.TestCase):
                     "estimated_context_max": 4096,
                 },
             ),
+            patch("calibration_cli.config_dir_metadata") as meta,
+            patch("calibration_cli.write_calibration_session_summary") as write_summary,
             patch("sys.stdout", stdout),
             patch("sys.stderr", io.StringIO()),
+        ):
+            load_server.return_value.model = "/tmp/model.gguf"
+            load_server.return_value.args = []
+            meta.return_value = {"model": "my-model", "variant": None, "config_path": None}
+            code = _run_calibration(
+                model_dir,
+                tester_root,
+                1536,
+                save_result=True,
+                quiet=True,
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.getvalue(), "")
+        write_summary.assert_called_once_with(
+            tester_root,
+            "my-model",
+            "sess123",
+            {
+                "gguf_gb": 1.0,
+                "model_vram_mb": 1000,
+                "kv_vram_mb": 2000,
+                "estimated_context_max": 4096,
+            },
+            footprint_result,
+            ctx_probe_result,
+        )
+
+    def test_save_result_passes_session_id_to_subprocess(self) -> None:
+        model_dir = Path("/tmp/model")
+        tester_root = Path("/tmp/tester")
+        summary = {
+            "gguf_gb": 1.0,
+            "model_vram_mb": 1000,
+            "kv_vram_mb": 2000,
+            "estimated_context_max": 4096,
+        }
+
+        def fake_find_latest(
+            results_dir: Path, config_dir: Path, root: Path
+        ) -> Path:
+            return Path("/result.json")
+
+        with (
+            patch("calibration_cli.run_variant_subprocess", return_value=(0, "")) as run,
+            patch("calibration_cli.format_compact_utc", return_value="sess456"),
+            patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
+            patch("calibration_cli.read_idle_vram_from_result", side_effect=[1000, 1100]),
+            patch("calibration_cli.load_server_config") as load_server,
+            patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
+            patch("calibration_cli.gguf_size_gb", return_value=1.0),
+            patch("calibration_cli.query_gpu_total_mb", return_value=16000),
+            patch("calibration_cli.compute_summary", return_value=summary),
+            patch("calibration_cli.config_dir_metadata") as meta,
+            patch("calibration_cli.write_calibration_session_summary"),
+            patch("sys.stdout", io.StringIO()),
+            patch("sys.stderr", io.StringIO()),
+        ):
+            load_server.return_value.model = "/tmp/model.gguf"
+            load_server.return_value.args = []
+            meta.return_value = {"model": None, "variant": None, "config_path": None}
+            code = _run_calibration(
+                model_dir,
+                tester_root,
+                1536,
+                save_result=True,
+                quiet=False,
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(run.call_count, 2)
+        for call in run.call_args_list:
+            self.assertEqual(call.kwargs["session_id"], "sess456")
+
+    def test_save_result_find_latest_failure_returns_error(self) -> None:
+        model_dir = Path("/tmp/model")
+        tester_root = Path("/tmp/tester")
+
+        with (
+            patch("calibration_cli.run_variant_subprocess", return_value=(0, "")),
+            patch("calibration_cli.format_compact_utc", return_value="sess789"),
+            patch(
+                "calibration_cli.find_latest_result",
+                side_effect=FileNotFoundError("no result JSON in /tmp/results"),
+            ),
+            patch("calibration_cli.load_server_config") as load_server,
+            patch("sys.stdout", io.StringIO()),
+            patch("sys.stderr", io.StringIO()) as stderr,
         ):
             load_server.return_value.model = "/tmp/model.gguf"
             load_server.return_value.args = []
@@ -116,8 +211,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 save_result=True,
                 quiet=True,
             )
-        self.assertEqual(code, 0)
-        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(code, 1)
+        err = stderr.getvalue()
+        self.assertIn("no result JSON", err)
+        self.assertIn("results dir:", err)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Unit tests for path-derived config slugs and ServerConfig.run_slug."""
+"""Unit tests for path-derived config slugs and model_slug."""
 
 from __future__ import annotations
 
@@ -73,22 +73,12 @@ class TestConfigDirMetadata(unittest.TestCase):
 
 
 class TestServerConfigSlug(unittest.TestCase):
-    def test_without_run_slug_uses_model_stem(self) -> None:
+    def test_model_slug_uses_gguf_stem(self) -> None:
         server = ServerConfig(
             model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
             args=[],
         )
         self.assertEqual(server.model_slug, "Qwen_Qwen3.5-9B-Q8_0")
-
-    def test_run_slug_drives_model_slug(self) -> None:
-        server = ServerConfig(
-            model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
-            args=[],
-            run_slug="qwen3.5-9b-q8-hello-world-baseline",
-        )
-        self.assertEqual(
-            server.model_slug, "qwen3.5-9b-q8-hello-world-baseline"
-        )
 
 
 class TestLoadServerConfigRejectsLabel(unittest.TestCase):

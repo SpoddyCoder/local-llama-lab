@@ -13,13 +13,12 @@ sys.path.insert(0, str(_SRC))
 
 from calibration import (  # noqa: E402
     compute_summary,
-    find_latest_result,
     format_summary_lines,
     parse_idle_vram_from_metrics_stdout,
     read_idle_vram_from_result,
+    write_calibration_session_summary,
 )
 from metrics import format_metrics_summary  # noqa: E402
-from config import slug_from_config_dir  # noqa: E402
 from runner import _TESTER_ROOT  # noqa: E402
 
 
@@ -102,28 +101,77 @@ class TestComputeSummary(unittest.TestCase):
         self.assertIn("budget is negative", str(ctx.exception))
 
 
-class TestFindLatestResult(unittest.TestCase):
-    def test_picks_newest_by_run_id_timestamp(self) -> None:
-        config_dir = (
-            _TESTER_ROOT
-            / "configs"
-            / "qwen3.5-9b-q8"
-            / "calibration-footprint"
-        )
-        slug = slug_from_config_dir(config_dir, _TESTER_ROOT)
+class TestWriteCalibrationSessionSummary(unittest.TestCase):
+    def test_writes_expected_structure(self) -> None:
+        summary = {
+            "gguf_gb": 9.55,
+            "model_vram_mb": 10353,
+            "kv_vram_mb": 4414,
+            "estimated_context_max": 128000,
+        }
         with tempfile.TemporaryDirectory() as tmp:
-            results_dir = Path(tmp)
-            older = results_dir / f"20260101T000000Z_{slug}.json"
-            newer = results_dir / f"20260215T120000Z_{slug}.json"
-            _write_result(older, idle_vram_mb=1)
-            _write_result(newer, idle_vram_mb=2)
-            self.assertEqual(find_latest_result(results_dir, slug), newer)
+            tester_root = Path(tmp)
+            footprint = (
+                tester_root
+                / "results"
+                / "qwen3.5-9b-q8"
+                / "calibration-footprint"
+                / "20260101T000000Z.json"
+            )
+            ctx_probe = (
+                tester_root
+                / "results"
+                / "qwen3.5-9b-q8"
+                / "calibration-ctx-probe"
+                / "20260101T000001Z.json"
+            )
+            _write_result(
+                footprint,
+                idle_vram_mb=10353,
+            )
+            _write_result(ctx_probe, idle_vram_mb=10429)
+            with footprint.open(encoding="utf-8") as f:
+                footprint_doc = json.load(f)
+            with ctx_probe.open(encoding="utf-8") as f:
+                ctx_probe_doc = json.load(f)
 
-    def test_missing_slug_raises(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            results_dir = Path(tmp)
-            with self.assertRaises(FileNotFoundError):
-                find_latest_result(results_dir, "missing-slug")
+            out_path = write_calibration_session_summary(
+                tester_root,
+                "qwen3.5-9b-q8",
+                "20260517T120000Z",
+                summary,
+                footprint,
+                ctx_probe,
+            )
+            self.assertEqual(
+                out_path,
+                tester_root
+                / "results"
+                / "qwen3.5-9b-q8"
+                / "calibration-sessions"
+                / "20260517T120000Z.json",
+            )
+            with out_path.open(encoding="utf-8") as f:
+                document = json.load(f)
+            self.assertEqual(document["schema_version"], "1")
+            self.assertEqual(document["session_id"], "20260517T120000Z")
+            self.assertEqual(document["model"], "qwen3.5-9b-q8")
+            self.assertIn("created_at", document)
+            self.assertEqual(document["summary"], summary)
+            self.assertEqual(
+                document["probes"]["footprint"],
+                {
+                    "run_id": footprint_doc["run_id"],
+                    "path": "results/qwen3.5-9b-q8/calibration-footprint/20260101T000000Z.json",
+                },
+            )
+            self.assertEqual(
+                document["probes"]["ctx_probe"],
+                {
+                    "run_id": ctx_probe_doc["run_id"],
+                    "path": "results/qwen3.5-9b-q8/calibration-ctx-probe/20260101T000001Z.json",
+                },
+            )
 
 
 class TestReadIdleVramFromResult(unittest.TestCase):

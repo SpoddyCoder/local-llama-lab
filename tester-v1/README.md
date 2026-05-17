@@ -1,6 +1,6 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server, run one streaming chat completion, print all twelve metrics plus a headline footer on stdout, then tear down. Pass `--save-result` to also write `results/{timestamp}_{slug}.json` and print the full run summary. On a probe run, `--full-output FILE` writes the full completion text to a file (stdout stays metrics only).
+Single-run harness for `llama-server`: start the server, run one streaming chat completion, print all twelve metrics plus a headline footer on stdout, then tear down. Pass `--save-result` with a config directory to write JSON under `results/{model}/{variant}/` and print the full run summary. Add `--full-output` (requires `--save-result`) to also write `{timestamp}-output.txt` beside the JSON.
 
 ## What it does
 
@@ -10,10 +10,10 @@ One invocation of `python single_test_runner.py` (default probe):
 2. Start `llama-server` with the configured model and flags
 3. Poll until the API is healthy
 4. POST one streaming `/v1/chat/completions` request
-5. Print a rounded metrics block, a blank line, and a three-line headline footer on stdout (end-to-end time, peak VRAM in GiB, generation throughput). Optionally write full completion text to a file with `--full-output`.
+5. Print a rounded metrics block, a blank line, and a three-line headline footer on stdout (end-to-end time, peak VRAM in GiB, generation throughput).
 6. Stop the server process
 
-With `--save-result`, step 5 is replaced by writing `results/{timestamp}_{slug}.json` and printing `format_run_summary` on stdout (run metadata plus the same metrics block and headlines; or, with `--save-result --quiet`, a single `Wrote ...` line on stderr). `--full-output` is not used with `--save-result` (warning on stderr, no file write).
+With `--save-result`, step 5 also writes `results/{model}/{variant}/{timestamp}.json` and prints `format_run_summary` on stdout (run metadata plus the same metrics block and headlines; or, with `--save-result --quiet`, a single `Wrote ...` line on stderr). With `--save-result --full-output`, the completion text is written to `{timestamp}-output.txt` next to the JSON.
 
 ## Quick start
 
@@ -49,19 +49,19 @@ python3 -m unittest discover -s tests -v
 
 1. Pick or create a variant directory under `configs/` (see layout below). Each leaf holds `server.yaml` and `client.yaml` for one run configuration.
 2. Tune model path, server flags, prompt, and API params in that pair of files.
-3. Run the variant (probe: metrics block and headline footer on stdout, no JSON; optional `--full-output` for completion text):
+3. Run the variant (probe: metrics block and headline footer on stdout, no JSON):
 
    ```bash
    python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
    ```
 
-4. When you want a recorded run, add `--save-result` and compare files under `results/` (timestamps and path-derived slugs distinguish runs).
+4. When you want a recorded run, add `--save-result` and compare files under `results/{model}/{variant}/` (newest timestamp stem wins).
 
 Use separate variant directories (for example `hello-world-baseline` vs `hello-world-no-mmap`) instead of editing root-level yamls when comparing configurations.
 
 ## Model calibration
 
-Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. By default, `model_calibration.py` runs each calibration variant as a probe (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` and read `idle_vram_mb` from the latest footprint and ctx-probe files.
+Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. By default, `model_calibration.py` runs each calibration variant as a probe (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` (shared `session_id` on both probes), read `idle_vram_mb` from the latest footprint and ctx-probe JSON under each variant directory, and write `results/{model}/calibration-sessions/{session_id}.json`.
 
 Each model directory (for example `configs/qwen3.5-9b-q8/`) must include two calibration variants:
 
@@ -86,12 +86,12 @@ Progress and errors go to stderr. On success, stdout is each probe's metrics blo
 * Estimated Max Context: 241987 tokens
 ```
 
-Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the four summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/` for later reuse.
+Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the four summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/{model}/{variant}/` and a session summary for later reuse.
 
 | Flag | Behavior |
 | ---- | -------- |
 | (default) | Run footprint and ctx-probe as probes; print probe stdout, then calibration summary; no JSON |
-| `--save-result` | Run probes with `--save-result --quiet`; read `idle_vram_mb` from latest JSON in `results/` |
+| `--save-result` | Run probes with `--save-result --quiet` and shared `--session-id`; read latest JSON per variant dir; write `calibration-sessions/{session_id}.json` |
 | `--quiet` | Only with `--save-result`: suppress the four-line calibration summary on stdout |
 | `--margin-mib` | VRAM headroom subtracted from KV budget (default `1536`) |
 | `--tester-root` | Harness root (default: `tester-v1/`) |
@@ -100,7 +100,7 @@ Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). C
 # Probe calibration (stdout only)
 ./model_calibration.py configs/qwen3.5-9b-q8
 
-# Record probe JSON under results/
+# Record probe JSON + calibration-sessions summary
 ./model_calibration.py configs/qwen3.5-9b-q8 --save-result
 ```
 
@@ -108,7 +108,7 @@ To scaffold all reference variants for a new model, use the [create-model-config
 
 ## configs layout
 
-Variant configs live under `configs/`. The directory tree is organizational only; the runner does not interpret segment names beyond building the result slug. [configs/reference/README.md](configs/reference/README.md) documents the reference template tree.
+Variant configs live under `configs/`. The directory tree is organizational only; saved results mirror `configs/{model}/{variant}/` under `results/`. [configs/reference/README.md](configs/reference/README.md) documents the reference template tree.
 
 Example:
 
@@ -125,7 +125,7 @@ configs/
     hello-world-no-mmap/   # optional, model-specific
 ```
 
-Each variant directory must contain both `server.yaml` and `client.yaml`. Model folders (for example `qwen3.5-9b-q8`) group related variants; they are not special-cased in code beyond metadata and the result slug.
+Each variant directory must contain both `server.yaml` and `client.yaml`. Model folders (for example `qwen3.5-9b-q8`) group related variants; they are not special-cased in code beyond metadata and the results path layout.
 
 ## Config essentials
 
@@ -163,13 +163,13 @@ If `server.yaml` sets `--port` / `-p`, keep `base_url` in sync (or omit port in 
 
 Run from `tester-v1/` as `./single_test_runner.py` or `./model_calibration.py` (see Quick start), or equivalently with `python3`.
 
-Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`, path-derived slug):
+Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`; `--save-result` requires this):
 
 ```bash
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 ```
 
-Override one or both config files while still using the config directory for the slug:
+Override one or both config files while still using the config directory for results layout:
 
 ```bash
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
@@ -177,7 +177,7 @@ python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
   --client /path/to/client.yaml
 ```
 
-Custom paths without a config directory (model file stem as slug):
+Custom paths without a config directory (probe only; `--save-result` writes under `results/_other/`):
 
 ```bash
 python3 single_test_runner.py --server /path/to/server.yaml --client /path/to/client.yaml
@@ -189,9 +189,10 @@ Flags (same config resolution as above; pass `config_dir` when testing a variant
 | Flag             | Behavior                                                                                                      |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | (default)        | Full run; all twelve metrics plus headline footer on stdout; no JSON                                          |
-| `--save-result`  | Write `results/{run_id}.json`; print full run summary on stdout (includes metrics block and headlines)        |
+| `--save-result`  | Requires `config_dir`; write `results/{model}/{variant}/{timestamp}.json`; print full run summary on stdout |
 | `--quiet`        | Only with `--save-result`: suppress stdout summary; on success print `Wrote results/...` to stderr              |
-| `--full-output`  | Probe only: write full completion text to `FILE` (creates parent dirs). Ignored with `--save-result` (stderr warning, no write) |
+| `--full-output`  | Boolean; requires `--save-result`; write `{timestamp}-output.txt` beside the JSON                             |
+| `--session-id`   | Optional; set on saved JSON (used by `model_calibration` subprocesses)                                      |
 | `--test-server`  | Start server, wait for health, hold until Ctrl+C (no completion, no JSON)                                     |
 
 
@@ -201,11 +202,11 @@ Examples:
 # Probe (stdout only)
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 
-# Probe with completion text saved to a file
+# Recorded run with completion text beside JSON
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
-  --full-output /tmp/completion.txt
+  --save-result --full-output
 
-# Recorded run
+# Recorded run (metrics JSON only)
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --save-result
 
 # Server-only debug
@@ -214,28 +215,38 @@ python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --test-
 
 ## Results
 
-With `--save-result`, files land in `results/` as:
+With `--save-result`, the results tree mirrors `configs/{model}/{variant}/`:
 
-`{YYYYMMDDTHHMMSSZ}_{slug}.json`
+```text
+results/
+  {model}/
+    {variant}/
+      {YYYYMMDDTHHMMSSZ}.json
+      {YYYYMMDDTHHMMSSZ}-output.txt   # only with --save-result --full-output
+    calibration-sessions/
+      {session_id}.json
+  _other/
+    {slug}/
+      {YYYYMMDDTHHMMSSZ}.json
+```
 
-Example: `20260516T134500Z_qwen3.5-9b-q8-hello-world-baseline.json`
+When `config_dir` is not under the standard two-level `configs/{model}/{variant}/` path, JSON is written under `results/_other/{slug}/` instead (`slug` from `slug_from_config_dir`).
 
-Slug rules:
-
-- With `config_dir` under `configs/`: hyphen-join path segments relative to `configs/` (e.g. `configs/qwen3.5-9b-q8/hello-world-baseline` → `qwen3.5-9b-q8-hello-world-baseline`).
-- With `config_dir` outside `configs/`: hyphen-join all directory segments of the resolved absolute path (e.g. `/tmp/my-run` → `tmp-my-run`).
-- Without `config_dir`: sanitized stem of the model GGUF filename (e.g. `Qwen_Qwen3.5-9B-Q8_0`).
-
-Slugs are sanitized for filenames (unsafe characters become underscores).
+**run_id** in JSON is still globally unique: `{YYYYMMDDTHHMMSSZ}_{model}-{variant}` (e.g. `20260517T170240Z_qwen3.5-9b-q8-hello-world-baseline`). On-disk filenames use the timestamp stem only.
 
 Each JSON document includes:
 
+- `schema_version`: `"1"`
+- `suite`: `"probe"` or `"calibration"` (from variant name)
+- `session_id`: `null` or a string (`model_calibration --save-result` sets the same id on both probe runs)
 - `run_id`, `started_at`, `finished_at`, `status`, `error`, `notes`
 - `server_config` and `client_config` (embedded copies of what ran)
 - `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `configs/`, also `config_path` e.g. `qwen3.5-9b-q8/hello-world-baseline/` plus `model` and `variant` from the path; each field is `null` when unavailable)
 - `metrics` (see table below)
 
-Default probe stdout prints every metric key below (rounded, `n/a` when missing), then a blank line and three headline lines derived from `wall_time_s` (end-to-end time), `peak_vram_mb` (peak VRAM as GiB), and `decode_tok_s` (generation throughput). Completion text is not printed; use `--full-output FILE` on a probe run to save it. With `--save-result`, stdout is the run summary (run id, model, result path, then the same metrics block and headlines) unless `--quiet`. The JSON `metrics` object keeps full floating-point values for every field.
+**Calibration sessions:** `model_calibration --save-result` generates one `session_id`, passes it to both probe subprocesses, reads the latest JSON from each variant directory, and writes `results/{model}/calibration-sessions/{session_id}.json` (four summary numbers plus probe `run_id` and path refs).
+
+Default probe stdout prints every metric key below (rounded, `n/a` when missing), then a blank line and three headline lines derived from `wall_time_s` (end-to-end time), `peak_vram_mb` (peak VRAM as GiB), and `decode_tok_s` (generation throughput). Completion text is not printed on stdout; use `--save-result --full-output` to save it beside the JSON. With `--save-result`, stdout is the run summary (run id, model, result path, then the same metrics block and headlines) unless `--quiet`. The JSON `metrics` object keeps full floating-point values for every field.
 
 Example probe tail (after `Model: ...`):
 
@@ -283,4 +294,4 @@ These are easy to miss from a quick read of the code:
 - **Token counts on this stack:** Many `llama-server` builds omit `usage` on stream chunks. The client reads `timings` (`prompt_n`, `predicted_n`) from the final chunk instead. TTFT is time to the first non-empty delta on `content`, `reasoning_content`, or `text`; models that stream reasoning before visible content can show a lower TTFT than "first answer token."
 - **Clean stop:** Use Ctrl+C in the terminal for a controlled interrupt. With `--save-result`, the runner records `status: error` and still writes JSON when possible. Killing the process from outside (or a hard external timeout) may leave `llama-server` running in the background.
 - **No model flag in args:** Putting `-m` or `--model` in `server.yaml` `args` is rejected; the runner appends `-m` with the `model` path.
-- **Removed `label` field:** `server.yaml` must not contain `label`; use a config directory so the result slug reflects the variant path.
+- **Removed `label` field:** `server.yaml` must not contain `label`; use a config directory so results land under `results/{model}/{variant}/`.

@@ -11,11 +11,12 @@ from pathlib import Path
 from client import run_chat_completion
 from config import (
     ServerConfig,
+    config_dir_metadata,
     load_client_config,
     load_server_config,
     redact_model_path,
-    slug_from_config_dir,
 )
+from result_layout import completion_output_path
 from metadata import collect_run_metadata
 from metrics import build_metrics_dict, format_probe_stdout
 from results import (
@@ -32,14 +33,8 @@ _TESTER_ROOT = Path(__file__).resolve().parent.parent
 _RESULTS_DIR = _TESTER_ROOT / "results"
 
 
-def _load_server(server_path: Path, config_dir: Path | None) -> ServerConfig:
-    server = load_server_config(server_path)
-    if config_dir is not None:
-        server = replace(
-            server,
-            run_slug=slug_from_config_dir(config_dir, _TESTER_ROOT),
-        )
-    return server
+def _load_server(server_path: Path) -> ServerConfig:
+    return load_server_config(server_path)
 
 
 def _result_path_display(result_path: Path) -> str:
@@ -56,15 +51,22 @@ def _run(
     *,
     save_result: bool,
     quiet: bool,
-    full_output: Path | None = None,
+    full_output: bool = False,
+    session_id: str | None = None,
 ) -> int:
-    server = _load_server(server_path, config_dir)
+    if save_result and config_dir is None:
+        print("Error: --save-result requires config_dir", file=sys.stderr)
+        return 1
+
+    server = _load_server(server_path)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
     client = replace(client, base_url=base_url)
 
     if not save_result:
-        print(f"Starting {server.binary} (model: {server.model_slug})...")
+        meta = config_dir_metadata(config_dir, _TESTER_ROOT)
+        model_display = meta.get("model") or server.model_slug
+        print(f"Starting {server.binary} (model: {model_display})...")
         print(f"API URL: {base_url}")
 
     started_at = utc_now() if save_result else None
@@ -103,16 +105,6 @@ def _run(
     if not save_result:
         print(f"\nModel: {redact_model_path(server.model)}\n")
         print(format_probe_stdout(metrics_dict or {}))
-        if full_output is not None:
-            try:
-                full_output.parent.mkdir(parents=True, exist_ok=True)
-                full_output.write_text(
-                    completion.completion_text if completion else "",
-                    encoding="utf-8",
-                )
-            except OSError as exc:
-                print(f"Failed to write completion text: {exc}", file=sys.stderr)
-                return 1
         return 0
 
     finished_at = utc_now()
@@ -133,9 +125,18 @@ def _run(
                 config_dir=config_dir,
                 tester_root=_TESTER_ROOT,
             ),
+            config_dir=config_dir,
+            tester_root=_TESTER_ROOT,
+            session_id=session_id,
         )
         run_id = document["run_id"]
-        result_path = write_result(_RESULTS_DIR, document)
+        result_path = write_result(
+            _RESULTS_DIR,
+            document,
+            config_dir=config_dir,
+            tester_root=_TESTER_ROOT,
+            started_at=started_at,
+        )
     except OSError as exc:
         print(f"Failed to write result JSON: {exc}", file=sys.stderr)
         if status == "ok":
@@ -145,6 +146,17 @@ def _run(
         return 1
 
     if status == "ok" and metrics_dict is not None and run_id is not None:
+        if full_output:
+            try:
+                output_path = completion_output_path(result_path)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(
+                    completion.completion_text if completion else "",
+                    encoding="utf-8",
+                )
+            except OSError as exc:
+                print(f"Failed to write completion text: {exc}", file=sys.stderr)
+                return 1
         if quiet:
             print(f"Wrote {_result_path_display(result_path)}", file=sys.stderr)
         else:
@@ -171,7 +183,7 @@ def _run_test_server(
     client_path: Path,
     config_dir: Path | None = None,
 ) -> int:
-    server = _load_server(server_path, config_dir)
+    server = _load_server(server_path)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
 
@@ -267,9 +279,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--full-output",
-        type=Path,
-        metavar="FILE",
-        help="write full model completion text to FILE (default probe only)",
+        action="store_true",
+        help="with --save-result, write completion text beside result JSON",
+    )
+    parser.add_argument(
+        "--session-id",
+        type=str,
+        default=None,
+        help="optional session id for result JSON (e.g. calibration)",
     )
     args = parser.parse_args(argv)
 
@@ -292,13 +309,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.test_server:
         return _run_test_server(server_path, client_path, config_dir)
 
-    full_output = args.full_output
-    if args.save_result and full_output is not None:
-        print(
-            "Warning: --full-output is ignored when using --save-result",
-            file=sys.stderr,
-        )
-        full_output = None
+    if args.full_output and not args.save_result:
+        print("Error: --full-output requires --save-result", file=sys.stderr)
+        return 1
 
     return _run(
         server_path,
@@ -306,5 +319,6 @@ def main(argv: list[str] | None = None) -> int:
         config_dir,
         save_result=args.save_result,
         quiet=args.quiet if args.save_result else False,
-        full_output=full_output,
+        full_output=args.full_output,
+        session_id=args.session_id,
     )

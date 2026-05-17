@@ -38,15 +38,12 @@ def redact_model_path(path: str) -> str:
 class ServerConfig:
     model: str
     args: list[str]
-    run_slug: str | None = None
     binary: str = _DEFAULT_BINARY
     ready_timeout_s: float = _DEFAULT_READY_TIMEOUT_S
     ready_poll_interval_s: float = _DEFAULT_READY_POLL_INTERVAL_S
 
     @property
     def model_slug(self) -> str:
-        if self.run_slug:
-            return _sanitize_slug(self.run_slug)
         return _sanitize_slug(Path(self.model).stem)
 
     @property

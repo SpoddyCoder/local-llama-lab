@@ -67,6 +67,7 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
     * GGUF on disk: 9.55 GB
     * Model VRAM: 10337 MiB
     * KV VRAM: 4430 MiB
+    * Model max context: 262144 tokens
     * Estimated Max Context: 150823 tokens
     * Generation throughput: ~91 tok/s
 * [Gemma-4-E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
@@ -75,6 +76,7 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
     * GGUF on disk: 8.03 GB
     * Model VRAM: 7022 MiB
     * KV VRAM: 7745 MiB
+    * Model max context: 131072 tokens
     * Estimated Max Context: 446749 tokens
     * Generation throughput: ~114 tok/s
 

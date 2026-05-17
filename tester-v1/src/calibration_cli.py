@@ -13,7 +13,9 @@ from calibration import (
     format_summary_lines,
     gguf_size_gb,
     parse_idle_vram_from_metrics_stdout,
+    parse_model_max_context_from_metrics_stdout,
     read_idle_vram_from_result,
+    read_model_max_context_from_result,
     run_variant_subprocess,
     write_calibration_session_summary,
 )
@@ -133,6 +135,7 @@ def _run_calibration(
         try:
             footprint_idle = read_idle_vram_from_result(footprint_result)
             ctx_probe_idle = read_idle_vram_from_result(ctx_probe_result)
+            model_max_context = read_model_max_context_from_result(footprint_result)
         except ValueError as exc:
             return _fail(str(exc))
     else:
@@ -142,6 +145,9 @@ def _run_calibration(
             )
             ctx_probe_idle = _idle_vram_from_probe_output(
                 probe_outputs[1][1], variant_dir=probe_outputs[1][0]
+            )
+            model_max_context = parse_model_max_context_from_metrics_stdout(
+                probe_outputs[0][1]
             )
         except ValueError as exc:
             return _fail(str(exc))
@@ -178,6 +184,7 @@ def _run_calibration(
             margin_mib,
             gguf_gb,
         )
+        summary["model_max_context"] = model_max_context
     except ValueError as exc:
         if save_result:
             return _fail(

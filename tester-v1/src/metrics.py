@@ -45,6 +45,7 @@ def build_metrics_dict(result: CompletionResult) -> dict[str, float | int | None
         "server_ready_s": None,
         "idle_vram_mb": None,
         "peak_vram_mb": None,
+        "model_max_context": None,
     }
 
 
@@ -74,6 +75,7 @@ def format_metrics_summary(metrics: dict[str, float | int | None]) -> str:
         _fmt("tokens_per_second"),
         _fmt("idle_vram_mb"),
         _fmt("peak_vram_mb"),
+        _fmt("model_max_context"),
     ]
     return "\n".join(lines)
 

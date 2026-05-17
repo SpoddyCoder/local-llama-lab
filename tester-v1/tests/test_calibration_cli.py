@@ -52,10 +52,15 @@ class TestRunCalibrationStdout(unittest.TestCase):
             "model_vram_mb": 1000,
             "kv_vram_mb": 2000,
             "estimated_context_max": 4096,
+            "model_max_context": 128000,
         }
         with (
             patch("calibration_cli.run_variant_subprocess") as run_variant,
             patch("calibration_cli._idle_vram_from_probe_output", side_effect=[1000, 1100]),
+            patch(
+                "calibration_cli.parse_model_max_context_from_metrics_stdout",
+                return_value=128000,
+            ),
             patch("calibration_cli.load_server_config") as load_server,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
@@ -76,6 +81,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         self.assertIn("* GGUF on disk:", stdout.getvalue())
+        self.assertIn("* Model max context:", stdout.getvalue())
         run_variant.assert_called()
         self.assertFalse(run_variant.call_args.kwargs["save_result"])
 
@@ -98,6 +104,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
             patch("calibration_cli.format_compact_utc", return_value="sess123"),
             patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
             patch("calibration_cli.read_idle_vram_from_result", side_effect=[1000, 1100]),
+            patch(
+                "calibration_cli.read_model_max_context_from_result",
+                return_value=128000,
+            ),
             patch("calibration_cli.load_server_config") as load_server,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
@@ -137,6 +147,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "model_vram_mb": 1000,
                 "kv_vram_mb": 2000,
                 "estimated_context_max": 4096,
+                "model_max_context": 128000,
             },
             footprint_result,
             ctx_probe_result,
@@ -150,6 +161,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             "model_vram_mb": 1000,
             "kv_vram_mb": 2000,
             "estimated_context_max": 4096,
+            "model_max_context": None,
         }
 
         def fake_find_latest(
@@ -162,6 +174,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
             patch("calibration_cli.format_compact_utc", return_value="sess456"),
             patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
             patch("calibration_cli.read_idle_vram_from_result", side_effect=[1000, 1100]),
+            patch(
+                "calibration_cli.read_model_max_context_from_result",
+                return_value=None,
+            ),
             patch("calibration_cli.load_server_config") as load_server,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),

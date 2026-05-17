@@ -8,6 +8,8 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
+import httpx
+
 from client import run_chat_completion
 from config import (
     ServerConfig,
@@ -26,7 +28,7 @@ from results import (
     utc_now,
     write_result,
 )
-from server import managed_server, resolve_base_url
+from server import fetch_model_max_context, managed_server, resolve_base_url
 from vram import VramPoller, sample_vram_mb
 
 _TESTER_ROOT = Path(__file__).resolve().parent.parent
@@ -77,6 +79,8 @@ def _run(
 
     try:
         with managed_server(server, base_url) as proc:
+            with httpx.Client(timeout=2.0) as http_client:
+                model_max_context = fetch_model_max_context(http_client, base_url)
             idle_vram_mb = sample_vram_mb()
             poller = VramPoller()
             poller.start()
@@ -90,6 +94,7 @@ def _run(
             metrics_dict["server_ready_s"] = proc.server_ready_s
             metrics_dict["idle_vram_mb"] = idle_vram_mb
             metrics_dict["peak_vram_mb"] = peak_vram_mb
+            metrics_dict["model_max_context"] = model_max_context
     except (TimeoutError, RuntimeError, ValueError, KeyboardInterrupt) as exc:
         if save_result:
             status = "error"

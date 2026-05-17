@@ -15,19 +15,30 @@ from calibration import (  # noqa: E402
     compute_summary,
     format_summary_lines,
     parse_idle_vram_from_metrics_stdout,
+    parse_model_max_context_from_metrics_stdout,
     read_idle_vram_from_result,
+    read_model_max_context_from_result,
     write_calibration_session_summary,
 )
 from metrics import format_metrics_summary  # noqa: E402
 from runner import _TESTER_ROOT  # noqa: E402
 
 
-def _write_result(path: Path, *, idle_vram_mb: int, status: str = "ok") -> None:
+def _write_result(
+    path: Path,
+    *,
+    idle_vram_mb: int,
+    status: str = "ok",
+    model_max_context: int | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    metrics: dict[str, int] = {"idle_vram_mb": idle_vram_mb}
+    if model_max_context is not None:
+        metrics["model_max_context"] = model_max_context
     document = {
         "run_id": path.stem,
         "status": status,
-        "metrics": {"idle_vram_mb": idle_vram_mb},
+        "metrics": metrics,
     }
     path.write_text(json.dumps(document), encoding="utf-8")
 
@@ -108,6 +119,7 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
             "model_vram_mb": 10353,
             "kv_vram_mb": 4414,
             "estimated_context_max": 128000,
+            "model_max_context": 128000,
         }
         with tempfile.TemporaryDirectory() as tmp:
             tester_root = Path(tmp)
@@ -201,6 +213,40 @@ class TestReadIdleVramFromResult(unittest.TestCase):
             self.assertIn("idle_vram_mb missing", str(ctx.exception))
 
 
+class TestParseModelMaxContextFromMetricsStdout(unittest.TestCase):
+    def test_reads_model_max_context(self) -> None:
+        text = "model_max_context    128000\n"
+        self.assertEqual(parse_model_max_context_from_metrics_stdout(text), 128000)
+
+    def test_returns_none_when_missing(self) -> None:
+        self.assertIsNone(parse_model_max_context_from_metrics_stdout("idle_vram_mb 100\n"))
+
+    def test_returns_none_for_na(self) -> None:
+        self.assertIsNone(
+            parse_model_max_context_from_metrics_stdout("model_max_context n/a\n")
+        )
+
+
+class TestReadModelMaxContextFromResult(unittest.TestCase):
+    def test_reads_ok_result(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(path, idle_vram_mb=100, model_max_context=65536)
+            self.assertEqual(read_model_max_context_from_result(path), 65536)
+
+    def test_returns_none_when_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(path, idle_vram_mb=100)
+            self.assertIsNone(read_model_max_context_from_result(path))
+
+    def test_returns_none_for_non_ok_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(path, idle_vram_mb=100, status="error", model_max_context=1)
+            self.assertIsNone(read_model_max_context_from_result(path))
+
+
 class TestParseIdleVramFromMetricsStdout(unittest.TestCase):
     def test_reads_idle_vram_from_probe_block(self) -> None:
         metrics = {
@@ -230,13 +276,25 @@ class TestFormatSummaryLines(unittest.TestCase):
             "model_vram_mb": 10353,
             "kv_vram_mb": 4414,
             "estimated_context_max": 128000,
+            "model_max_context": 128000,
         }
         lines = format_summary_lines(summary)
-        self.assertEqual(len(lines), 4)
+        self.assertEqual(len(lines), 5)
         self.assertEqual(lines[0], "* GGUF on disk: 9.55 GB")
         self.assertEqual(lines[1], "* Model VRAM: 10353 MiB")
         self.assertEqual(lines[2], "* KV VRAM: 4414 MiB")
         self.assertEqual(lines[3], "* Estimated Max Context: 128000 tokens")
+        self.assertEqual(lines[4], "* Model max context: 128000 tokens")
+
+    def test_model_max_context_na(self) -> None:
+        summary = {
+            "gguf_gb": 1.0,
+            "model_vram_mb": 1000,
+            "kv_vram_mb": 2000,
+            "estimated_context_max": 4096,
+        }
+        lines = format_summary_lines(summary)
+        self.assertEqual(lines[4], "* Model max context: n/a")
 
 
 if __name__ == "__main__":

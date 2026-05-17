@@ -11,7 +11,7 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from config import ServerConfig  # noqa: E402
-from server import ServerProcess  # noqa: E402
+from server import ServerProcess, fetch_model_max_context  # noqa: E402
 
 
 class TestServerReadyS(unittest.TestCase):
@@ -39,6 +39,44 @@ class TestServerReadyS(unittest.TestCase):
         self.assertIsNotNone(proc.server_ready_s)
         self.assertGreaterEqual(proc.server_ready_s, 0.0)
         self.assertEqual(proc.ready_endpoint, "/health")
+
+
+class TestFetchModelMaxContext(unittest.TestCase):
+    def test_parses_n_ctx_train(self) -> None:
+        client = MagicMock()
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "data": [{"meta": {"n_ctx_train": 128000}}],
+        }
+        client.get.return_value = response
+        self.assertEqual(
+            fetch_model_max_context(client, "http://127.0.0.1:8080"),
+            128000,
+        )
+        client.get.assert_called_once_with("http://127.0.0.1:8080/v1/models")
+
+    def test_returns_none_when_meta_missing(self) -> None:
+        client = MagicMock()
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"data": [{"meta": {}}]}
+        client.get.return_value = response
+        self.assertIsNone(fetch_model_max_context(client, "http://127.0.0.1:8080"))
+
+    def test_returns_none_on_http_error(self) -> None:
+        import httpx
+
+        client = MagicMock()
+        client.get.side_effect = httpx.HTTPError("down")
+        self.assertIsNone(fetch_model_max_context(client, "http://127.0.0.1:8080"))
+
+    def test_returns_none_on_non_200(self) -> None:
+        client = MagicMock()
+        response = MagicMock()
+        response.status_code = 503
+        client.get.return_value = response
+        self.assertIsNone(fetch_model_max_context(client, "http://127.0.0.1:8080"))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server, run one streaming chat completion, print all twelve metrics plus a headline footer on stdout, then tear down. Pass `--save-result` with a config directory to write JSON under `results/{model}/{variant}/` and print the full run summary. Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
+Single-run harness for `llama-server`: start the server, run one streaming chat completion, print all thirteen metrics plus a headline footer on stdout, then tear down. Pass `--save-result` with a config directory to write JSON under `results/{model}/{variant}/` and print the full run summary. Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
 
 ## What it does
 
@@ -76,7 +76,7 @@ From `tester-v1/`:
 ./model_calibration.py configs/qwen3.5-9b-q8
 ```
 
-Progress and errors go to stderr. On success, stdout is each probe's metrics block and headline footer (default mode), then a blank line and four calibration summary lines (unless `--save-result --quiet`):
+Progress and errors go to stderr. On success, stdout is each probe's metrics block and headline footer (default mode), then a blank line and five calibration summary lines (unless `--save-result --quiet`):
 
 ```text
 
@@ -84,15 +84,18 @@ Progress and errors go to stderr. On success, stdout is each probe's metrics blo
 * Model VRAM: 10353 MiB
 * KV VRAM: 4414 MiB
 * Estimated Max Context: 241987 tokens
+* Model max context: 128000 tokens
 ```
 
-Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the four summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/{model}/{variant}/` and a session summary for later reuse.
+`estimated_context_max` is VRAM-derived and can exceed the model cap. `model_max_context` is the native limit from llama-server `GET /v1/models` (`data[0].meta.n_ctx_train`), recorded on the footprint probe after the server is ready; it is `n/a` when the API omits that field.
+
+Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/{model}/{variant}/` and a session summary for later reuse.
 
 | Flag | Behavior |
 | ---- | -------- |
 | (default) | Run footprint and ctx-probe as probes; print probe stdout, then calibration summary; no JSON |
 | `--save-result` | Run probes with `--save-result --quiet` and shared `--session-id`; read latest JSON per variant dir; write `calibration-sessions/{session_id}.json` |
-| `--quiet` | Only with `--save-result`: suppress the four-line calibration summary on stdout |
+| `--quiet` | Only with `--save-result`: suppress the five-line calibration summary on stdout |
 | `--margin-mib` | VRAM headroom subtracted from KV budget (default `1536`) |
 | `--tester-root` | Harness root (default: `tester-v1/`) |
 
@@ -188,7 +191,7 @@ Flags (same config resolution as above; pass `config_dir` when testing a variant
 
 | Flag             | Behavior                                                                                                      |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
-| (default)        | Full run; all twelve metrics plus headline footer on stdout; no JSON                                          |
+| (default)        | Full run; all thirteen metrics plus headline footer on stdout; no JSON                                         |
 | `--save-result`  | Requires `config_dir`; write `results/{model}/{variant}/{timestamp}.json`; print full run summary on stdout |
 | `--quiet`        | Only with `--save-result`: suppress stdout summary; on success print `Wrote results/...` to stderr              |
 | `--include-output` | Print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON |
@@ -248,7 +251,7 @@ Each JSON document includes:
 - `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `configs/`, also `config_path` e.g. `qwen3.5-9b-q8/hello-world-baseline/` plus `model` and `variant` from the path; each field is `null` when unavailable)
 - `metrics` (see table below)
 
-**Calibration sessions:** `model_calibration --save-result` generates one `session_id`, passes it to both probe subprocesses, reads the latest JSON from each variant directory, and writes `results/{model}/calibration-sessions/{session_id}.json` (four summary numbers plus probe `run_id` and path refs).
+**Calibration sessions:** `model_calibration --save-result` generates one `session_id`, passes it to both probe subprocesses, reads the latest JSON from each variant directory, and writes `results/{model}/calibration-sessions/{session_id}.json` (summary: `gguf_gb`, `model_vram_mb`, `kv_vram_mb`, `estimated_context_max`, `model_max_context` from the footprint probe JSON; plus probe `run_id` and path refs).
 
 Default probe stdout prints every metric key below (rounded, `n/a` when missing), then a blank line and three headline lines derived from `wall_time_s` (end-to-end time), `peak_vram_mb` (peak VRAM as GiB), and `decode_tok_s` (generation throughput). Completion text is omitted unless you pass `--include-output` (printed after the headlines). With `--save-result --include-output`, the same text is also saved beside the JSON. With `--save-result`, stdout is the run summary (run id, model, result path, then the same metrics block and headlines) unless `--quiet`. The JSON `metrics` object keeps full floating-point values for every field.
 
@@ -267,6 +270,7 @@ decode_tok_s        116.32
 tokens_per_second   28.01
 idle_vram_mb        8000
 peak_vram_mb        8961
+model_max_context   128000
 
 End-to-end time         9.14 s
 Peak VRAM               8.75 GiB
@@ -288,6 +292,7 @@ Generation throughput   116.32 tok/s
 | `tokens_per_second` | `completion_tokens` / `wall_time_s`; end-to-end completion throughput including TTFT.                            |
 | `idle_vram_mb`      | GPU memory in MB after the server is ready and before the measured prompt (`nvidia-smi`; `null` if unavailable). |
 | `peak_vram_mb`      | Peak GPU memory in MB during the measured prompt (background `nvidia-smi` poll; `null` if unavailable).          |
+| `model_max_context` | Native context limit from `GET /v1/models` (`data[0].meta.n_ctx_train`; `null` if missing or unreadable).       |
 
 
 ## Critical gotchas

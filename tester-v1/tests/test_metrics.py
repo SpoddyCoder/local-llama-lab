@@ -51,6 +51,8 @@ class TestFormatMetricsSummary(unittest.TestCase):
         decode_idx = keys.index("decode_tok_s")
         self.assertEqual(keys[decode_idx + 1], "tokens_per_second")
         self.assertEqual(keys[decode_idx + 2], "idle_vram_mb")
+        self.assertEqual(keys[decode_idx + 3], "peak_vram_mb")
+        self.assertEqual(keys[decode_idx + 4], "model_max_context")
 
     def test_missing_values_render_as_na(self) -> None:
         text = format_metrics_summary({"wall_time_s": 1.0})

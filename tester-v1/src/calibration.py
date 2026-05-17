@@ -16,6 +16,7 @@ VARIANT_CTX_PROBE = "calibration-ctx-probe"
 
 
 _IDLE_VRAM_METRIC_KEY = "idle_vram_mb"
+_MODEL_MAX_CONTEXT_METRIC_KEY = "model_max_context"
 
 
 def parse_idle_vram_from_metrics_stdout(text: str) -> int:
@@ -28,6 +29,33 @@ def parse_idle_vram_from_metrics_stdout(text: str) -> int:
             raise ValueError("idle_vram_mb unavailable in probe stdout")
         return int(float(value_part))
     raise ValueError("idle_vram_mb not found in probe stdout")
+
+
+def parse_model_max_context_from_metrics_stdout(text: str) -> int | None:
+    """Parse model_max_context from probe stdout; None if missing or n/a."""
+    for line in text.splitlines():
+        if not line.startswith(_MODEL_MAX_CONTEXT_METRIC_KEY):
+            continue
+        value_part = line[len(_MODEL_MAX_CONTEXT_METRIC_KEY) :].strip()
+        if not value_part or value_part == "n/a":
+            return None
+        return int(float(value_part))
+    return None
+
+
+def read_model_max_context_from_result(path: Path) -> int | None:
+    """Load model_max_context from a result JSON metrics; None if absent."""
+    with path.open(encoding="utf-8") as f:
+        document = json.load(f)
+    if document.get("status") != "ok":
+        return None
+    metrics = document.get("metrics")
+    if not isinstance(metrics, dict):
+        return None
+    value = metrics.get("model_max_context")
+    if value is None:
+        return None
+    return int(value)
 
 
 def read_idle_vram_from_result(path: Path) -> int:
@@ -65,7 +93,7 @@ def write_calibration_session_summary(
     tester_root: Path,
     model: str,
     session_id: str,
-    summary: dict[str, float | int],
+    summary: dict[str, float | int | None],
     footprint_result: Path,
     ctx_probe_result: Path,
 ) -> Path:
@@ -84,6 +112,7 @@ def write_calibration_session_summary(
             "model_vram_mb": summary["model_vram_mb"],
             "kv_vram_mb": summary["kv_vram_mb"],
             "estimated_context_max": summary["estimated_context_max"],
+            "model_max_context": summary.get("model_max_context"),
         },
         "probes": {
             "footprint": _probe_ref(footprint_result, tester_root),
@@ -152,13 +181,19 @@ def compute_summary(
     }
 
 
-def format_summary_lines(summary: dict[str, float | int]) -> list[str]:
-    """Format the four calibration summary lines for stdout."""
+def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
+    """Format calibration summary lines for stdout."""
+    model_max = summary.get("model_max_context")
+    if model_max is None:
+        model_max_line = "* Model max context: n/a"
+    else:
+        model_max_line = f"* Model max context: {model_max} tokens"
     return [
         f"* GGUF on disk: {summary['gguf_gb']:.2f} GB",
         f"* Model VRAM: {summary['model_vram_mb']} MiB",
         f"* KV VRAM: {summary['kv_vram_mb']} MiB",
         f"* Estimated Max Context: {summary['estimated_context_max']} tokens",
+        model_max_line,
     ]
 
 

@@ -198,6 +198,34 @@ def managed_server(
         proc.stop()
 
 
+def fetch_model_max_context(client: httpx.Client, base_url: str) -> int | None:
+    """Return native context limit from GET /v1/models ``data[0].meta.n_ctx_train``."""
+    try:
+        resp = client.get(f"{base_url.rstrip('/')}/v1/models")
+        if resp.status_code != 200:
+            return None
+        payload = resp.json()
+    except (httpx.HTTPError, ValueError, TypeError):
+        return None
+
+    data = payload.get("data")
+    if not isinstance(data, list) or not data:
+        return None
+    first = data[0]
+    if not isinstance(first, dict):
+        return None
+    meta = first.get("meta")
+    if not isinstance(meta, dict):
+        return None
+    n_ctx_train = meta.get("n_ctx_train")
+    if n_ctx_train is None:
+        return None
+    try:
+        return int(n_ctx_train)
+    except (TypeError, ValueError):
+        return None
+
+
 def _probe_health(client: httpx.Client, base_url: str) -> str | None:
     for path in _HEALTH_PATHS:
         try:

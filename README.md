@@ -61,20 +61,22 @@ hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
 
 Note: this example shows just one quantized model, if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
 
-* [Qwen_Qwen3.5-9B-Q8_0.gguf](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/tree/main)
+* [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/tree/main)
   * Broad multilingual support (100+ languages) and highly competitive, generalist benchmark scores.
   * Vanilla setup:
     * GGUF on disk: 9.55 GB
     * Model VRAM: 10337 MiB
     * KV VRAM: 4430 MiB
     * Estimated Max Context: 150823 tokens
-* [Gemma 4: E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
+    * Typical Tok/s: TODO
+* [Gemma-4-E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
   * Outstanding for local developer setups that require tool-calling capabilities and structured outputs.
   * Vanilla setup:
     * GGUF on disk: 8.03 GB
     * Model VRAM: 7022 MiB
     * KV VRAM: 7745 MiB
     * Estimated Max Context: 446749 tokens
+    * Typical Tok/s: TODO
 
 ## Tester v1 (single-run harness)
 

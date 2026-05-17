@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""CLI: run footprint + ctx-probe variants and print VRAM calibration summary."""
+"""CLI: run footprint + ctx-probe variants and print VRAM calibration summary.
+
+Default: probe stdout only (no JSON). Pass --save-result to write probe JSON under results/.
+"""
 
 from __future__ import annotations
 

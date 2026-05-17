@@ -15,6 +15,21 @@ VARIANT_FOOTPRINT = "calibration-footprint"
 VARIANT_CTX_PROBE = "calibration-ctx-probe"
 
 
+_IDLE_VRAM_METRIC_KEY = "idle_vram_mb"
+
+
+def parse_idle_vram_from_metrics_stdout(text: str) -> int:
+    """Parse idle_vram_mb from a default single_test_runner probe stdout block."""
+    for line in text.splitlines():
+        if not line.startswith(_IDLE_VRAM_METRIC_KEY):
+            continue
+        value_part = line[len(_IDLE_VRAM_METRIC_KEY) :].strip()
+        if not value_part or value_part == "n/a":
+            raise ValueError("idle_vram_mb unavailable in probe stdout")
+        return int(float(value_part))
+    raise ValueError("idle_vram_mb not found in probe stdout")
+
+
 def read_idle_vram_from_result(path: Path) -> int:
     """Load idle_vram_mb from a result JSON; require ok status."""
     with path.open(encoding="utf-8") as f:
@@ -114,11 +129,22 @@ def format_summary_lines(summary: dict[str, float | int]) -> list[str]:
     ]
 
 
-def run_variant_subprocess(tester_root: Path, variant_dir: Path) -> tuple[int, str]:
+def run_variant_subprocess(
+    tester_root: Path,
+    variant_dir: Path,
+    *,
+    save_result: bool,
+    quiet: bool,
+) -> tuple[int, str]:
     """Run single_test_runner for a variant directory; return (returncode, captured output)."""
     runner = tester_root / "single_test_runner.py"
+    cmd = [sys.executable, str(runner), str(variant_dir)]
+    if save_result:
+        cmd.append("--save-result")
+    if save_result and quiet:
+        cmd.append("--quiet")
     proc = subprocess.run(
-        [sys.executable, str(runner), str(variant_dir), "--save-result", "--quiet"],
+        cmd,
         cwd=tester_root,
         capture_output=True,
         text=True,

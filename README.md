@@ -103,11 +103,13 @@ Use a browser to view the llama web UI while it's running (may vary depending on
 
 
 ### Tests
-For a new model, run the calibration tests first...
+For a new model, run calibration first (default: probe stdout plus four-line summary; no JSON):
 
 ```bash
 python3 model_calibration.py test-configs/test1/qwen3.5-9b-q8
 ```
+
+Add `--save-result` on calibration or single runs when you want probe JSON under `results/`.
 
 Then run test cases (default: probe metrics on stdout, no JSON file):
 

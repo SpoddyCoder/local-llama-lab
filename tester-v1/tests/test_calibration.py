@@ -15,8 +15,10 @@ from calibration import (  # noqa: E402
     compute_summary,
     find_latest_result,
     format_summary_lines,
+    parse_idle_vram_from_metrics_stdout,
     read_idle_vram_from_result,
 )
+from metrics import format_metrics_summary  # noqa: E402
 from config import slug_from_config_dir  # noqa: E402
 from runner import _TESTER_ROOT  # noqa: E402
 
@@ -150,6 +152,28 @@ class TestReadIdleVramFromResult(unittest.TestCase):
             with self.assertRaises(ValueError) as ctx:
                 read_idle_vram_from_result(path)
             self.assertIn("idle_vram_mb missing", str(ctx.exception))
+
+
+class TestParseIdleVramFromMetricsStdout(unittest.TestCase):
+    def test_reads_idle_vram_from_probe_block(self) -> None:
+        metrics = {
+            "server_ready_s": 1.0,
+            "wall_time_s": 2.0,
+            "idle_vram_mb": 10353,
+            "peak_vram_mb": 10400,
+        }
+        text = f"Model: example\n\n{format_metrics_summary(metrics)}\n"
+        self.assertEqual(parse_idle_vram_from_metrics_stdout(text), 10353)
+
+    def test_rejects_missing_idle_vram(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            parse_idle_vram_from_metrics_stdout("wall_time_s          1.00\n")
+        self.assertIn("not found", str(ctx.exception))
+
+    def test_rejects_na_idle_vram(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            parse_idle_vram_from_metrics_stdout("idle_vram_mb         n/a\n")
+        self.assertIn("unavailable", str(ctx.exception))
 
 
 class TestFormatSummaryLines(unittest.TestCase):

@@ -116,6 +116,8 @@ Suggest running calibration from `tester-v1/`:
 python3 model_calibration.py test-configs/{test_name}/{model_slug}
 ```
 
+Default: probe stdout for each calibration variant, then the four-line VRAM summary (no JSON). Add `--save-result` when probe JSON under `results/` is needed.
+
 For what the probes mean and how to interpret stdout, see [Model calibration](../../../tester-v1/README.md#model-calibration) in `tester-v1/README.md`.
 
 ## Example

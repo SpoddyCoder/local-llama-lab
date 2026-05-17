@@ -52,7 +52,7 @@ Use separate variant directories (for example `baseline` vs `no-mmap`) instead o
 
 ## Model calibration
 
-Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. `model_calibration.py` runs each variant via `single_test_runner.py --save-result --quiet`, writes result JSON under `results/`, then reads `idle_vram_mb` from the latest footprint and ctx-probe results to compute the summary.
+Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. By default, `model_calibration.py` runs each calibration variant as a probe (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` and read `idle_vram_mb` from the latest footprint and ctx-probe files.
 
 Each model config directory (for example `test-configs/test1/qwen3.5-9b-q8/`) must include two calibration variants:
 
@@ -67,7 +67,7 @@ From `tester-v1/`:
 ./model_calibration.py test-configs/test1/qwen3.5-9b-q8
 ```
 
-Progress and errors go to stderr. On success, stdout is a blank line then four summary lines:
+Progress and errors go to stderr. On success, stdout is each probe's metrics (default mode), then a blank line and four summary lines (unless `--save-result --quiet`):
 
 ```text
 
@@ -77,7 +77,23 @@ Progress and errors go to stderr. On success, stdout is a blank line then four s
 * Estimated Max Context: 241987 tokens
 ```
 
-Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the four stdout values into your model notes (see the repo root README Qwen section).
+Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the four summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/` for later reuse.
+
+| Flag | Behavior |
+| ---- | -------- |
+| (default) | Run footprint and ctx-probe as probes; print probe stdout, then calibration summary; no JSON |
+| `--save-result` | Run probes with `--save-result --quiet`; read `idle_vram_mb` from latest JSON in `results/` |
+| `--quiet` | Only with `--save-result`: suppress the four-line calibration summary on stdout |
+| `--margin-mib` | VRAM headroom subtracted from KV budget (default `1536`) |
+| `--tester-root` | Harness root (default: `tester-v1/`) |
+
+```bash
+# Probe calibration (stdout only)
+./model_calibration.py test-configs/test1/qwen3.5-9b-q8
+
+# Record probe JSON under results/
+./model_calibration.py test-configs/test1/qwen3.5-9b-q8 --save-result
+```
 
 To scaffold calibration-footprint, calibration-ctx-probe, baseline, and no-mmap configs for a new model, use the [create-new-model-test](../.cursor/skills/create-new-model-test/SKILL.md) project skill.
 

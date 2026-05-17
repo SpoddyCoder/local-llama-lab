@@ -11,7 +11,7 @@ Do **not** run report- or artifact-generating tools in this repo unless the user
 
 **Ask for permission first** when you would otherwise invoke:
 
-- `tester-v1/model_calibration.py` (runs footprint + ctx-probe via `single_test_runner --save-result --quiet`, writes JSON under `tester-v1/results/`)
+- `tester-v1/model_calibration.py` with `--save-result` (runs footprint + ctx-probe via `single_test_runner --save-result --quiet`, writes JSON under `tester-v1/results/`; default calibration is probe-only on stdout)
 - `tester-v1/single_test_runner.py` with `--save-result` (starts `llama-server`, writes JSON under `tester-v1/results/`; default probe run does not write JSON)
 
 Same rule for equivalent `./model_calibration.py` / `./single_test_runner.py` from `tester-v1/`.

@@ -1,4 +1,3 @@
-# Minimal completion; idle_vram_mb after ready is the metric that matters
 base_url: http://127.0.0.1:8080
 
 messages:

@@ -89,14 +89,14 @@ Progress and errors go to stderr. On success, stdout is each probe's metrics blo
 
 `estimated_context_max` is VRAM-derived and can exceed the model cap. `model_max_context` is the native limit from llama-server `GET /v1/models` (`data[0].meta.n_ctx_train`), recorded on the footprint probe after the server is ready; it is `n/a` when the API omits that field.
 
-Optional `--margin-mib` reserves headroom for non-KV GPU use (default `1536`). Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/{model}/{variant}/` and a session summary for later reuse.
+Optional `--margin-mib` reserves headroom for non-KV GPU use (default `0`). Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/{model}/{variant}/` and a session summary for later reuse.
 
 | Flag | Behavior |
 | ---- | -------- |
 | (default) | Run footprint and ctx-probe as probes; print probe stdout, then calibration summary; no JSON |
 | `--save-result` | Run probes with `--save-result --quiet` and shared `--session-id`; read latest JSON per variant dir; write `calibration-sessions/{session_id}.json` |
 | `--quiet` | Only with `--save-result`: suppress the five-line calibration summary on stdout |
-| `--margin-mib` | VRAM headroom subtracted from KV budget (default `1536`) |
+| `--margin-mib` | VRAM headroom subtracted from KV budget (default `0`) |
 | `--tester-root` | Harness root (default: `tester-v1/`) |
 
 ```bash

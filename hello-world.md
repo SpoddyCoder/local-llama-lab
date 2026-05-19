@@ -9,7 +9,7 @@ hi, write me hello world in 20 different programming languages.
 `client.yaml`:
 
 ```text
-"max_tokens": 1024,
+"max_tokens": 4096,
 "temperature": 0
 ```
 
@@ -23,16 +23,16 @@ From `tester-v1/`:
 
 ### hello-world-baseline
 ```text
-End-to-end time         11.59 s
-Peak VRAM               14.72 GiB
-Generation throughput   89.84 tok/s
+End-to-end time         25.01 s
+Peak VRAM               14.78 GiB
+Generation throughput   89.26 tok/s
 ```
 
 ## Gemma 4 E4B-IT-Q8
 
 ### hello-world-baseline
 ```text
-End-to-end time         9.18 s
-Peak VRAM               8.82 GiB
-Generation throughput   115.11 tok/s
+End-to-end time         13.92 s
+Peak VRAM               8.84 GiB
+Generation throughput   115.75 tok/s
 ```

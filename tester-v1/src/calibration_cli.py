@@ -231,8 +231,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--margin-mib",
         type=int,
-        default=1536,
-        help="VRAM margin reserved for non-KV use (default: 1536)",
+        default=0,
+        help="VRAM margin reserved for non-KV use (default: 0)",
     )
     parser.add_argument(
         "--tester-root",

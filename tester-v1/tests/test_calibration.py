@@ -51,13 +51,13 @@ class TestComputeSummary(unittest.TestCase):
             footprint_c=4096,
             ctx_c=16384,
             gpu_total_mb=16303,
-            margin_mb=1536,
+            margin_mb=0,
             gguf_gb=9.55,
         )
         self.assertEqual(summary["model_vram_mb"], 10353)
-        self.assertEqual(summary["kv_vram_mb"], 4414)
+        self.assertEqual(summary["kv_vram_mb"], 5950)
         self.assertEqual(summary["gguf_gb"], 9.55)
-        self.assertEqual(summary["estimated_context_max"], 717770)
+        self.assertEqual(summary["estimated_context_max"], 966117)
 
     def test_ctx_c_not_greater_than_footprint_c(self) -> None:
         with self.assertRaises(ValueError) as ctx:
@@ -67,7 +67,7 @@ class TestComputeSummary(unittest.TestCase):
                 footprint_c=8192,
                 ctx_c=4096,
                 gpu_total_mb=16000,
-                margin_mb=1536,
+                margin_mb=0,
                 gguf_gb=1.0,
             )
         self.assertIn("must be greater than footprint", str(ctx.exception))
@@ -80,7 +80,7 @@ class TestComputeSummary(unittest.TestCase):
                 footprint_c=4096,
                 ctx_c=16384,
                 gpu_total_mb=16000,
-                margin_mb=1536,
+                margin_mb=0,
                 gguf_gb=1.0,
             )
         self.assertIn("slope is non-positive", str(ctx.exception))
@@ -93,7 +93,7 @@ class TestComputeSummary(unittest.TestCase):
                 footprint_c=4096,
                 ctx_c=16384,
                 gpu_total_mb=16000,
-                margin_mb=1536,
+                margin_mb=0,
                 gguf_gb=1.0,
             )
         self.assertIn("slope is non-positive", str(ctx.exception))
@@ -101,12 +101,12 @@ class TestComputeSummary(unittest.TestCase):
     def test_negative_kv_budget(self) -> None:
         with self.assertRaises(ValueError) as ctx:
             compute_summary(
-                footprint_idle=15000,
-                ctx_probe_idle=15100,
+                footprint_idle=16100,
+                ctx_probe_idle=16200,
                 footprint_c=4096,
                 ctx_c=16384,
                 gpu_total_mb=16000,
-                margin_mb=1536,
+                margin_mb=0,
                 gguf_gb=1.0,
             )
         self.assertIn("budget is negative", str(ctx.exception))

@@ -75,7 +75,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             code = _run_calibration(
                 model_dir,
                 tester_root,
-                1536,
+                0,
                 save_result=False,
                 quiet=False,
             )
@@ -132,7 +132,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             code = _run_calibration(
                 model_dir,
                 tester_root,
-                1536,
+                0,
                 save_result=True,
                 quiet=True,
             )
@@ -194,7 +194,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             code = _run_calibration(
                 model_dir,
                 tester_root,
-                1536,
+                0,
                 save_result=True,
                 quiet=False,
             )
@@ -223,7 +223,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             code = _run_calibration(
                 model_dir,
                 tester_root,
-                1536,
+                0,
                 save_result=True,
                 quiet=True,
             )

@@ -1,11 +1,10 @@
-# hello-world prompt and params (stream forced true by runner in later phases)
 base_url: http://127.0.0.1:8080
 
 messages:
   - role: user
     content: |
-      hi, write me hello world in 20 different programming languages.
+      write hello world in 20 different programming languages
 
 params:
-  max_tokens: 8192
+  max_tokens: 4096
   temperature: 0

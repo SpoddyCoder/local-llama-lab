@@ -13,6 +13,7 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from calibration import VARIANT_FOOTPRINT  # noqa: E402
+from calibration import DEFAULT_CALIBRATION_MARGIN_MIB  # noqa: E402
 from calibration_cli import (  # noqa: E402
     _result_config_dir,
     _run_calibration,
@@ -117,6 +118,23 @@ class TestMainArgparse(unittest.TestCase):
         kwargs = run.call_args.kwargs
         self.assertFalse(kwargs["save_result"])
         self.assertFalse(kwargs["quiet"])
+
+    def test_main_default_margin_mib(self) -> None:
+        model_dir = Path("/tmp/model")
+        with patch("calibration_cli._validate_model_dir", return_value=None):
+            with patch("calibration_cli._run_calibration", return_value=0) as run:
+                main([str(model_dir)])
+        self.assertEqual(
+            run.call_args.args[2],
+            DEFAULT_CALIBRATION_MARGIN_MIB,
+        )
+
+    def test_main_margin_mib_override(self) -> None:
+        model_dir = Path("/tmp/model")
+        with patch("calibration_cli._validate_model_dir", return_value=None):
+            with patch("calibration_cli._run_calibration", return_value=0) as run:
+                main([str(model_dir), "--margin-mib", "0"])
+        self.assertEqual(run.call_args.args[2], 0)
 
 
 class TestRunCalibrationStdout(unittest.TestCase):

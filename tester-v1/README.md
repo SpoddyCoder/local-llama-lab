@@ -97,14 +97,16 @@ Progress and errors go to stderr. On success, stdout is each probe's metrics blo
 
 `Generation throughput` uses `decode_tok_s` from the hello-world probe (rounded, README-style `~N tok/s`). `estimated_context_max` is VRAM-derived and can exceed the model cap. `model_max_context` is the native limit from llama-server `GET /v1/models` (`data[0].meta.n_ctx_train`), recorded on the footprint probe after the server is ready; it is `n/a` when the API omits that field.
 
-Optional `--margin-mib` reserves headroom for non-KV GPU use (default `0`). Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON on disk under `results/{model}/{variant}/` and a session summary for later local reuse (gitignored).
+Calibration assumes **512 MiB** of GPU VRAM is already in use before the model loads (desktop, compositor, other clients). That amount is subtracted from the KV budget via `--margin-mib` (default `512`). If your idle GPU use differs, pass `--margin-mib` with your measured baseline, or `--margin-mib 0` when nothing else uses the card.
+
+Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON on disk under `results/{model}/{variant}/` and a session summary for later local reuse (gitignored).
 
 | Flag | Behavior |
 | ---- | -------- |
 | (default) | Run footprint, ctx-probe, and hello-world as probes; print probe stdout, then calibration summary; no JSON |
 | `--save-result` | Run probes with `--save-result --quiet` and shared `--session-id`; read latest JSON per variant dir; write `calibration-sessions/{session_id}.json` |
 | `--quiet` | Only with `--save-result`: suppress the six-line calibration summary on stdout |
-| `--margin-mib` | VRAM headroom subtracted from KV budget (default `0`) |
+| `--margin-mib` | VRAM headroom subtracted from KV budget; pre-load baseline (default `512`) |
 | `--tester-root` | Harness root (default: `tester-v1/`) |
 
 ```bash

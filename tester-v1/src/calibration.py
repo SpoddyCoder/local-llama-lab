@@ -15,6 +15,9 @@ VARIANT_FOOTPRINT = "calibration-footprint"
 VARIANT_CTX_PROBE = "calibration-ctx-probe"
 VARIANT_HELLO_WORLD = "hello-world-baseline"
 
+# VRAM already in use on the GPU before llama-server loads the model (desktop, compositor, etc.).
+DEFAULT_CALIBRATION_MARGIN_MIB = 512
+
 
 _IDLE_VRAM_METRIC_KEY = "idle_vram_mb"
 _MODEL_MAX_CONTEXT_METRIC_KEY = "model_max_context"

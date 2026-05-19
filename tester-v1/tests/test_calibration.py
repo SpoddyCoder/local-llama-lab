@@ -12,6 +12,7 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from calibration import (  # noqa: E402
+    DEFAULT_CALIBRATION_MARGIN_MIB,
     compute_summary,
     format_generation_throughput_line,
     format_summary_lines,
@@ -66,6 +67,34 @@ class TestComputeSummary(unittest.TestCase):
         self.assertEqual(summary["kv_vram_mb"], 5950)
         self.assertEqual(summary["gguf_gb"], 9.55)
         self.assertEqual(summary["estimated_context_max"], 966117)
+
+    def test_margin_reduces_kv_budget(self) -> None:
+        without_margin = compute_summary(
+            footprint_idle=10353,
+            ctx_probe_idle=10429,
+            footprint_c=4096,
+            ctx_c=16384,
+            gpu_total_mb=16303,
+            margin_mb=0,
+            gguf_gb=9.55,
+        )
+        with_default_margin = compute_summary(
+            footprint_idle=10353,
+            ctx_probe_idle=10429,
+            footprint_c=4096,
+            ctx_c=16384,
+            gpu_total_mb=16303,
+            margin_mb=DEFAULT_CALIBRATION_MARGIN_MIB,
+            gguf_gb=9.55,
+        )
+        self.assertEqual(
+            with_default_margin["kv_vram_mb"],
+            without_margin["kv_vram_mb"] - DEFAULT_CALIBRATION_MARGIN_MIB,
+        )
+        self.assertLess(
+            with_default_margin["estimated_context_max"],
+            without_margin["estimated_context_max"],
+        )
 
     def test_ctx_c_not_greater_than_footprint_c(self) -> None:
         with self.assertRaises(ValueError) as ctx:

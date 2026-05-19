@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from calibration import (
+    DEFAULT_CALIBRATION_MARGIN_MIB,
     VARIANT_CTX_PROBE,
     VARIANT_FOOTPRINT,
     VARIANT_HELLO_WORLD,
@@ -292,8 +293,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--margin-mib",
         type=int,
-        default=0,
-        help="VRAM margin reserved for non-KV use (default: 0)",
+        default=DEFAULT_CALIBRATION_MARGIN_MIB,
+        help=(
+            "VRAM margin reserved for non-KV use before the model loads "
+            f"(default: {DEFAULT_CALIBRATION_MARGIN_MIB})"
+        ),
     )
     parser.add_argument(
         "--tester-root",

@@ -123,6 +123,8 @@ cd tester-v1
 
 Add `--save-result` when you want probe JSON on disk under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`; local only, gitignored).
 
+Calibration assumes 512 MiB GPU VRAM is in use before the model loads; override with `--margin-mib` if your baseline differs (see [Model calibration](tester-v1/README.md#model-calibration) in `tester-v1/README.md`).
+
 To re-run hello-world alone (for example A/B server flags), use `single_test_runner.py` with reference hello-world YAML and `--model-yaml configs/{model}/model.yaml`; add `--save-result` with an ephemeral `configs/{model}/hello-world-baseline/` dir for result layout (see [tester-v1/README.md](tester-v1/README.md#cli)).
 
 ### Tests

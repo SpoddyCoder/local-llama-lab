@@ -9,11 +9,14 @@ from pathlib import Path
 from calibration import (
     VARIANT_CTX_PROBE,
     VARIANT_FOOTPRINT,
+    VARIANT_HELLO_WORLD,
     compute_summary,
     format_summary_lines,
     gguf_size_gb,
+    parse_decode_tok_s_from_metrics_stdout,
     parse_idle_vram_from_metrics_stdout,
     parse_model_max_context_from_metrics_stdout,
+    read_decode_tok_s_from_result,
     read_idle_vram_from_result,
     read_model_max_context_from_result,
     run_variant_subprocess,
@@ -46,7 +49,7 @@ def _validate_variant_dir(variant_dir: Path) -> None:
 def _validate_model_dir(model_dir: Path) -> None:
     if not model_dir.is_dir():
         raise FileNotFoundError(f"model directory not found: {model_dir}")
-    for variant in (VARIANT_FOOTPRINT, VARIANT_CTX_PROBE):
+    for variant in (VARIANT_FOOTPRINT, VARIANT_CTX_PROBE, VARIANT_HELLO_WORLD):
         variant_dir = _variant_dir(model_dir, variant)
         if not variant_dir.is_dir():
             raise FileNotFoundError(
@@ -93,6 +96,7 @@ def _run_calibration(
     results_dir = tester_root / _RESULTS_DIRNAME
     footprint_dir = _variant_dir(model_dir, VARIANT_FOOTPRINT)
     ctx_probe_dir = _variant_dir(model_dir, VARIANT_CTX_PROBE)
+    hello_world_dir = _variant_dir(model_dir, VARIANT_HELLO_WORLD)
     session_id: str | None = None
     if save_result:
         session_id = format_compact_utc(utc_now())
@@ -100,6 +104,7 @@ def _run_calibration(
     variants = [
         (VARIANT_FOOTPRINT, footprint_dir, "Running calibration-footprint..."),
         (VARIANT_CTX_PROBE, ctx_probe_dir, "Running calibration-ctx-probe..."),
+        (VARIANT_HELLO_WORLD, hello_world_dir, "Running hello-world-baseline..."),
     ]
     probe_outputs: list[tuple[Path, str]] = []
     for _name, variant_dir, progress in variants:
@@ -129,6 +134,9 @@ def _run_calibration(
             ctx_probe_result = find_latest_result(
                 results_dir, ctx_probe_dir, tester_root
             )
+            hello_world_result = find_latest_result(
+                results_dir, hello_world_dir, tester_root
+            )
         except (FileNotFoundError, ValueError) as exc:
             return _fail(f"{exc}\n(results dir: {results_dir})")
 
@@ -136,6 +144,9 @@ def _run_calibration(
             footprint_idle = read_idle_vram_from_result(footprint_result)
             ctx_probe_idle = read_idle_vram_from_result(ctx_probe_result)
             model_max_context = read_model_max_context_from_result(footprint_result)
+            generation_throughput_tok_s = read_decode_tok_s_from_result(
+                hello_world_result
+            )
         except ValueError as exc:
             return _fail(str(exc))
     else:
@@ -148,6 +159,9 @@ def _run_calibration(
             )
             model_max_context = parse_model_max_context_from_metrics_stdout(
                 probe_outputs[0][1]
+            )
+            generation_throughput_tok_s = parse_decode_tok_s_from_metrics_stdout(
+                probe_outputs[2][1]
             )
         except ValueError as exc:
             return _fail(str(exc))
@@ -185,6 +199,7 @@ def _run_calibration(
             gguf_gb,
         )
         summary["model_max_context"] = model_max_context
+        summary["generation_throughput_tok_s"] = generation_throughput_tok_s
     except ValueError as exc:
         if save_result:
             return _fail(
@@ -210,6 +225,7 @@ def _run_calibration(
             summary,
             footprint_result,
             ctx_probe_result,
+            hello_world_result,
         )
 
     if not (save_result and quiet):
@@ -226,7 +242,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "model_dir",
         type=Path,
-        help="model directory containing calibration-footprint/ and calibration-ctx-probe/ variants",
+        help=(
+            "model directory containing calibration-footprint/, "
+            "calibration-ctx-probe/, and hello-world-baseline/ variants"
+        ),
     )
     parser.add_argument(
         "--margin-mib",

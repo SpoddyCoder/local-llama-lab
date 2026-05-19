@@ -13,9 +13,12 @@ sys.path.insert(0, str(_SRC))
 
 from calibration import (  # noqa: E402
     compute_summary,
+    format_generation_throughput_line,
     format_summary_lines,
+    parse_decode_tok_s_from_metrics_stdout,
     parse_idle_vram_from_metrics_stdout,
     parse_model_max_context_from_metrics_stdout,
+    read_decode_tok_s_from_result,
     read_idle_vram_from_result,
     read_model_max_context_from_result,
     write_calibration_session_summary,
@@ -27,14 +30,19 @@ from runner import _TESTER_ROOT  # noqa: E402
 def _write_result(
     path: Path,
     *,
-    idle_vram_mb: int,
+    idle_vram_mb: int | None = None,
     status: str = "ok",
     model_max_context: int | None = None,
+    decode_tok_s: float | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    metrics: dict[str, int] = {"idle_vram_mb": idle_vram_mb}
+    metrics: dict[str, int | float] = {}
+    if idle_vram_mb is not None:
+        metrics["idle_vram_mb"] = idle_vram_mb
     if model_max_context is not None:
         metrics["model_max_context"] = model_max_context
+    if decode_tok_s is not None:
+        metrics["decode_tok_s"] = decode_tok_s
     document = {
         "run_id": path.stem,
         "status": status,
@@ -120,6 +128,7 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
             "kv_vram_mb": 4414,
             "estimated_context_max": 128000,
             "model_max_context": 128000,
+            "generation_throughput_tok_s": 91.2,
         }
         with tempfile.TemporaryDirectory() as tmp:
             tester_root = Path(tmp)
@@ -137,15 +146,25 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
                 / "calibration-ctx-probe"
                 / "20260101T000001Z.json"
             )
+            hello_world = (
+                tester_root
+                / "results"
+                / "qwen3.5-9b-q8"
+                / "hello-world-baseline"
+                / "20260101T000002Z.json"
+            )
             _write_result(
                 footprint,
                 idle_vram_mb=10353,
             )
             _write_result(ctx_probe, idle_vram_mb=10429)
+            _write_result(hello_world, idle_vram_mb=0, decode_tok_s=91.2)
             with footprint.open(encoding="utf-8") as f:
                 footprint_doc = json.load(f)
             with ctx_probe.open(encoding="utf-8") as f:
                 ctx_probe_doc = json.load(f)
+            with hello_world.open(encoding="utf-8") as f:
+                hello_world_doc = json.load(f)
 
             out_path = write_calibration_session_summary(
                 tester_root,
@@ -154,6 +173,7 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
                 summary,
                 footprint,
                 ctx_probe,
+                hello_world,
             )
             self.assertEqual(
                 out_path,
@@ -169,7 +189,17 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
             self.assertEqual(document["session_id"], "20260517T120000Z")
             self.assertEqual(document["model"], "qwen3.5-9b-q8")
             self.assertIn("created_at", document)
-            self.assertEqual(document["summary"], summary)
+            self.assertEqual(
+                document["summary"],
+                {
+                    "gguf_gb": 9.55,
+                    "model_vram_mb": 10353,
+                    "kv_vram_mb": 4414,
+                    "estimated_context_max": 128000,
+                    "model_max_context": 128000,
+                    "generation_throughput_tok_s": 91.2,
+                },
+            )
             self.assertEqual(
                 document["probes"]["footprint"],
                 {
@@ -182,6 +212,13 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
                 {
                     "run_id": ctx_probe_doc["run_id"],
                     "path": "results/qwen3.5-9b-q8/calibration-ctx-probe/20260101T000001Z.json",
+                },
+            )
+            self.assertEqual(
+                document["probes"]["hello_world"],
+                {
+                    "run_id": hello_world_doc["run_id"],
+                    "path": "results/qwen3.5-9b-q8/hello-world-baseline/20260101T000002Z.json",
                 },
             )
 
@@ -269,6 +306,52 @@ class TestParseIdleVramFromMetricsStdout(unittest.TestCase):
         self.assertIn("unavailable", str(ctx.exception))
 
 
+class TestParseDecodeTokSFromMetricsStdout(unittest.TestCase):
+    def test_reads_decode_tok_s(self) -> None:
+        text = "decode_tok_s          91.24\n"
+        self.assertEqual(parse_decode_tok_s_from_metrics_stdout(text), 91.24)
+
+    def test_returns_none_when_missing(self) -> None:
+        self.assertIsNone(parse_decode_tok_s_from_metrics_stdout("wall_time_s          1.00\n"))
+
+    def test_returns_none_for_na(self) -> None:
+        self.assertIsNone(parse_decode_tok_s_from_metrics_stdout("decode_tok_s         n/a\n"))
+
+
+class TestReadDecodeTokSFromResult(unittest.TestCase):
+    def test_reads_ok_result(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(path, idle_vram_mb=0, decode_tok_s=114.6)
+            self.assertEqual(read_decode_tok_s_from_result(path), 114.6)
+
+    def test_returns_none_when_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(path, idle_vram_mb=100)
+            self.assertIsNone(read_decode_tok_s_from_result(path))
+
+    def test_returns_none_for_non_ok_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(path, idle_vram_mb=0, status="error", decode_tok_s=50.0)
+            self.assertIsNone(read_decode_tok_s_from_result(path))
+
+
+class TestFormatGenerationThroughputLine(unittest.TestCase):
+    def test_rounds_to_readme_style(self) -> None:
+        self.assertEqual(
+            format_generation_throughput_line(91.24),
+            "* Generation throughput: ~91 tok/s",
+        )
+
+    def test_na_when_missing(self) -> None:
+        self.assertEqual(
+            format_generation_throughput_line(None),
+            "* Generation throughput: n/a",
+        )
+
+
 class TestFormatSummaryLines(unittest.TestCase):
     def test_output_shape(self) -> None:
         summary = {
@@ -277,14 +360,16 @@ class TestFormatSummaryLines(unittest.TestCase):
             "kv_vram_mb": 4414,
             "estimated_context_max": 128000,
             "model_max_context": 128000,
+            "generation_throughput_tok_s": 91.24,
         }
         lines = format_summary_lines(summary)
-        self.assertEqual(len(lines), 5)
-        self.assertEqual(lines[0], "* Estimated Max Context: 128000 tokens")
-        self.assertEqual(lines[1], "* Model Max Context: 128000 tokens")
-        self.assertEqual(lines[2], "* Model VRAM: 10353 MiB")
-        self.assertEqual(lines[3], "* KV VRAM: 4414 MiB")
-        self.assertEqual(lines[4], "* GGUF on disk: 9.55 GB")
+        self.assertEqual(len(lines), 6)
+        self.assertEqual(lines[0], "* Generation throughput: ~91 tok/s")
+        self.assertEqual(lines[1], "* Estimated Max Context: 128000 tokens")
+        self.assertEqual(lines[2], "* Model Max Context: 128000 tokens")
+        self.assertEqual(lines[3], "* Model VRAM: 10353 MiB")
+        self.assertEqual(lines[4], "* KV VRAM: 4414 MiB")
+        self.assertEqual(lines[5], "* GGUF on disk: 9.55 GB")
 
     def test_model_max_context_na(self) -> None:
         summary = {
@@ -294,7 +379,8 @@ class TestFormatSummaryLines(unittest.TestCase):
             "estimated_context_max": 4096,
         }
         lines = format_summary_lines(summary)
-        self.assertEqual(lines[1], "* Model Max Context: n/a")
+        self.assertEqual(lines[0], "* Generation throughput: n/a")
+        self.assertEqual(lines[2], "* Model Max Context: n/a")
 
 
 if __name__ == "__main__":

@@ -61,14 +61,15 @@ Use separate variant directories (for example `hello-world-baseline` vs `hello-w
 
 ## Model calibration
 
-Derive GGUF size on disk, model VRAM, KV VRAM budget, and estimated max context from two probe runs. By default, `model_calibration.py` runs each calibration variant as a probe (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` (shared `session_id` on both probes), read `idle_vram_mb` from the latest footprint and ctx-probe JSON under each variant directory, and write `results/{model}/calibration-sessions/{session_id}.json`.
+Derive GGUF size on disk, model VRAM, KV VRAM budget, estimated max context, and generation throughput from three probe runs. By default, `model_calibration.py` runs footprint, ctx-probe, and `hello-world-baseline` as probes (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` (shared `session_id` on all three probes), read metrics from the latest JSON under each variant directory, and write `results/{model}/calibration-sessions/{session_id}.json`.
 
-Each model directory (for example `configs/qwen3.5-9b-q8/`) must include two calibration variants:
+Each model directory (for example `configs/qwen3.5-9b-q8/`) must include three reference-backed variants:
 
 - **`calibration-footprint/`** — `server.yaml` with `--fit off`, `-c 4096` (or your chosen footprint context), `--parallel 1`; `client.yaml` with a minimal prompt (`ok`) and `max_tokens: 1`. Idle VRAM after ready is the model footprint at that context.
 - **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
+- **`hello-world-baseline/`** — standard smoke prompt; `decode_tok_s` from the completion becomes generation throughput in the summary.
 
-`hello-world-baseline` is the standard smoke probe variant; calibration does not run it. Live models may also have extra probe dirs (for example `hello-world-bench`) that are not in `reference/`.
+Live models may also have extra probe dirs (for example `hello-world-bench`) that are not in `reference/`.
 
 From `tester-v1/`:
 
@@ -76,10 +77,11 @@ From `tester-v1/`:
 ./model_calibration.py configs/qwen3.5-9b-q8
 ```
 
-Progress and errors go to stderr. On success, stdout is each probe's metrics block and headline footer (default mode), then a blank line and five calibration summary lines (unless `--save-result --quiet`):
+Progress and errors go to stderr. On success, stdout is each probe's metrics block and headline footer (default mode), then a blank line and six calibration summary lines (unless `--save-result --quiet`):
 
 ```text
 
+* Generation throughput: ~91 tok/s
 * Estimated Max Context: 241987 tokens
 * Model Max Context: 128000 tokens
 * Model VRAM: 10353 MiB
@@ -87,15 +89,15 @@ Progress and errors go to stderr. On success, stdout is each probe's metrics blo
 * GGUF on disk: 9.55 GB
 ```
 
-`estimated_context_max` is VRAM-derived and can exceed the model cap. `model_max_context` is the native limit from llama-server `GET /v1/models` (`data[0].meta.n_ctx_train`), recorded on the footprint probe after the server is ready; it is `n/a` when the API omits that field.
+`Generation throughput` uses `decode_tok_s` from the hello-world probe (rounded, README-style `~N tok/s`). `estimated_context_max` is VRAM-derived and can exceed the model cap. `model_max_context` is the native limit from llama-server `GET /v1/models` (`data[0].meta.n_ctx_train`), recorded on the footprint probe after the server is ready; it is `n/a` when the API omits that field.
 
 Optional `--margin-mib` reserves headroom for non-KV GPU use (default `0`). Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/{model}/{variant}/` and a session summary for later reuse.
 
 | Flag | Behavior |
 | ---- | -------- |
-| (default) | Run footprint and ctx-probe as probes; print probe stdout, then calibration summary; no JSON |
+| (default) | Run footprint, ctx-probe, and hello-world as probes; print probe stdout, then calibration summary; no JSON |
 | `--save-result` | Run probes with `--save-result --quiet` and shared `--session-id`; read latest JSON per variant dir; write `calibration-sessions/{session_id}.json` |
-| `--quiet` | Only with `--save-result`: suppress the five-line calibration summary on stdout |
+| `--quiet` | Only with `--save-result`: suppress the six-line calibration summary on stdout |
 | `--margin-mib` | VRAM headroom subtracted from KV budget (default `0`) |
 | `--tester-root` | Harness root (default: `tester-v1/`) |
 
@@ -245,13 +247,13 @@ Each JSON document includes:
 
 - `schema_version`: `"1"`
 - `suite`: `"probe"` or `"calibration"` (from variant name)
-- `session_id`: `null` or a string (`model_calibration --save-result` sets the same id on both probe runs)
+- `session_id`: `null` or a string (`model_calibration --save-result` sets the same id on all three probe runs)
 - `run_id`, `started_at`, `finished_at`, `status`, `error`, `notes`
 - `server_config` and `client_config` (embedded copies of what ran)
 - `metadata` (`server_version` from `llama-server --version`, `gpu_name` and `driver_version` from `nvidia-smi`; when `config_dir` is under `configs/`, also `config_path` e.g. `qwen3.5-9b-q8/hello-world-baseline/` plus `model` and `variant` from the path; each field is `null` when unavailable)
 - `metrics` (see table below)
 
-**Calibration sessions:** `model_calibration --save-result` generates one `session_id`, passes it to both probe subprocesses, reads the latest JSON from each variant directory, and writes `results/{model}/calibration-sessions/{session_id}.json` (summary: `gguf_gb`, `model_vram_mb`, `kv_vram_mb`, `estimated_context_max`, `model_max_context` from the footprint probe JSON; plus probe `run_id` and path refs).
+**Calibration sessions:** `model_calibration --save-result` generates one `session_id`, passes it to all three probe subprocesses, reads the latest JSON from each variant directory, and writes `results/{model}/calibration-sessions/{session_id}.json` (summary: `gguf_gb`, `model_vram_mb`, `kv_vram_mb`, `estimated_context_max`, `model_max_context`, `generation_throughput_tok_s`; plus footprint, ctx-probe, and hello-world probe `run_id` and path refs).
 
 Default probe stdout prints every metric key below (rounded, `n/a` when missing), then a blank line and three headline lines derived from `wall_time_s` (end-to-end time), `peak_vram_mb` (peak VRAM as GiB), and `decode_tok_s` (generation throughput). Completion text is omitted unless you pass `--include-output` (printed after the headlines). With `--save-result --include-output`, the same text is also saved beside the JSON. With `--save-result`, stdout is the run summary (run id, model, result path, then the same metrics block and headlines) unless `--quiet`. The JSON `metrics` object keeps full floating-point values for every field.
 

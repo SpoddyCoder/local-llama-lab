@@ -115,7 +115,7 @@ Suggest running calibration from `tester-v1/`:
 python3 model_calibration.py configs/{model_slug}
 ```
 
-Default: probe stdout for each calibration variant, then the four-line VRAM summary (no JSON). Add `--save-result` when probe JSON under `results/{model_slug}/{variant}/` is needed; calibration also writes `results/{model_slug}/calibration-sessions/{session_id}.json`.
+Default: probe stdout for footprint, ctx-probe, and hello-world-baseline, then a six-line summary (throughput plus VRAM/context; no JSON). Add `--save-result` when probe JSON under `results/{model_slug}/{variant}/` is needed; calibration also writes `results/{model_slug}/calibration-sessions/{session_id}.json`.
 
 For what the probes mean and how to interpret stdout, see [Model calibration](../../../tester-v1/README.md#model-calibration) in `tester-v1/README.md`.
 

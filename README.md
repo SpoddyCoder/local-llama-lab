@@ -109,7 +109,7 @@ Use a browser to view the llama web UI while it is running (port depends on `ser
 
 Configuratuion pairs (`server.yaml` and `client.yaml`) live under [tester-v1/configs/](tester-v1/configs/). 
 
-For a new model, run calibration first (default: probe stdout plus four-line summary; no JSON):
+For a new model, run calibration first (default: probe stdout for footprint, ctx-probe, and hello-world, then a six-line summary including generation throughput; no JSON):
 
 ```bash
 cd tester-v1
@@ -117,16 +117,9 @@ cd tester-v1
 ./model_calibration.py configs/gemma-4-e4b-it-q8
 ```
 
-Add `--save-result` on calibration or single runs when you want probe JSON under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`).
+Add `--save-result` when you want probe JSON under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`).
 
-Then run a probe variant (default: metrics on stdout, no JSON file):
-
-```bash
-./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
-./single_test_runner.py configs/gemma-4-e4b-it-q8/hello-world-baseline
-```
-
-To keep a JSON artifact under `tester-v1/results/{model}/{variant}/`, add `--save-result`.
+To re-run hello-world alone (for example A/B server flags), use `single_test_runner.py` on that variant; add `--save-result` to keep a JSON artifact.
 
 ### Tests
 * [hello-world.md](hello-world.md) - simple smoke prompt.

@@ -13,10 +13,12 @@ from results import format_iso_utc, utc_now
 
 VARIANT_FOOTPRINT = "calibration-footprint"
 VARIANT_CTX_PROBE = "calibration-ctx-probe"
+VARIANT_HELLO_WORLD = "hello-world-baseline"
 
 
 _IDLE_VRAM_METRIC_KEY = "idle_vram_mb"
 _MODEL_MAX_CONTEXT_METRIC_KEY = "model_max_context"
+_DECODE_TOK_S_METRIC_KEY = "decode_tok_s"
 
 
 def parse_idle_vram_from_metrics_stdout(text: str) -> int:
@@ -43,6 +45,18 @@ def parse_model_max_context_from_metrics_stdout(text: str) -> int | None:
     return None
 
 
+def parse_decode_tok_s_from_metrics_stdout(text: str) -> float | None:
+    """Parse decode_tok_s from probe stdout; None if missing or n/a."""
+    for line in text.splitlines():
+        if not line.startswith(_DECODE_TOK_S_METRIC_KEY):
+            continue
+        value_part = line[len(_DECODE_TOK_S_METRIC_KEY) :].strip()
+        if not value_part or value_part == "n/a":
+            return None
+        return float(value_part)
+    return None
+
+
 def read_model_max_context_from_result(path: Path) -> int | None:
     """Load model_max_context from a result JSON metrics; None if absent."""
     with path.open(encoding="utf-8") as f:
@@ -56,6 +70,21 @@ def read_model_max_context_from_result(path: Path) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def read_decode_tok_s_from_result(path: Path) -> float | None:
+    """Load decode_tok_s from a result JSON metrics; None if absent."""
+    with path.open(encoding="utf-8") as f:
+        document = json.load(f)
+    if document.get("status") != "ok":
+        return None
+    metrics = document.get("metrics")
+    if not isinstance(metrics, dict):
+        return None
+    value = metrics.get("decode_tok_s")
+    if value is None:
+        return None
+    return float(value)
 
 
 def read_idle_vram_from_result(path: Path) -> int:
@@ -96,6 +125,7 @@ def write_calibration_session_summary(
     summary: dict[str, float | int | None],
     footprint_result: Path,
     ctx_probe_result: Path,
+    hello_world_result: Path,
 ) -> Path:
     """Write calibration session summary JSON under results/{model}/calibration-sessions/."""
     tester_root = tester_root.resolve()
@@ -113,10 +143,12 @@ def write_calibration_session_summary(
             "kv_vram_mb": summary["kv_vram_mb"],
             "estimated_context_max": summary["estimated_context_max"],
             "model_max_context": summary.get("model_max_context"),
+            "generation_throughput_tok_s": summary.get("generation_throughput_tok_s"),
         },
         "probes": {
             "footprint": _probe_ref(footprint_result, tester_root),
             "ctx_probe": _probe_ref(ctx_probe_result, tester_root),
+            "hello_world": _probe_ref(hello_world_result, tester_root),
         },
     }
     out_path.write_text(
@@ -181,6 +213,13 @@ def compute_summary(
     }
 
 
+def format_generation_throughput_line(decode_tok_s: float | None) -> str:
+    """Format README-style generation throughput line."""
+    if decode_tok_s is None:
+        return "* Generation throughput: n/a"
+    return f"* Generation throughput: ~{round(decode_tok_s)} tok/s"
+
+
 def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
     """Format calibration summary lines for stdout (README Performance block)."""
     model_max = summary.get("model_max_context")
@@ -188,7 +227,13 @@ def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
         model_max_line = "* Model Max Context: n/a"
     else:
         model_max_line = f"* Model Max Context: {model_max} tokens"
+    decode = summary.get("generation_throughput_tok_s")
+    if decode is not None and not isinstance(decode, (int, float)):
+        decode = None
+    elif decode is not None:
+        decode = float(decode)
     return [
+        format_generation_throughput_line(decode),
         f"* Estimated Max Context: {summary['estimated_context_max']} tokens",
         model_max_line,
         f"* Model VRAM: {summary['model_vram_mb']} MiB",

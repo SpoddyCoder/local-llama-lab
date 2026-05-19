@@ -61,6 +61,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.parse_model_max_context_from_metrics_stdout",
                 return_value=128000,
             ),
+            patch(
+                "calibration_cli.parse_decode_tok_s_from_metrics_stdout",
+                return_value=91.2,
+            ),
             patch("calibration_cli.load_server_config") as load_server,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
@@ -80,9 +84,11 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 quiet=False,
             )
         self.assertEqual(code, 0)
-        self.assertIn("* GGUF on disk:", stdout.getvalue())
-        self.assertIn("* Model Max Context:", stdout.getvalue())
-        run_variant.assert_called()
+        out = stdout.getvalue()
+        self.assertIn("* Generation throughput: ~91 tok/s", out)
+        self.assertIn("* GGUF on disk:", out)
+        self.assertIn("* Model Max Context:", out)
+        self.assertEqual(run_variant.call_count, 3)
         self.assertFalse(run_variant.call_args.kwargs["save_result"])
 
     def test_save_result_quiet_suppresses_summary(self) -> None:
@@ -91,13 +97,17 @@ class TestRunCalibrationStdout(unittest.TestCase):
         stdout = io.StringIO()
         footprint_result = Path("/footprint.json")
         ctx_probe_result = Path("/ctx_probe.json")
+        hello_world_result = Path("/hello_world.json")
 
         def fake_find_latest(
             results_dir: Path, config_dir: Path, root: Path
         ) -> Path:
-            if "footprint" in str(config_dir):
+            config_str = str(config_dir)
+            if "footprint" in config_str:
                 return footprint_result
-            return ctx_probe_result
+            if "ctx-probe" in config_str:
+                return ctx_probe_result
+            return hello_world_result
 
         with (
             patch("calibration_cli.run_variant_subprocess", return_value=(0, "")),
@@ -107,6 +117,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
             patch(
                 "calibration_cli.read_model_max_context_from_result",
                 return_value=128000,
+            ),
+            patch(
+                "calibration_cli.read_decode_tok_s_from_result",
+                return_value=91.2,
             ),
             patch("calibration_cli.load_server_config") as load_server,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
@@ -148,9 +162,11 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "kv_vram_mb": 2000,
                 "estimated_context_max": 4096,
                 "model_max_context": 128000,
+                "generation_throughput_tok_s": 91.2,
             },
             footprint_result,
             ctx_probe_result,
+            hello_world_result,
         )
 
     def test_save_result_passes_session_id_to_subprocess(self) -> None:
@@ -178,6 +194,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.read_model_max_context_from_result",
                 return_value=None,
             ),
+            patch(
+                "calibration_cli.read_decode_tok_s_from_result",
+                return_value=None,
+            ),
             patch("calibration_cli.load_server_config") as load_server,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
@@ -199,7 +219,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 quiet=False,
             )
         self.assertEqual(code, 0)
-        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_count, 3)
         for call in run.call_args_list:
             self.assertEqual(call.kwargs["session_id"], "sess456")
 

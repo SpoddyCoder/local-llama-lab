@@ -81,7 +81,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         self.assertIn("* GGUF on disk:", stdout.getvalue())
-        self.assertIn("* Model max context:", stdout.getvalue())
+        self.assertIn("* Model Max Context:", stdout.getvalue())
         run_variant.assert_called()
         self.assertFalse(run_variant.call_args.kwargs["save_result"])
 

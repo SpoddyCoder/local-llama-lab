@@ -280,11 +280,11 @@ class TestFormatSummaryLines(unittest.TestCase):
         }
         lines = format_summary_lines(summary)
         self.assertEqual(len(lines), 5)
-        self.assertEqual(lines[0], "* GGUF on disk: 9.55 GB")
-        self.assertEqual(lines[1], "* Model VRAM: 10353 MiB")
-        self.assertEqual(lines[2], "* KV VRAM: 4414 MiB")
-        self.assertEqual(lines[3], "* Estimated Max Context: 128000 tokens")
-        self.assertEqual(lines[4], "* Model max context: 128000 tokens")
+        self.assertEqual(lines[0], "* Estimated Max Context: 128000 tokens")
+        self.assertEqual(lines[1], "* Model Max Context: 128000 tokens")
+        self.assertEqual(lines[2], "* Model VRAM: 10353 MiB")
+        self.assertEqual(lines[3], "* KV VRAM: 4414 MiB")
+        self.assertEqual(lines[4], "* GGUF on disk: 9.55 GB")
 
     def test_model_max_context_na(self) -> None:
         summary = {
@@ -294,7 +294,7 @@ class TestFormatSummaryLines(unittest.TestCase):
             "estimated_context_max": 4096,
         }
         lines = format_summary_lines(summary)
-        self.assertEqual(lines[4], "* Model max context: n/a")
+        self.assertEqual(lines[1], "* Model Max Context: n/a")
 
 
 if __name__ == "__main__":

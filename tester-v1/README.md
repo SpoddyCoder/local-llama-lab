@@ -80,11 +80,11 @@ Progress and errors go to stderr. On success, stdout is each probe's metrics blo
 
 ```text
 
-* GGUF on disk: 9.55 GB
+* Estimated Max Context: 241987 tokens
+* Model Max Context: 128000 tokens
 * Model VRAM: 10353 MiB
 * KV VRAM: 4414 MiB
-* Estimated Max Context: 241987 tokens
-* Model max context: 128000 tokens
+* GGUF on disk: 9.55 GB
 ```
 
 `estimated_context_max` is VRAM-derived and can exceed the model cap. `model_max_context` is the native limit from llama-server `GET /v1/models` (`data[0].meta.n_ctx_train`), recorded on the footprint probe after the server is ready; it is `n/a` when the API omits that field.

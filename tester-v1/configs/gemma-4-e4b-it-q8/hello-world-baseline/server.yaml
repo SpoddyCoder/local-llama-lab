@@ -6,3 +6,4 @@ args: |
   --parallel 1
   --no-mmap
   --fit off
+  --ctx-size 4096

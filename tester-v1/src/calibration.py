@@ -182,18 +182,18 @@ def compute_summary(
 
 
 def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
-    """Format calibration summary lines for stdout."""
+    """Format calibration summary lines for stdout (README Performance block)."""
     model_max = summary.get("model_max_context")
     if model_max is None:
-        model_max_line = "* Model max context: n/a"
+        model_max_line = "* Model Max Context: n/a"
     else:
-        model_max_line = f"* Model max context: {model_max} tokens"
+        model_max_line = f"* Model Max Context: {model_max} tokens"
     return [
-        f"* GGUF on disk: {summary['gguf_gb']:.2f} GB",
-        f"* Model VRAM: {summary['model_vram_mb']} MiB",
-        f"* KV VRAM: {summary['kv_vram_mb']} MiB",
         f"* Estimated Max Context: {summary['estimated_context_max']} tokens",
         model_max_line,
+        f"* Model VRAM: {summary['model_vram_mb']} MiB",
+        f"* KV VRAM: {summary['kv_vram_mb']} MiB",
+        f"* GGUF on disk: {summary['gguf_gb']:.2f} GB",
     ]
 
 

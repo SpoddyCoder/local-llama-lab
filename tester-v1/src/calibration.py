@@ -244,28 +244,51 @@ def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
 
 def run_variant_subprocess(
     tester_root: Path,
-    variant_dir: Path,
+    result_config_dir: Path,
+    reference_variant_dir: Path,
     *,
     save_result: bool,
     quiet: bool,
     session_id: str | None = None,
 ) -> tuple[int, str]:
-    """Run single_test_runner for a variant directory; return (returncode, captured output)."""
+    """Run single_test_runner for a calibration variant; return (returncode, captured output).
+
+    ``result_config_dir`` is passed as config_dir for result path layout (parent model.yaml).
+    Server and client YAML come from ``reference_variant_dir`` under configs/reference/.
+    """
+    result_config_dir.mkdir(parents=True, exist_ok=True)
+    ref_server = reference_variant_dir / "server.yaml"
+    ref_client = reference_variant_dir / "client.yaml"
     runner = tester_root / "single_test_runner.py"
-    cmd = [sys.executable, str(runner), str(variant_dir)]
+    cmd = [
+        sys.executable,
+        str(runner),
+        str(result_config_dir),
+        "--server",
+        str(ref_server),
+        "--client",
+        str(ref_client),
+    ]
     if save_result:
         cmd.append("--save-result")
     if save_result and quiet:
         cmd.append("--quiet")
     if session_id is not None:
         cmd.extend(["--session-id", session_id])
-    proc = subprocess.run(
-        cmd,
-        cwd=tester_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=tester_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        try:
+            if result_config_dir.is_dir() and not any(result_config_dir.iterdir()):
+                result_config_dir.rmdir()
+        except OSError:
+            pass
     parts: list[str] = []
     if proc.stdout:
         parts.append(proc.stdout)

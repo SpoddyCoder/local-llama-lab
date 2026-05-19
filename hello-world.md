@@ -16,7 +16,10 @@ hi, write me hello world in 20 different programming languages.
 From `tester-v1/`:
 
 ```bash
-./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
+./single_test_runner.py \
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --model-yaml configs/qwen3.5-9b-q8/model.yaml
 ```
 
 ## Qwen3.5-9B-Q8

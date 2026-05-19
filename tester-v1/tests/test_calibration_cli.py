@@ -4,21 +4,98 @@ from __future__ import annotations
 
 import io
 import sys
+import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
-from calibration_cli import _run_calibration, main  # noqa: E402
+from calibration import VARIANT_FOOTPRINT  # noqa: E402
+from calibration_cli import (  # noqa: E402
+    _result_config_dir,
+    _run_calibration,
+    _validate_model_dir,
+    main,
+)
 from config import MODEL_YAML  # noqa: E402
+from runner import _TESTER_ROOT  # noqa: E402
+
+
+class TestValidateModelDir(unittest.TestCase):
+    def test_accepts_model_yaml_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            model_dir = Path(tmp) / "my-model"
+            model_dir.mkdir()
+            (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
+            _validate_model_dir(model_dir, _TESTER_ROOT)
+
+    def test_missing_model_yaml_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            model_dir = Path(tmp) / "my-model"
+            model_dir.mkdir()
+            with self.assertRaises(FileNotFoundError) as ctx:
+                _validate_model_dir(model_dir, _TESTER_ROOT)
+            self.assertIn("model config not found", str(ctx.exception))
+
+    def test_missing_reference_variant_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tester_root = Path(tmp) / "tester"
+            ref = tester_root / "configs" / "reference" / VARIANT_FOOTPRINT
+            ref.mkdir(parents=True)
+            (ref / "server.yaml").write_text("args: |\n", encoding="utf-8")
+            (ref / "client.yaml").write_text("messages: []\n", encoding="utf-8")
+            model_dir = tester_root / "configs" / "my-model"
+            model_dir.mkdir(parents=True)
+            (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
+            with self.assertRaises(FileNotFoundError) as ctx:
+                _validate_model_dir(model_dir, tester_root)
+            self.assertIn("reference variant", str(ctx.exception))
+
+
+class TestRunVariantSubprocessArgv(unittest.TestCase):
+    def test_passes_reference_server_and_client_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tester_root = Path(tmp) / "tester"
+            tester_root.mkdir()
+            (tester_root / "single_test_runner.py").write_text("# stub\n", encoding="utf-8")
+            ref_dir = tester_root / "configs" / "reference" / VARIANT_FOOTPRINT
+            ref_dir.mkdir(parents=True)
+            (ref_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
+            (ref_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
+            model_dir = tester_root / "configs" / "my-model"
+            result_dir = _result_config_dir(model_dir, VARIANT_FOOTPRINT)
+
+            from calibration import run_variant_subprocess  # noqa: E402
+
+            with patch("calibration.subprocess.run") as run:
+                run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+                run_variant_subprocess(
+                    tester_root,
+                    result_dir,
+                    ref_dir,
+                    save_result=True,
+                    quiet=True,
+                    session_id="sess1",
+                )
+            cmd = run.call_args.args[0]
+            self.assertEqual(cmd[2], str(result_dir))
+            self.assertEqual(cmd[3], "--server")
+            self.assertEqual(cmd[4], str(ref_dir / "server.yaml"))
+            self.assertEqual(cmd[5], "--client")
+            self.assertEqual(cmd[6], str(ref_dir / "client.yaml"))
+            self.assertIn("--save-result", cmd)
+            self.assertIn("--quiet", cmd)
+            self.assertIn("--session-id", cmd)
+            self.assertIn("sess1", cmd)
+            self.assertFalse(result_dir.exists())
 
 
 class TestMainArgparse(unittest.TestCase):
     def test_main_save_result_quiet_passes_flags_to_run(self) -> None:
         model_dir = Path("/tmp/model")
-        with patch("calibration_cli._validate_model_dir"):
+        with patch("calibration_cli._validate_model_dir", return_value=None):
             with patch("calibration_cli._run_calibration", return_value=0) as run:
                 main(
                     [
@@ -34,7 +111,7 @@ class TestMainArgparse(unittest.TestCase):
 
     def test_main_quiet_without_save_result_is_noop(self) -> None:
         model_dir = Path("/tmp/model")
-        with patch("calibration_cli._validate_model_dir"):
+        with patch("calibration_cli._validate_model_dir", return_value=None):
             with patch("calibration_cli._run_calibration", return_value=0) as run:
                 main([str(model_dir), "--quiet"])
         kwargs = run.call_args.kwargs

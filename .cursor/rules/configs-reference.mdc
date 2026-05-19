@@ -12,21 +12,27 @@ alwaysApply: false
 
 ## What belongs in reference
 
-- **In reference:** variants that should exist on every model (scaffold + propagate).
-- **Not in reference:** model-specific experiments (for example `complex-webapp-build` on one slug only). Do not add those to `reference/` unless the user intends global rollout.
+- **In reference:** shared probe variants used by `model_calibration.py` and by manual runs via `--server` / `--client` (footprint, ctx-probe, hello-world-baseline, and any future global probes).
+- **Not in reference:** model-specific experiments (for example `hello-world-bench` on one slug only). Do not add those to `reference/` unless the user intends global rollout.
+
+Live model directories hold `model.yaml` only unless the user adds experiment variant dirs.
 
 ## Promoting and demoting variants
 
-- **Promote to global:** add a variant under `reference/`, then propagate to all models (see [configs-reference-sync.mdc](configs-reference-sync.mdc)).
-- **Demote from global:** remove the variant from `reference/` only. Do not delete that variant from live models automatically; model-only copies may remain.
+- **Promote to global:** add a variant under `reference/` with `server.yaml` and `client.yaml`. Calibration picks it up automatically once `model_calibration` is taught the variant name (today: the three built-in names). Do not copy YAML into live model dirs (see [configs-reference-sync.mdc](configs-reference-sync.mdc)).
+- **Demote from global:** remove the variant from `reference/` only. Model-specific copies under a live slug may remain.
 
 ## Editing shared behavior
 
-- **Default:** edit `reference/` first for shared behavior; propagate to models.
-- **Exception:** one-off tweaks on a single model stay on that model only and must not be copied into `reference/` unless the user promotes them.
+- **Default:** edit `reference/` for shared probe behavior. Live `model.yaml` files are unchanged.
+- **Exception:** one-off tweaks on a single model stay in that model's own variant subdirectory and must not be copied into `reference/` unless the user promotes them.
 
 When `reference/` changes, follow [configs-reference-sync.mdc](configs-reference-sync.mdc).
 
+## Calibration and reference
+
+`model_calibration.py` validates that `configs/reference/{variant}/` exists, then runs `single_test_runner.py` with `config_dir` at `configs/{model}/{variant}/` (ephemeral, for result layout) and `--server` / `--client` pointing at `configs/reference/{variant}/`. Model path comes from `configs/{model}/model.yaml`.
+
 ## Do not run on reference
 
-Do not run `single_test_runner.py` or `model_calibration.py` on paths under `configs/reference/`.
+Do not run `single_test_runner.py` or `model_calibration.py` with `config_dir` under `configs/reference/`.

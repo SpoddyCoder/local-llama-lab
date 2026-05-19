@@ -98,7 +98,11 @@ Start a server using one of the variant configs (`client.yaml` is unused in this
 
 ```bash
 cd tester-v1
-./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --test-server
+./single_test_runner.py \
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --model-yaml configs/qwen3.5-9b-q8/model.yaml \
+  --test-server
 ```
 
 Use a browser to view the llama web UI while it is running (port depends on `server.yaml`):
@@ -107,7 +111,7 @@ Use a browser to view the llama web UI while it is running (port depends on `ser
 
 ### Probe runs
 
-Each model has `model.yaml` at the config root plus per-variant `server.yaml` and `client.yaml` under [tester-v1/configs/](tester-v1/configs/). 
+Each model has `model.yaml` under [tester-v1/configs/{model}/](tester-v1/configs/). Shared probe YAML is under [tester-v1/configs/reference/](tester-v1/configs/reference/). 
 
 For a new model, run calibration first (default: probe stdout for footprint, ctx-probe, and hello-world, then a six-line summary including generation throughput; no JSON):
 
@@ -119,7 +123,7 @@ cd tester-v1
 
 Add `--save-result` when you want probe JSON under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`).
 
-To re-run hello-world alone (for example A/B server flags), use `single_test_runner.py` on that variant; add `--save-result` to keep a JSON artifact.
+To re-run hello-world alone (for example A/B server flags), use `single_test_runner.py` with reference hello-world YAML and `--model-yaml configs/{model}/model.yaml`; add `--save-result` with an ephemeral `configs/{model}/hello-world-baseline/` dir for result layout (see [tester-v1/README.md](tester-v1/README.md#cli)).
 
 ### Tests
 * [hello-world.md](hello-world.md) - simple smoke prompt.

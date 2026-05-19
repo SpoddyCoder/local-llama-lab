@@ -16,7 +16,13 @@ sys.path.insert(0, str(_SRC))
 from config import ClientConfig, ServerConfig  # noqa: E402
 from runner import _TESTER_ROOT, _run, main  # noqa: E402
 
-_CONFIG_DIR = _TESTER_ROOT / "configs" / "qwen3.5-9b-q8" / "hello-world-baseline"
+_MODEL_DIR = _TESTER_ROOT / "configs" / "qwen3.5-9b-q8"
+
+
+def _ephemeral_config_dir(tmp: str) -> Path:
+    config_dir = Path(tmp) / "hello-world-baseline"
+    config_dir.mkdir()
+    return config_dir
 
 
 @contextmanager
@@ -90,11 +96,12 @@ class TestRunSaveResult(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
+                config_dir = _ephemeral_config_dir(tmp)
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
-                    _CONFIG_DIR.parent / "model.yaml",
-                    _CONFIG_DIR,
+                    _MODEL_DIR / "model.yaml",
+                    config_dir,
                     save_result=True,
                     quiet=True,
                     include_output=False,
@@ -143,11 +150,12 @@ class TestRunSaveResult(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
+                config_dir = _ephemeral_config_dir(tmp)
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
-                    _CONFIG_DIR.parent / "model.yaml",
-                    _CONFIG_DIR,
+                    _MODEL_DIR / "model.yaml",
+                    config_dir,
                     save_result=True,
                     quiet=False,
                     include_output=False,
@@ -259,11 +267,12 @@ class TestRunStdoutDefault(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
+                config_dir = _ephemeral_config_dir(tmp)
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
-                    _CONFIG_DIR.parent / "model.yaml",
-                    _CONFIG_DIR,
+                    _MODEL_DIR / "model.yaml",
+                    config_dir,
                     save_result=True,
                     quiet=True,
                     include_output=True,

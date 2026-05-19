@@ -31,10 +31,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Run a probe:
+Run a probe (reference hello-world YAML + model `model.yaml`):
 
 ```bash
-./single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
+./single_test_runner.py \
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --model-yaml configs/qwen3.5-9b-q8/model.yaml
 ```
 
 Both CLIs are executable (`#!/usr/bin/env python3`). Use `./single_test_runner.py` and `./model_calibration.py` from this directory, or `python3` with the same arguments if you prefer.
@@ -47,29 +50,32 @@ python3 -m unittest discover -s tests -v
 
 ## Workflow
 
-1. Pick or create a model directory under `configs/` with `model.yaml` at the root and variant subdirs (see layout below). Each variant holds `server.yaml` and `client.yaml` for one run configuration.
-2. Set the GGUF path in `model.yaml`; tune server flags in `server.yaml` and prompt/API params in `client.yaml`.
-3. Run the variant (probe: metrics block and headline footer on stdout, no JSON):
+1. Pick or create a model directory under `configs/` with `model.yaml` only (see layout below). Shared probe YAML lives under `configs/reference/{variant}/`.
+2. Set the GGUF path in `model.yaml`; tune shared server flags and prompts in `configs/reference/` (or add model-specific variant dirs for experiments).
+3. Run a probe with reference YAML and `--model-yaml` (metrics block and headline footer on stdout, no JSON):
 
    ```bash
-   python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
+   python3 single_test_runner.py \
+     --server configs/reference/hello-world-baseline/server.yaml \
+     --client configs/reference/hello-world-baseline/client.yaml \
+     --model-yaml configs/qwen3.5-9b-q8/model.yaml
    ```
 
-4. When you want a recorded run, add `--save-result` and compare files under `results/{model}/{variant}/` (newest timestamp stem wins).
+4. When you want a recorded run under `results/{model}/{variant}/`, pass a `config_dir` at `configs/{model}/{variant}/` (may be an empty dir) with the same `--server` / `--client` overrides, plus `--save-result`.
 
-Use separate variant directories (for example `hello-world-baseline` vs `hello-world-bench`) instead of editing root-level yamls when comparing configurations.
+Use separate `config_dir` names (for example `hello-world-baseline` vs `hello-world-bench`) instead of editing root-level yamls when comparing configurations.
 
 ## Model calibration
 
 Derive GGUF size on disk, model VRAM, KV VRAM budget, estimated max context, and generation throughput from three probe runs. By default, `model_calibration.py` runs footprint, ctx-probe, and `hello-world-baseline` as probes (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` (shared `session_id` on all three probes), read metrics from the latest JSON under each variant directory, and write `results/{model}/calibration-sessions/{session_id}.json`.
 
-Each model directory (for example `configs/qwen3.5-9b-q8/`) must include `model.yaml` and three reference-backed variants:
+Each model directory (for example `configs/qwen3.5-9b-q8/`) must include `model.yaml` only. `model_calibration.py` runs three probes using `server.yaml` and `client.yaml` from `configs/reference/`:
 
 - **`calibration-footprint/`** — `server.yaml` with `--fit off`, `-c 4096` (or your chosen footprint context), `--parallel 1`; `client.yaml` with a minimal prompt (`ok`) and `max_tokens: 1`. Idle VRAM after ready is the model footprint at that context.
 - **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
 - **`hello-world-baseline/`** — standard smoke prompt; `decode_tok_s` from the completion becomes generation throughput in the summary.
 
-Live models may also have extra probe dirs (for example `hello-world-bench`) that are not in `reference/`.
+Live models may add extra variant dirs (for example `hello-world-bench/`) for experiments; those are not copied from `reference/` automatically.
 
 From `tester-v1/`:
 
@@ -113,7 +119,7 @@ To scaffold all reference variants for a new model, use the [create-model-config
 
 ## configs layout
 
-Variant configs live under `configs/`. The directory tree is organizational only; saved results mirror `configs/{model}/{variant}/` under `results/`. [configs/reference/README.md](configs/reference/README.md) documents the reference template tree.
+Variant configs live under `configs/reference/` for shared probes; live model dirs hold `model.yaml` only unless you add experiment variants. Saved results mirror `configs/{model}/{variant}/` under `results/` (calibration creates ephemeral `{model}/{variant}/` dirs for layout when saving). [configs/reference/README.md](configs/reference/README.md) documents the reference tree.
 
 Example:
 
@@ -124,15 +130,12 @@ configs/
     calibration-footprint/
     calibration-ctx-probe/
     hello-world-baseline/
-  qwen3.5-9b-q8/       # live model; may include extra dirs
+  qwen3.5-9b-q8/       # live model
     model.yaml
-    calibration-footprint/
-    calibration-ctx-probe/
-    hello-world-baseline/
-    hello-world-bench/     # optional, model-specific
+    hello-world-bench/     # optional, model-specific experiment
 ```
 
-Each model folder (for example `qwen3.5-9b-q8`) must contain `model.yaml` with the GGUF path. Each variant subdirectory must contain both `server.yaml` and `client.yaml`. Model folders group related variants; they are not special-cased in code beyond metadata and the results path layout.
+Each live model folder (for example `qwen3.5-9b-q8`) must contain `model.yaml` with the GGUF path. Reference variant subdirs each have `server.yaml` and `client.yaml`. `model_calibration.py` reads reference YAML and uses `{model}/{variant}/` only for result path layout (and removes empty dirs after each probe).
 
 ## Config essentials
 
@@ -178,18 +181,30 @@ If `server.yaml` sets `--port` / `-p`, keep `base_url` in sync (or omit port in 
 
 Run from `tester-v1/` as `./single_test_runner.py` or `./model_calibration.py` (see Quick start), or equivalently with `python3`.
 
-Config directory (primary workflow; loads `config_dir/../model.yaml`, `config_dir/server.yaml`, and `config_dir/client.yaml`; `--save-result` requires this):
+Probe with reference YAML and explicit `model.yaml` (no `config_dir`; results go under `results/_other/` if you use `--save-result`):
 
 ```bash
-python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
+python3 single_test_runner.py \
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --model-yaml configs/qwen3.5-9b-q8/model.yaml
 ```
 
-Override one or more config files while still using the config directory for results layout (model path still comes from the parent `model.yaml` unless you pass `--model-yaml`):
+Recorded run under `results/{model}/{variant}/` (`config_dir` may be empty; overrides supply YAML; model path from parent `model.yaml`):
 
 ```bash
+mkdir -p configs/qwen3.5-9b-q8/hello-world-baseline
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
-  --server /path/to/server.yaml \
-  --client /path/to/client.yaml
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --save-result
+rmdir configs/qwen3.5-9b-q8/hello-world-baseline 2>/dev/null || true
+```
+
+Variant dir with local `server.yaml` and `client.yaml` (optional model-specific experiments):
+
+```bash
+python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-bench
 ```
 
 Custom paths without a config directory (probe only; `--save-result` writes under `results/_other/`). You must pass all three paths:
@@ -217,21 +232,24 @@ Examples:
 
 ```bash
 # Probe (stdout only)
-python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
+python3 single_test_runner.py \
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --model-yaml configs/qwen3.5-9b-q8/model.yaml
 
 # Probe with completion text on stdout
-python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
+python3 single_test_runner.py \
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --model-yaml configs/qwen3.5-9b-q8/model.yaml \
   --include-output
 
-# Recorded run with completion text beside JSON
-python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
-  --save-result --include-output
-
-# Recorded run (metrics JSON only)
-python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --save-result
-
 # Server-only debug
-python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline --test-server
+python3 single_test_runner.py \
+  --server configs/reference/hello-world-baseline/server.yaml \
+  --client configs/reference/hello-world-baseline/client.yaml \
+  --model-yaml configs/qwen3.5-9b-q8/model.yaml \
+  --test-server
 ```
 
 ## Results

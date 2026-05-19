@@ -1,10 +1,10 @@
 ---
-description: Propagate configs/reference template changes to all live model directories
+description: Propagate configs/reference template changes (reference only; live models keep model.yaml)
 globs: tester-v1/configs/reference/**
 alwaysApply: false
 ---
 
-# Reference to live models sync
+# Reference template updates
 
 When `reference/` changes, follow this rule after edits unless the user explicitly says not to sync.
 
@@ -12,36 +12,34 @@ When `reference/` changes, follow this rule after edits unless the user explicit
 
 All immediate subdirectories of `tester-v1/configs/` except `reference/`. Discover dynamically; do not hardcode slug names.
 
-## Propagation workflow
+## What to sync
 
-For each live `{model_slug}/`:
+Live model directories contain `model.yaml` only (plus optional model-specific experiment variant dirs). **Do not** copy `reference/{variant}/` into live models when reference changes.
 
-1. **Add missing variants:** For each `reference/{variant}/` with both `server.yaml` and `client.yaml`, if `{model_slug}/{variant}/` is missing, create it by copying `server.yaml` and `client.yaml` from reference unchanged. If `{model_slug}/model.yaml` is missing, create it from `reference/model.yaml` with `model:` set from an existing sibling `model.yaml` on that slug if present; if the model dir is new or has no `model.yaml`, ask the user for `gguf_path` before writing.
+After editing `reference/`:
 
-2. **Update existing reference-backed variants:** For each `reference/{variant}/` that also exists under `{model_slug}/{variant}/`, update `server.yaml` and `client.yaml` from reference. Preserve the live `{model_slug}/model.yaml` (do not replace it from reference).
+1. **Confirm** each live `{model_slug}/model.yaml` still exists. If a new model slug was added to the repo without `model.yaml`, ask the user for `gguf_path` before writing it (use `reference/model.yaml` as a structural template only).
 
-3. **Do not delete** variant directories on live models when they are absent from `reference/`. Model-specific dirs (for example `hello-world-bench`) stay.
+2. **Do not create or update** `calibration-footprint/`, `calibration-ctx-probe/`, or `hello-world-baseline/` under live models. Calibration and default hello-world runs read those YAML files from `configs/reference/` via `--server` and `--client`.
+
+3. **Do not delete** model-specific variant directories on live models when they are absent from `reference/` (for example `hello-world-bench`).
 
 4. **Do not overwrite** live `{model_slug}/model.yaml` from `reference/model.yaml` when syncing existing models.
 
-## Overwrite policy
-
-When reference content changes, overwrite live variant `server.yaml` and `client.yaml` for dirs that exist in both reference and that model. Reference is source of truth for shared variants; model-specific dirs and live `model.yaml` are untouched.
-
 ## User notification (required)
 
-After propagation, report explicitly:
+After reference edits, report explicitly:
 
-- Which `model_slug` directories were touched.
-- Per model: which variants were **created** vs **updated** (file paths); whether `model.yaml` was created or left unchanged.
-- Which models could not get new variants because `model.yaml` was missing and the user did not supply `gguf_path` (if any; ask the user).
-- Reminder: variants removed from `reference/` were **not** deleted from live models.
+- Which files under `reference/` changed.
+- That live model dirs were **not** given new variant copies (calibration uses reference indirectly).
+- Any live models missing `model.yaml` (if any; ask the user).
+- Model-specific dirs on live models were left untouched.
 
 Example:
 
 ```text
-Synced reference → models:
-- qwen3.5-9b-q8: updated hello-world-baseline (server.yaml, client.yaml); preserved model.yaml
-- gemma-4-e4b-it-q8: updated hello-world-baseline (server.yaml, client.yaml); preserved model.yaml
-Not deleted: hello-world-bench on gemma (not in reference).
+Updated reference/hello-world-baseline/server.yaml.
+Live models: no variant dirs copied (calibration reads configs/reference/).
+Preserved: qwen3.5-9b-q8/model.yaml, gemma-4-e4b-it-q8/model.yaml.
+Not touched: hello-world-bench on gemma (model-specific).
 ```

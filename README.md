@@ -90,7 +90,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-See [tester-v1/README.md](tester-v1/README.md). Saved probe JSON lives under [tester-v1/results/{model}/{variant}/](tester-v1/results/); see that README for [results](tester-v1/README.md#results) and [calibration-sessions](tester-v1/README.md#model-calibration).
+See [tester-v1/README.md](tester-v1/README.md). With `--save-result`, probe JSON is written locally under `tester-v1/results/{model}/{variant}/` (gitignored; not in the repo). Copy calibration or probe metrics into this README when documenting a model. See [results](tester-v1/README.md#results) and [calibration-sessions](tester-v1/README.md#model-calibration).
 
 ### Run a server
 
@@ -121,7 +121,7 @@ cd tester-v1
 ./model_calibration.py configs/gemma-4-e4b-it-q8
 ```
 
-Add `--save-result` when you want probe JSON under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`).
+Add `--save-result` when you want probe JSON on disk under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`; local only, gitignored).
 
 To re-run hello-world alone (for example A/B server flags), use `single_test_runner.py` with reference hello-world YAML and `--model-yaml configs/{model}/model.yaml`; add `--save-result` with an ephemeral `configs/{model}/hello-world-baseline/` dir for result layout (see [tester-v1/README.md](tester-v1/README.md#cli)).
 

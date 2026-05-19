@@ -16,14 +16,14 @@ Do **not** run report- or artifact-generating tools in this repo unless the user
 
 Same rule for equivalent `./model_calibration.py` / `./single_test_runner.py` from `tester-v1/`.
 
-## Prefer existing artifacts
+## Prefer existing local output
 
-When filling docs, comparing models, or answering VRAM/context questions:
+`tester-v1/results/` is gitignored (local machine only). When filling docs, comparing models, or answering VRAM/context questions:
 
-1. Read the latest matching JSON in `tester-v1/results/{model}/{variant}/` (newest `*.json` by timestamp stem).
-2. For saved calibration runs, read `tester-v1/results/{model}/calibration-sessions/{session_id}.json` (VRAM/context summary fields, `generation_throughput_tok_s`, plus probe refs).
-3. Recompute from those files if needed (`idle_vram_mb`, calibration math), or use values already copied into README.
-4. Only suggest or run a new harness invocation if results are missing, stale for the user's question, or the user wants a new run.
+1. Use metrics already copied into the repo README or other docs when present.
+2. If the user has run with `--save-result`, read the latest matching JSON on disk under `tester-v1/results/{model}/{variant}/` (newest `*.json` by timestamp stem), or `tester-v1/results/{model}/calibration-sessions/{session_id}.json` for saved calibration runs.
+3. Recompute from those local files if needed (`idle_vram_mb`, calibration math).
+4. Only suggest or run a new harness invocation if local results are missing, stale for the user's question, or the user wants a new run.
 
 ## Exceptions (no extra ask)
 

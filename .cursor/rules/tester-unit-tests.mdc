@@ -8,9 +8,9 @@ alwaysApply: false
 
 ## Do not create files under `tester-v1/results/`
 
-Harness runs write JSON and optional `{stem}-output.txt` under `tester-v1/results/{model}/{variant}/`. Unit tests must **not** create, update, or leave artifacts there.
+Harness runs write JSON and optional `{stem}-output.txt` under `tester-v1/results/{model}/{variant}/` (gitignored). Unit tests must **not** create, update, or leave artifacts there.
 
-Reading existing result JSON for parser or layout tests is fine. Any test-driven **write** must use an isolated directory.
+Use inline dicts, strings, or files under `tempfile` for parser and layout tests. Do not rely on JSON under `tester-v1/results/` in the repo.
 
 ## Pattern: mocked paths under `TemporaryDirectory`
 

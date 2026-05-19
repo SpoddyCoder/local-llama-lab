@@ -39,7 +39,7 @@ Canonical example: `test_include_output_with_save_result_writes_output_txt` in `
 
 | Action | Location |
 |--------|----------|
-| Read fixture JSON, assert parsers | OK: `tester-v1/results/` or inline/temp fixtures |
+| Read fixture JSON, assert parsers | Inline dicts/strings or files under `tempfile` only |
 | Write JSON, `-output.txt`, session files | Use `tempfile` (or patch the write) |
 
 ## Running tests

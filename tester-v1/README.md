@@ -97,7 +97,7 @@ Progress and errors go to stderr. On success, stdout is each probe's metrics blo
 
 `Generation throughput` uses `decode_tok_s` from the hello-world probe (rounded, README-style `~N tok/s`). `estimated_context_max` is VRAM-derived and can exceed the model cap. `model_max_context` is the native limit from llama-server `GET /v1/models` (`data[0].meta.n_ctx_train`), recorded on the footprint probe after the server is ready; it is `n/a` when the API omits that field.
 
-Optional `--margin-mib` reserves headroom for non-KV GPU use (default `0`). Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON under `results/{model}/{variant}/` and a session summary for later reuse.
+Optional `--margin-mib` reserves headroom for non-KV GPU use (default `0`). Copy the summary lines into your model notes (see the repo root README Qwen section). Add `--save-result` when you want calibration probe JSON on disk under `results/{model}/{variant}/` and a session summary for later local reuse (gitignored).
 
 | Flag | Behavior |
 | ---- | -------- |
@@ -253,6 +253,8 @@ python3 single_test_runner.py \
 ```
 
 ## Results
+
+`results/` is gitignored local output. Nothing under it is tracked in git; copy metrics into the repo README (or other docs) when you want them versioned.
 
 With `--save-result`, the results tree mirrors `configs/{model}/{variant}/`:
 

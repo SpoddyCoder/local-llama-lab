@@ -127,9 +127,6 @@ Calibration assumes 512 MiB GPU VRAM is in use before the model loads; override 
 
 To re-run hello-world alone (for example A/B server flags), use `single_test_runner.py` with reference hello-world YAML and `--model-yaml configs/{model}/model.yaml`; add `--save-result` with an ephemeral `configs/{model}/hello-world-baseline/` dir for result layout (see [tester-v1/README.md](tester-v1/README.md#cli)).
 
-### Tests
-* [hello-world.md](hello-world.md) - simple smoke prompt.
-
 ## Key Learnings
 * Quantization is important for squeezing larger models into a consumer graphics card:
   * FP16 - near full quality, considered lossless, huge

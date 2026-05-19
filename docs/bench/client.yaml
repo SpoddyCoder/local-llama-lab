@@ -1,0 +1,10 @@
+base_url: http://127.0.0.1:8080
+
+messages:
+  - role: user
+    content: |
+      setup custom tests for a model here... experiment with different prompts and parameters to see how the model performs.
+
+params:
+  max_tokens: 4096
+  temperature: 0

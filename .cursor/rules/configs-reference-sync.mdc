@@ -16,32 +16,32 @@ All immediate subdirectories of `tester-v1/configs/` except `reference/`. Discov
 
 For each live `{model_slug}/`:
 
-1. **Add missing variants:** For each `reference/{variant}/` with both `server.yaml` and `client.yaml`, if `{model_slug}/{variant}/` is missing, create it by copying from reference and set `model:` in `server.yaml` to the existing value from any sibling variant on that model, or from an existing `server.yaml` on that model if present. If the model dir is new or empty, ask the user for `gguf_path` before writing.
+1. **Add missing variants:** For each `reference/{variant}/` with both `server.yaml` and `client.yaml`, if `{model_slug}/{variant}/` is missing, create it by copying `server.yaml` and `client.yaml` from reference unchanged. If `{model_slug}/model.yaml` is missing, create it from `reference/model.yaml` with `model:` set from an existing sibling `model.yaml` on that slug if present; if the model dir is new or has no `model.yaml`, ask the user for `gguf_path` before writing.
 
-2. **Update existing reference-backed variants:** For each `reference/{variant}/` that also exists under `{model_slug}/{variant}/`, update `server.yaml` and `client.yaml` from reference except preserve the current `model:` line in `server.yaml` on the live copy.
+2. **Update existing reference-backed variants:** For each `reference/{variant}/` that also exists under `{model_slug}/{variant}/`, update `server.yaml` and `client.yaml` from reference. Preserve the live `{model_slug}/model.yaml` (do not replace it from reference).
 
 3. **Do not delete** variant directories on live models when they are absent from `reference/`. Model-specific dirs (for example `hello-world-bench`) stay.
 
-4. **Do not overwrite** `model:` from reference into live models.
+4. **Do not overwrite** live `{model_slug}/model.yaml` from `reference/model.yaml` when syncing existing models.
 
 ## Overwrite policy
 
-When reference content changes, overwrite live `server.yaml` and `client.yaml` for variants that exist in both reference and that model (except `model:`). Reference is source of truth for shared variants; model-specific dirs are untouched.
+When reference content changes, overwrite live variant `server.yaml` and `client.yaml` for dirs that exist in both reference and that model. Reference is source of truth for shared variants; model-specific dirs and live `model.yaml` are untouched.
 
 ## User notification (required)
 
 After propagation, report explicitly:
 
 - Which `model_slug` directories were touched.
-- Per model: which variants were **created** vs **updated** (file paths).
-- Which reference variants were not propagated because of missing `model:` (if any; ask the user).
+- Per model: which variants were **created** vs **updated** (file paths); whether `model.yaml` was created or left unchanged.
+- Which models could not get new variants because `model.yaml` was missing and the user did not supply `gguf_path` (if any; ask the user).
 - Reminder: variants removed from `reference/` were **not** deleted from live models.
 
 Example:
 
 ```text
 Synced reference → models:
-- qwen3.5-9b-q8: updated hello-world-baseline (server.yaml, client.yaml)
-- gemma-4-e4b-it-q8: updated hello-world-baseline (server.yaml, client.yaml)
+- qwen3.5-9b-q8: updated hello-world-baseline (server.yaml, client.yaml); preserved model.yaml
+- gemma-4-e4b-it-q8: updated hello-world-baseline (server.yaml, client.yaml); preserved model.yaml
 Not deleted: hello-world-bench on gemma (not in reference).
 ```

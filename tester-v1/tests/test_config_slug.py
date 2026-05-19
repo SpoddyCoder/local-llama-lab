@@ -89,12 +89,11 @@ class TestLoadServerConfigRejectsLabel(unittest.TestCase):
             yaml_path = Path(tmp) / "server.yaml"
             yaml_path.write_text(
                 "label: old-label\n"
-                f"model: {model_path}\n"
                 "args: |\n",
                 encoding="utf-8",
             )
             with self.assertRaises(ValueError) as ctx:
-                load_server_config(yaml_path)
+                load_server_config(yaml_path, model=str(model_path))
             self.assertIn("'label' is removed", str(ctx.exception))
 
 

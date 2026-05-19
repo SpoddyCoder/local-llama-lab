@@ -45,6 +45,7 @@ class TestRunSaveResult(unittest.TestCase):
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
+                    Path(tmp) / "model.yaml",
                     save_result=True,
                     quiet=False,
                     include_output=False,
@@ -92,6 +93,7 @@ class TestRunSaveResult(unittest.TestCase):
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
+                    _CONFIG_DIR.parent / "model.yaml",
                     _CONFIG_DIR,
                     save_result=True,
                     quiet=True,
@@ -144,6 +146,7 @@ class TestRunSaveResult(unittest.TestCase):
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
+                    _CONFIG_DIR.parent / "model.yaml",
                     _CONFIG_DIR,
                     save_result=True,
                     quiet=False,
@@ -201,6 +204,7 @@ class TestRunStdoutDefault(unittest.TestCase):
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
+                    Path(tmp) / "model.yaml",
                     save_result=False,
                     quiet=False,
                     include_output=False,
@@ -258,6 +262,7 @@ class TestRunStdoutDefault(unittest.TestCase):
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
+                    _CONFIG_DIR.parent / "model.yaml",
                     _CONFIG_DIR,
                     save_result=True,
                     quiet=True,
@@ -303,6 +308,7 @@ class TestRunStdoutDefault(unittest.TestCase):
                 code = _run(
                     Path(tmp) / "server.yaml",
                     Path(tmp) / "client.yaml",
+                    Path(tmp) / "model.yaml",
                     save_result=False,
                     quiet=False,
                     include_output=True,
@@ -328,7 +334,11 @@ class TestMainArgparse(unittest.TestCase):
     def test_main_save_result_quiet_passes_flags_to_run(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
-            resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
+            resolve.return_value = (
+                _TESTER_ROOT / "server.yaml",
+                _TESTER_ROOT / "client.yaml",
+                _TESTER_ROOT / "model.yaml",
+            )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--save-result", "--quiet"])
         run.assert_called_once()
@@ -341,7 +351,11 @@ class TestMainArgparse(unittest.TestCase):
     def test_main_include_output_without_save_result_passes_bool(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
-            resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
+            resolve.return_value = (
+                _TESTER_ROOT / "server.yaml",
+                _TESTER_ROOT / "client.yaml",
+                _TESTER_ROOT / "model.yaml",
+            )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--include-output"])
         run.assert_called_once()
@@ -352,7 +366,11 @@ class TestMainArgparse(unittest.TestCase):
     def test_main_include_output_with_save_result_passes_bool(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
-            resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
+            resolve.return_value = (
+                _TESTER_ROOT / "server.yaml",
+                _TESTER_ROOT / "client.yaml",
+                _TESTER_ROOT / "model.yaml",
+            )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--save-result", "--include-output"])
         run.assert_called_once()
@@ -363,7 +381,11 @@ class TestMainArgparse(unittest.TestCase):
     def test_main_session_id_passed_through(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
-            resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
+            resolve.return_value = (
+                _TESTER_ROOT / "server.yaml",
+                _TESTER_ROOT / "client.yaml",
+                _TESTER_ROOT / "model.yaml",
+            )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--save-result", "--session-id", "cal-1"])
         kwargs = run.call_args.kwargs
@@ -372,7 +394,11 @@ class TestMainArgparse(unittest.TestCase):
     def test_main_quiet_without_save_result_is_noop(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
-            resolve.return_value = (_TESTER_ROOT / "server.yaml", _TESTER_ROOT / "client.yaml")
+            resolve.return_value = (
+                _TESTER_ROOT / "server.yaml",
+                _TESTER_ROOT / "client.yaml",
+                _TESTER_ROOT / "model.yaml",
+            )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--quiet"])
         run.assert_called_once()

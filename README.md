@@ -107,7 +107,7 @@ Use a browser to view the llama web UI while it is running (port depends on `ser
 
 ### Probe runs
 
-Configuratuion pairs (`server.yaml` and `client.yaml`) live under [tester-v1/configs/](tester-v1/configs/). 
+Each model has `model.yaml` at the config root plus per-variant `server.yaml` and `client.yaml` under [tester-v1/configs/](tester-v1/configs/). 
 
 For a new model, run calibration first (default: probe stdout for footprint, ctx-probe, and hello-world, then a six-line summary including generation throughput; no JSON):
 

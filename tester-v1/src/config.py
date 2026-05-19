@@ -11,6 +11,7 @@ from typing import Any
 
 import yaml
 
+MODEL_YAML = "model.yaml"
 _MODEL_FLAGS = frozenset({"-m", "--model"})
 _DEFAULT_BINARY = "llama-server"
 _DEFAULT_READY_TIMEOUT_S = 120.0
@@ -145,18 +146,37 @@ def parse_args_block(text: str, path: str | Path | None = None) -> list[str]:
     return result
 
 
-def load_server_config(path: str | Path) -> ServerConfig:
+def model_yaml_path_for_variant(variant_dir: Path) -> Path:
+    """Return the model.yaml path for a variant config directory."""
+    return variant_dir.parent / MODEL_YAML
+
+
+def load_model_config(path: str | Path) -> str:
+    """Load and validate the GGUF path from model.yaml."""
+    raw = _load_yaml(path)
+    if not isinstance(raw, dict):
+        raise ValueError(f"model config must be a YAML mapping: {path}")
+
+    model_raw = raw.get("model")
+    if not model_raw or not isinstance(model_raw, str):
+        raise ValueError(f"model config 'model' is required and must be a string: {path}")
+
+    model = os.path.expanduser(model_raw)
+    if not os.path.isfile(model):
+        raise ValueError(f"model config model file does not exist: {model} ({path})")
+    return model
+
+
+def load_server_config(path: str | Path, *, model: str) -> ServerConfig:
     raw = _load_yaml(path)
     if not isinstance(raw, dict):
         raise ValueError(f"server config must be a YAML mapping: {path}")
 
-    model_raw = raw.get("model")
-    if not model_raw or not isinstance(model_raw, str):
-        raise ValueError(f"server config 'model' is required and must be a string: {path}")
-
-    model = os.path.expanduser(model_raw)
-    if not os.path.isfile(model):
-        raise ValueError(f"server config model file does not exist: {model}")
+    if "model" in raw:
+        raise ValueError(
+            f"server config must not contain 'model'; use {MODEL_YAML} "
+            f"in the model directory: {path}"
+        )
 
     args_raw = raw.get("args")
     if args_raw is None:
@@ -203,6 +223,12 @@ def load_server_config(path: str | Path) -> ServerConfig:
         ready_timeout_s=ready_timeout_s,
         ready_poll_interval_s=ready_poll_interval_s,
     )
+
+
+def load_variant_server(server_path: Path, model_yaml_path: Path) -> ServerConfig:
+    """Load server config with model path from model.yaml."""
+    model = load_model_config(model_yaml_path)
+    return load_server_config(server_path, model=model)
 
 
 def load_client_config(path: str | Path) -> ClientConfig:

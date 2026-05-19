@@ -12,10 +12,11 @@ import httpx
 
 from client import run_chat_completion
 from config import (
+    MODEL_YAML,
     ServerConfig,
     config_dir_metadata,
     load_client_config,
-    load_server_config,
+    load_variant_server,
     redact_model_path,
 )
 from result_layout import completion_output_path
@@ -35,8 +36,8 @@ _TESTER_ROOT = Path(__file__).resolve().parent.parent
 _RESULTS_DIR = _TESTER_ROOT / "results"
 
 
-def _load_server(server_path: Path) -> ServerConfig:
-    return load_server_config(server_path)
+def _load_server(server_path: Path, model_yaml_path: Path) -> ServerConfig:
+    return load_variant_server(server_path, model_yaml_path)
 
 
 def _result_path_display(result_path: Path) -> str:
@@ -49,6 +50,7 @@ def _result_path_display(result_path: Path) -> str:
 def _run(
     server_path: Path,
     client_path: Path,
+    model_yaml_path: Path,
     config_dir: Path | None = None,
     *,
     save_result: bool,
@@ -60,7 +62,7 @@ def _run(
         print("Error: --save-result requires config_dir", file=sys.stderr)
         return 1
 
-    server = _load_server(server_path)
+    server = _load_server(server_path, model_yaml_path)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
     client = replace(client, base_url=base_url)
@@ -189,9 +191,10 @@ def _run(
 def _run_test_server(
     server_path: Path,
     client_path: Path,
+    model_yaml_path: Path,
     config_dir: Path | None = None,
 ) -> int:
-    server = _load_server(server_path)
+    server = _load_server(server_path, model_yaml_path)
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
 
@@ -217,8 +220,9 @@ def resolve_config_paths(
     config_dir: Path | None,
     server_override: Path | None,
     client_override: Path | None,
+    model_yaml_override: Path | None,
     tester_root: Path,
-) -> tuple[Path, Path]:
+) -> tuple[Path, Path, Path]:
     if config_dir is None:
         if server_override is None or client_override is None:
             missing = []
@@ -230,24 +234,33 @@ def resolve_config_paths(
                 "config_dir is required, or pass both "
                 + " and ".join(missing)
             )
-        return server_override, client_override
+        if model_yaml_override is None:
+            raise FileNotFoundError(
+                "config_dir is required, or pass --server, --client, and --model-yaml"
+            )
+        if not model_yaml_override.is_file():
+            raise FileNotFoundError(f"model config not found: {model_yaml_override}")
+        return server_override, client_override, model_yaml_override
 
     if not config_dir.is_dir():
         raise FileNotFoundError(f"Config directory not found: {config_dir}")
 
     server = server_override or config_dir / "server.yaml"
     client = client_override or config_dir / "client.yaml"
+    model_yaml = config_dir.parent / MODEL_YAML
 
     missing: list[str] = []
     if not server.is_file():
         missing.append(server.name)
     if not client.is_file():
         missing.append(client.name)
+    if not model_yaml.is_file():
+        missing.append(MODEL_YAML)
     if missing:
         names = ", ".join(missing)
         raise FileNotFoundError(f"Config files missing in {config_dir}: {names}")
 
-    return server, client
+    return server, client, model_yaml
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -256,7 +269,10 @@ def main(argv: list[str] | None = None) -> int:
         "config_dir",
         nargs="?",
         type=Path,
-        help="directory containing server.yaml and client.yaml",
+        help=(
+            "variant directory containing server.yaml and client.yaml "
+            "(model path from parent model.yaml)"
+        ),
     )
     parser.add_argument(
         "--server",
@@ -269,6 +285,15 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=None,
         help="client.yaml path (default: config_dir/client.yaml)",
+    )
+    parser.add_argument(
+        "--model-yaml",
+        type=Path,
+        default=None,
+        help=(
+            "model.yaml path (default: parent of config_dir; required with "
+            "--server and --client when config_dir is omitted)"
+        ),
     )
     parser.add_argument(
         "--test-server",
@@ -303,10 +328,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        server_path, client_path = resolve_config_paths(
+        server_path, client_path, model_yaml_path = resolve_config_paths(
             args.config_dir,
             args.server,
             args.client,
+            args.model_yaml,
             _TESTER_ROOT,
         )
     except FileNotFoundError as exc:
@@ -315,11 +341,14 @@ def main(argv: list[str] | None = None) -> int:
 
     config_dir = args.config_dir
     if args.test_server:
-        return _run_test_server(server_path, client_path, config_dir)
+        return _run_test_server(
+            server_path, client_path, model_yaml_path, config_dir
+        )
 
     return _run(
         server_path,
         client_path,
+        model_yaml_path,
         config_dir,
         save_result=args.save_result,
         quiet=args.quiet if args.save_result else False,

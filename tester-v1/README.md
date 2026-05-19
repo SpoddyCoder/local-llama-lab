@@ -6,7 +6,7 @@ Single-run harness for `llama-server`: start the server, run one streaming chat 
 
 One invocation of `python single_test_runner.py` (default probe):
 
-1. Load `server.yaml` and `client.yaml`
+1. Load parent `model.yaml`, variant `server.yaml`, and `client.yaml`
 2. Start `llama-server` with the configured model and flags
 3. Poll until the API is healthy
 4. POST one streaming `/v1/chat/completions` request
@@ -47,8 +47,8 @@ python3 -m unittest discover -s tests -v
 
 ## Workflow
 
-1. Pick or create a variant directory under `configs/` (see layout below). Each leaf holds `server.yaml` and `client.yaml` for one run configuration.
-2. Tune model path, server flags, prompt, and API params in that pair of files.
+1. Pick or create a model directory under `configs/` with `model.yaml` at the root and variant subdirs (see layout below). Each variant holds `server.yaml` and `client.yaml` for one run configuration.
+2. Set the GGUF path in `model.yaml`; tune server flags in `server.yaml` and prompt/API params in `client.yaml`.
 3. Run the variant (probe: metrics block and headline footer on stdout, no JSON):
 
    ```bash
@@ -63,7 +63,7 @@ Use separate variant directories (for example `hello-world-baseline` vs `hello-w
 
 Derive GGUF size on disk, model VRAM, KV VRAM budget, estimated max context, and generation throughput from three probe runs. By default, `model_calibration.py` runs footprint, ctx-probe, and `hello-world-baseline` as probes (same as `single_test_runner.py` with no flags): probe metrics on stdout, no JSON under `results/`. Pass `--save-result` to record probe JSON via `single_test_runner.py --save-result --quiet` (shared `session_id` on all three probes), read metrics from the latest JSON under each variant directory, and write `results/{model}/calibration-sessions/{session_id}.json`.
 
-Each model directory (for example `configs/qwen3.5-9b-q8/`) must include three reference-backed variants:
+Each model directory (for example `configs/qwen3.5-9b-q8/`) must include `model.yaml` and three reference-backed variants:
 
 - **`calibration-footprint/`** — `server.yaml` with `--fit off`, `-c 4096` (or your chosen footprint context), `--parallel 1`; `client.yaml` with a minimal prompt (`ok`) and `max_tokens: 1`. Idle VRAM after ready is the model footprint at that context.
 - **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
@@ -119,30 +119,40 @@ Example:
 
 ```text
 configs/
-  reference/           # global templates (three variants)
+  reference/           # global templates (model.yaml + three variants)
+    model.yaml
     calibration-footprint/
     calibration-ctx-probe/
     hello-world-baseline/
   qwen3.5-9b-q8/       # live model; may include extra dirs
+    model.yaml
     calibration-footprint/
     calibration-ctx-probe/
     hello-world-baseline/
     hello-world-bench/     # optional, model-specific
 ```
 
-Each variant directory must contain both `server.yaml` and `client.yaml`. Model folders (for example `qwen3.5-9b-q8`) group related variants; they are not special-cased in code beyond metadata and the results path layout.
+Each model folder (for example `qwen3.5-9b-q8`) must contain `model.yaml` with the GGUF path. Each variant subdirectory must contain both `server.yaml` and `client.yaml`. Model folders group related variants; they are not special-cased in code beyond metadata and the results path layout.
 
 ## Config essentials
 
-Example files (variant shape): [configs/reference/hello-world-baseline/server.yaml](configs/reference/hello-world-baseline/server.yaml), [configs/reference/hello-world-baseline/client.yaml](configs/reference/hello-world-baseline/client.yaml). Root [server.yaml](server.yaml) and [client.yaml](client.yaml) remain the default when no config directory is passed.
+Example files: [configs/reference/model.yaml](configs/reference/model.yaml), [configs/reference/hello-world-baseline/server.yaml](configs/reference/hello-world-baseline/server.yaml), [configs/reference/hello-world-baseline/client.yaml](configs/reference/hello-world-baseline/client.yaml). Root [server.yaml](server.yaml) and [client.yaml](client.yaml) remain the default when no config directory is passed (override-only mode requires `--model-yaml`; see CLI).
+
+**model.yaml** (one per model directory, parent of variant dirs)
+
+
+| Field   | Role                                              |
+| ------- | ------------------------------------------------- |
+| `model` | Path to the GGUF file (required; file must exist) |
+
+Example: [configs/reference/model.yaml](configs/reference/model.yaml).
 
 **server.yaml**
 
 
 | Field                   | Role                                                                                     |
 | ----------------------- | ---------------------------------------------------------------------------------------- |
-| `model`                 | Path to the GGUF file (required; file must exist)                                        |
-| `args`                  | Extra `llama-server` flags (block scalar only; see below). Do not pass `-m` or `--model` (the runner injects `-m`) |
+| `args`                  | Extra `llama-server` flags (block scalar only; see below). Do not pass `-m` or `--model` (the runner injects `-m` from `model.yaml`) |
 | `binary`                | Server executable (default `llama-server`)                                               |
 | `ready_timeout_s`       | Max seconds to wait for health (default 120)                                             |
 | `ready_poll_interval_s` | Poll interval (default 0.5)                                                              |
@@ -168,13 +178,13 @@ If `server.yaml` sets `--port` / `-p`, keep `base_url` in sync (or omit port in 
 
 Run from `tester-v1/` as `./single_test_runner.py` or `./model_calibration.py` (see Quick start), or equivalently with `python3`.
 
-Config directory (primary workflow; loads `config_dir/server.yaml` and `config_dir/client.yaml`; `--save-result` requires this):
+Config directory (primary workflow; loads `config_dir/../model.yaml`, `config_dir/server.yaml`, and `config_dir/client.yaml`; `--save-result` requires this):
 
 ```bash
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline
 ```
 
-Override one or both config files while still using the config directory for results layout:
+Override one or more config files while still using the config directory for results layout (model path still comes from the parent `model.yaml` unless you pass `--model-yaml`):
 
 ```bash
 python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
@@ -182,10 +192,11 @@ python3 single_test_runner.py configs/qwen3.5-9b-q8/hello-world-baseline \
   --client /path/to/client.yaml
 ```
 
-Custom paths without a config directory (probe only; `--save-result` writes under `results/_other/`):
+Custom paths without a config directory (probe only; `--save-result` writes under `results/_other/`). You must pass all three paths:
 
 ```bash
-python3 single_test_runner.py --server /path/to/server.yaml --client /path/to/client.yaml
+python3 single_test_runner.py --server /path/to/server.yaml --client /path/to/client.yaml \
+  --model-yaml /path/to/model.yaml
 ```
 
 Flags (same config resolution as above; pass `config_dir` when testing a variant):
@@ -197,6 +208,7 @@ Flags (same config resolution as above; pass `config_dir` when testing a variant
 | `--save-result`  | Requires `config_dir`; write `results/{model}/{variant}/{timestamp}.json`; print full run summary on stdout |
 | `--quiet`        | Only with `--save-result`: suppress stdout summary; on success print `Wrote results/...` to stderr              |
 | `--include-output` | Print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON |
+| `--model-yaml`   | `model.yaml` path (default: parent of `config_dir`; required with `--server` and `--client` when `config_dir` is omitted) |
 | `--session-id`   | Optional; set on saved JSON (used by `model_calibration` subprocesses)                                      |
 | `--test-server`  | Start server, wait for health, hold until Ctrl+C (no completion, no JSON)                                     |
 
@@ -304,5 +316,6 @@ These are easy to miss from a quick read of the code:
 - **Model load time:** Recorded as `server_ready_s` (subprocess start to first health 200). The first start can take several minutes. If load exceeds `ready_timeout_s`, the run fails even though the server might still be loading. Raise `ready_timeout_s` for large models or slow disks.
 - **Token counts on this stack:** Many `llama-server` builds omit `usage` on stream chunks. The client reads `timings` (`prompt_n`, `predicted_n`) from the final chunk instead. TTFT is time to the first non-empty delta on `content`, `reasoning_content`, or `text`; models that stream reasoning before visible content can show a lower TTFT than "first answer token."
 - **Clean stop:** Use Ctrl+C in the terminal for a controlled interrupt. With `--save-result`, the runner records `status: error` and still writes JSON when possible. Killing the process from outside (or a hard external timeout) may leave `llama-server` running in the background.
-- **No model flag in args:** Putting `-m` or `--model` in `server.yaml` `args` is rejected; the runner appends `-m` with the `model` path.
+- **No model in server.yaml:** The GGUF path lives only in `model.yaml` at the model root. Putting `model:` in `server.yaml` is rejected.
+- **No model flag in args:** Putting `-m` or `--model` in `server.yaml` `args` is rejected; the runner appends `-m` with the path from `model.yaml`.
 - **Removed `label` field:** `server.yaml` must not contain `label`; use a config directory so results land under `results/{model}/{variant}/`.

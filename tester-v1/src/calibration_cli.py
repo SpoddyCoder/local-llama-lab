@@ -22,7 +22,13 @@ from calibration import (
     run_variant_subprocess,
     write_calibration_session_summary,
 )
-from config import config_dir_metadata, load_server_config, parse_context_from_args
+from config import (
+    MODEL_YAML,
+    config_dir_metadata,
+    load_model_config,
+    load_server_config,
+    parse_context_from_args,
+)
 from result_layout import find_latest_result
 from results import format_compact_utc, utc_now
 from vram import query_gpu_total_mb
@@ -49,6 +55,9 @@ def _validate_variant_dir(variant_dir: Path) -> None:
 def _validate_model_dir(model_dir: Path) -> None:
     if not model_dir.is_dir():
         raise FileNotFoundError(f"model directory not found: {model_dir}")
+    model_yaml = model_dir / MODEL_YAML
+    if not model_yaml.is_file():
+        raise FileNotFoundError(f"model config not found: {model_yaml}")
     for variant in (VARIANT_FOOTPRINT, VARIANT_CTX_PROBE, VARIANT_HELLO_WORLD):
         variant_dir = _variant_dir(model_dir, variant)
         if not variant_dir.is_dir():
@@ -169,11 +178,14 @@ def _run_calibration(
     footprint_server_path = footprint_dir / "server.yaml"
     ctx_probe_server_path = ctx_probe_dir / "server.yaml"
     try:
-        footprint_server = load_server_config(footprint_server_path)
-        ctx_probe_server = load_server_config(ctx_probe_server_path)
+        model_path = load_model_config(model_dir / MODEL_YAML)
+        footprint_server = load_server_config(
+            footprint_server_path, model=model_path
+        )
+        ctx_probe_server = load_server_config(ctx_probe_server_path, model=model_path)
         footprint_c = parse_context_from_args(footprint_server.args)
         ctx_c = parse_context_from_args(ctx_probe_server.args)
-        gguf_gb = gguf_size_gb(footprint_server.model)
+        gguf_gb = gguf_size_gb(model_path)
     except ValueError as exc:
         return _fail(
             f"{exc}\n"

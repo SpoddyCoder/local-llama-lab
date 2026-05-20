@@ -295,8 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=DEFAULT_CALIBRATION_MARGIN_MIB,
         help=(
-            "VRAM margin reserved for non-KV use before the model loads "
-            f"(default: {DEFAULT_CALIBRATION_MARGIN_MIB})"
+            "VRAM safety buffer subtracted from the KV budget "
+            f"(default: {DEFAULT_CALIBRATION_MARGIN_MIB} MiB)"
         ),
     )
     parser.add_argument(

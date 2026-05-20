@@ -37,75 +37,48 @@ hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
 
 Note: this example shows just one quantized model, if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
 
-* [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/tree/main)
-  * Cutting edge [description]
-  * Dense model
-  * Setup:
-    * Doesn't really fit tbh, stressed up to 8192 tokens before it crashes.
-  * Performance:
-    * Generation throughput: ~27 tok/s
-    * Estimated Max Context: 8192 tokens
-    * Model Max Context: TODO tokens
-    * Model VRAM: 15.1 GiB
-    * KV VRAM: Too small to measure accurately
-    * GGUF on disk: TODO GB
-* [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/tree/main)
-  * Broad multilingual support (100+ languages) and highly competitive, generalist benchmark scores.
-  * Dense model
-  * Setup:
-    * Vanilla, model fits easily into VRAM
-  * Performance:
-    * Generation throughput: ~91 tok/s
-    * Estimated Max Context: 150823 tokens
-    * Model Max Context: 262144 tokens
-    * Model VRAM: 10337 MiB
-    * KV VRAM: 4430 MiB
-    * GGUF on disk: 9.55 GB
+### MoE Models
 * [Gemma-4-E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
-  * MoE model
-  * Outstanding for local developer setups that require tool-calling capabilities and structured outputs.
-  * Setup:
-    * Vanilla, model fits easily into VRAM
-  * Performance:
-    * Generation throughput: ~114 tok/s
-    * Estimated Max Context: 446749 tokens
-    * Model Max Context: 131072 tokens
-    * Model VRAM: 7022 MiB
-    * KV VRAM: 7745 MiB
-    * GGUF on disk: 8.03 GB
+  * Released: April 2026, outstanding for local developer setups that require tool-calling capabilities and structured outputs.
+  * Generation throughput: ~114 tok/s
+  * Estimated Max Context: 130028 tokens
+  * Model Max Context: 131072 tokens
+  * Model VRAM: 5781 MiB
+  * KV VRAM: 10422 MiB
+  * GGUF on disk: 8.03 GB
 
-## Tester v1 (single-run harness)
+### Dense Models
+* [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/tree/main)
+  * Released: March 2026, broad multilingual support (100+ languages) and highly competitive, generalist benchmark scores.
+  * Generation throughput: ~86 tok/s
+  * Estimated Max Context: 79443 tokens
+  * Model Max Context: 262144 tokens
+  * Model VRAM: 9001 MiB
+  * KV VRAM: 7202 MiB
+  * GGUF on disk: 9.55 GB
+* [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/tree/main)
+  * Released: April 2026, barely fits in 16Gb, no room for context, but I wanted to test it, so I did!
+  * Generation throughput: ~46 tok/s
+  * Estimated Max Context: 9176 tokens
+  * Model Max Context: 262144 tokens
+  * Model VRAM: 15584 MiB
+  * KV VRAM: 619 MiB
+  * GGUF on disk: 15.79 GB
 
-From the repo root, use the harness under `tester-v1/`. Python 3 is required. Check third-party deps (skip install if this prints `deps ok`):
 
-```bash
-cd tester-v1
-python3 -c "import httpx, yaml" 2>/dev/null && echo "deps ok" || echo "need install"
-```
+## Tester v1
 
-If you see `need install`, use a venv (avoids PEP 668 errors on system `pip`):
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-See [tester-v1/README.md](tester-v1/README.md). With `--save-result`, probe JSON is written locally under `tester-v1/results/{model}/{variant}/` (gitignored; not in the repo). Copy calibration or probe metrics into this README when documenting a model. See [results](tester-v1/README.md#results) and [calibration-sessions](tester-v1/README.md#model-calibration).
+* Calibration tests are used to test overall throughput and rough expected max context window given a 16Gb card.
+* See [tester-v1/README.md](tester-v1/README.md) for more details.
 
 ### Run a server
 
-Start a server using one of the variant configs (`client.yaml` is unused in this mode):
-
 ```bash
 cd tester-v1
-./single_test_runner.py \
-  --server configs/reference/hello-world-baseline/server.yaml \
-  --client configs/reference/hello-world-baseline/client.yaml \
-  --model-yaml configs/qwen3.5-9b-q8/model.yaml \
-  --test-server
+./single_test_runner.py configs/qwen3.5-9b-q8/ --test-server
 ```
 
-Use a browser to view the llama web UI while it is running (port depends on `server.yaml`):
+Use a browser to access the llama web UI while it is running (port depends on `server.yaml` but is typically 8080):
 
 [https://localhost:8080](https://localhost:8080)
 
@@ -113,7 +86,7 @@ Use a browser to view the llama web UI while it is running (port depends on `ser
 
 Each model has `model.yaml` under [tester-v1/configs/{model}/](tester-v1/configs/). Shared probe YAML is under [tester-v1/configs/reference/](tester-v1/configs/reference/). 
 
-For a new model, run calibration first (default: probe stdout for footprint, ctx-probe, and hello-world, then a six-line summary including generation throughput; no JSON):
+For a new model, run calibration first (does tests in `configs/reference/`: footprint, ctx-probe, and hello-world, outputs a six-line summary)
 
 ```bash
 cd tester-v1
@@ -121,11 +94,10 @@ cd tester-v1
 ./model_calibration.py configs/gemma-4-e4b-it-q8
 ```
 
-Add `--save-result` when you want probe JSON on disk under `tester-v1/results/{model}/{variant}/` (calibration also writes `calibration-sessions/{session_id}.json`; local only, gitignored).
+Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
-Calibration assumes 512 MiB GPU VRAM is in use before the model loads; override with `--margin-mib` if your baseline differs (see [Model calibration](tester-v1/README.md#model-calibration) in `tester-v1/README.md`).
+Calibration subtracts a small VRAM safety buffer from the KV budget (default 100 MiB; see `--margin-mib` in [Model calibration](tester-v1/README.md#model-calibration)).
 
-To re-run hello-world alone (for example A/B server flags), use `single_test_runner.py` with reference hello-world YAML and `--model-yaml configs/{model}/model.yaml`; add `--save-result` with an ephemeral `configs/{model}/hello-world-baseline/` dir for result layout (see [tester-v1/README.md](tester-v1/README.md#cli)).
 
 ## Key Learnings
 * Quantization is important for squeezing larger models into a consumer graphics card:

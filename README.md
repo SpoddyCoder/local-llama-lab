@@ -41,7 +41,7 @@ hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
 Note: if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
 
 ### MoE Models
-* [Gemma-4-E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
+* [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)
   * Released: April 2026, outstanding for local developer setups that require tool-calling capabilities and structured outputs.
   * Generation throughput: ~114 tok/s
   * Estimated Max Context: 130028 tokens
@@ -49,11 +49,18 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
   * Model VRAM: 5781 MiB
   * KV VRAM: 10422 MiB
   * GGUF on disk: 8.03 GB
-* [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-GGUF/tree/main)
-  * Released: April 20206
+* [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)
+  * Released: April 2026
+  * Setup: `--n-gpu-layers 999 --n-cpu-moe 24` to fit on card and leave 5GB for KV cache.
+  * Generation throughput: ~47 tok/s
+  * Estimated Max Context: 69409 tokens
+  * Model Max Context: 262144 tokens
+  * Model VRAM: 10869 MiB
+  * KV VRAM: 5334 MiB
+  * GGUF on disk: 22.36 GB
 
 ### Dense Models
-* [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/tree/main)
+* [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)
   * Released: March 2026, broad multilingual support (100+ languages) and highly competitive, generalist benchmark scores.
   * Generation throughput: ~86 tok/s
   * Estimated Max Context: 79443 tokens
@@ -61,7 +68,7 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
   * Model VRAM: 9001 MiB
   * KV VRAM: 7202 MiB
   * GGUF on disk: 9.55 GB
-* [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/tree/main)
+* [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)
   * Released: April 2026, barely fits in 16Gb, no room for context, but I wanted to test it, so I did!
   * Generation throughput: ~46 tok/s
   * Estimated Max Context: 9176 tokens

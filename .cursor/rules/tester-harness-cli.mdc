@@ -3,33 +3,28 @@ description: Do not run tester harness CLIs that write results without user perm
 alwaysApply: true
 ---
 
-# Tester harness CLIs (permission required)
+# Tester harness CLIs
 
-## Do not run without asking
+## Permission before `--save-result`
 
-Do **not** run report- or artifact-generating tools in this repo unless the user has explicitly asked you to run them in this conversation, or they clearly need a fresh run to complete an explicit request (e.g. "run calibration now").
+Do not run artifact-writing harness CLIs unless the user asked in this chat, a fresh run is required for an explicit request, or you are debugging the harness itself.
 
-**Ask for permission first** when you would otherwise invoke:
+Ask first before:
 
-- `tester-v1/model_calibration.py` with `--save-result` (runs footprint, ctx-probe, and hello-world-baseline via `single_test_runner --save-result --quiet`, writes JSON under `tester-v1/results/{model}/{variant}/`, writes `results/{model}/calibration-sessions/{session_id}.json`; default calibration is probe-only on stdout)
-- `tester-v1/single_test_runner.py` with `--save-result` (starts `llama-server`, writes JSON under `tester-v1/results/{model}/{variant}/`; default probe run does not write JSON)
+- `tester-v1/model_calibration.py --save-result` (three reference probes via `single_test_runner --save-result --quiet`; JSON under `results/{model}/{variant}/`; session file under `results/{model}/calibration-sessions/`)
+- `tester-v1/single_test_runner.py --save-result` (JSON under `results/{model}/{variant}/`)
 
-Same rule for equivalent `./model_calibration.py` / `./single_test_runner.py` from `tester-v1/`.
+Same rule for `./model_calibration.py` / `./single_test_runner.py` from `tester-v1/`. Probe runs without `--save-result` are stdout-only and need no ask.
 
 ## Prefer existing local output
 
-`tester-v1/results/` is gitignored (local machine only). When filling docs, comparing models, or answering VRAM/context questions:
+`tester-v1/results/` is gitignored. For docs, comparisons, or VRAM/context answers:
 
-1. Use metrics already copied into the repo README or other docs when present.
-2. If the user has run with `--save-result`, read the latest matching JSON on disk under `tester-v1/results/{model}/{variant}/` (newest `*.json` by timestamp stem), or `tester-v1/results/{model}/calibration-sessions/{session_id}.json` for saved calibration runs.
-3. Recompute from those local files if needed (`idle_vram_mb`, calibration math).
-4. Only suggest or run a new harness invocation if local results are missing, stale for the user's question, or the user wants a new run.
+1. Use metrics already in repo README or other docs.
+2. Else read newest `*.json` under `tester-v1/results/{model}/{variant}/`, or `calibration-sessions/{session_id}.json` for saved calibration.
+3. Recompute from those files when needed (`idle_vram_mb`, calibration math).
+4. Suggest or run a new harness only if local data is missing, stale, or the user wants a new run.
 
-## Exceptions (no extra ask)
+## Never use `configs/reference/` as `config_dir`
 
-- User message explicitly requests running a test, calibration, or benchmark.
-- User is implementing or debugging the harness itself and a run is required to verify the change.
-
-## Reference paths
-
-Never run these CLIs on `tester-v1/configs/reference/` (see `configs-reference.mdc`).
+Do not pass `tester-v1/configs/reference/` (or a variant under it) as `config_dir` to either CLI. See `configs-reference.mdc`.

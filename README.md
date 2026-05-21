@@ -2,7 +2,8 @@
 First forays into local model usage, this is about tuning and understanding the most efficient models and configurations for the llama.cpp server.
 
 ## Setup
-Running on a WSL2 instance on Windows machine...
+Relatively modest for AI work, but it's surprisingly viable. 
+Running on a WSL2 instance on a Windows host with 32Gb sys RAM (24Gb allocated to WSL) and a 5080 with 16Gb VRAM...
 
 ```bash
 local-model-tests$ nvidia-smi
@@ -18,24 +19,26 @@ Sat May 16 13:40:46 2026
 |  0%   44C    P5             29W /  378W |    1054MiB /  16303MiB |      0%      Default |
 |                                         |                        |                  N/A |
 +-----------------------------------------+------------------------+----------------------+
+
+local-model-tests/$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:            25Gi       1.4Gi        10Gi       3.2Mi        13Gi        23Gi
+Swap:           64Gi       351Mi        63Gi
 ```
 
 ## Dependencies
-
 ```bash
-./wsl-builder dev-python python3
+./wsl-builder.sh dev-python python3
 ./wsl-builder.sh ai cuda132,llama-cpp,huggingface-cli
 ```
 
 ## Models
-
 Download a model from Hugging Face...
 
 ```bash
 hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
 ```
-
-Note: this example shows just one quantized model, if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
+Note: if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
 
 ### MoE Models
 * [Gemma-4-E4B-IT-Q8](https://huggingface.co/google/gemma-4-e4b-it-gguf/tree/main)
@@ -69,39 +72,34 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
 
 
 ## Tester v1
-
 * Calibration tests are used to test overall throughput and rough expected max context window given a 16Gb card.
-* See [tester-v1/README.md](tester-v1/README.md) for more details.
+* See [tester-v1/README.md](tester-v1/README.md) for more details and requirements.
 
 ### Run a server
 
 ```bash
 cd tester-v1
-./single_test_runner.py configs/qwen3.5-9b-q8/ --test-server
+./single_test_runner.py configs/qwen3.5-9b-q8/bench/ --test-server
 ```
 
 Use a browser to access the llama web UI while it is running (port depends on `server.yaml` but is typically 8080):
 
 [https://localhost:8080](https://localhost:8080)
 
-### Probe runs
-
-Each model has `model.yaml` under [tester-v1/configs/{model}/](tester-v1/configs/). Shared probe YAML is under [tester-v1/configs/reference/](tester-v1/configs/reference/). 
-
-For a new model, run calibration first (does tests in `configs/reference/`: footprint, ctx-probe, and hello-world, outputs a six-line summary)
+### Calibration Probe Runs
 
 ```bash
-cd tester-v1
+# standard dense model
 ./model_calibration.py configs/qwen3.5-9b-q8
-./model_calibration.py configs/gemma-4-e4b-it-q8
+
+# for MoE models, define how many experts you want to lay off the CPU (to fit large models on small cards)...
+./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
 ```
 
-For MoE models, pass `--n-cpu-moe N` on calibration and probe runs that use reference YAML instead of editing `configs/reference/` ([Model calibration](tester-v1/README.md#model-calibration)).
-
-Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
-
-Calibration subtracts a small VRAM safety buffer from the KV budget (default 100 MiB; see `--margin-mib` in [Model calibration](tester-v1/README.md#model-calibration)).
-
+* Each model has `model.yaml` under [tester-v1/configs/{model}/](tester-v1/configs/).
+* The test probe `client.yaml` & `server.yaml`'s are under [tester-v1/configs/reference/](tester-v1/configs/reference/). 
+* For MoE models, pass `--n-cpu-moe N` on calibration (also works for single_test_runner)
+* Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
 ## Key Learnings
 * Quantization is important for squeezing larger models into a consumer graphics card:

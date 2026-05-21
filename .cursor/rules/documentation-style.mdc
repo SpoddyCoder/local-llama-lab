@@ -6,9 +6,8 @@ alwaysApply: false
 
 # Documentation style (Markdown)
 
-- The audience is always a human, prioritise understandability and brevity.
-- Be precise, consise and genrelly simple in laguage, except when technical language is required for clear communication and/or understanding.
-- Use one emphasis style per span; do not stack formatting that serves the same purpose.
-  - Links: do not wrap link text in backticks. The link already highlights it. Write `[path/to/file](path/to/file)`, not `` [`path/to/file`](path/to/file) ``.
-  - Bold and backticks: do not apply both to the same span. Use backticks alone for literals (paths, commands, env vars) when they are plain text; use bold only for plain emphasis.
-- Do not use emojis, em-dashes or other non-ASCII characters.
+- Audience: humans. Prefer clarity and brevity; use technical terms only when they aid precision.
+- One emphasis style per span (eg: no stacked bold + backticks).
+  - Links: `[path/to/file](path/to/file)` — no backticks on link text.
+  - Literals (paths, commands, env vars): backticks when not linked; bold for plain emphasis only.
+- No emojis, em-dashes, or other non-ASCII punctuation.

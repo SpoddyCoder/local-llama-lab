@@ -6,33 +6,30 @@ alwaysApply: false
 
 # Configs reference templates
 
-## Template source
+## Canonical source
 
-`tester-v1/configs/reference/` is canonical. The create-model-configs skill copies from here only; never from `qwen3.5-9b-q8/` or other live model dirs.
+`tester-v1/configs/reference/` is the only source for shared probe YAML. The create-model-configs skill copies from here, never from live model dirs.
 
-## What belongs in reference
+**In reference:** global probes for calibration and manual `--server` / `--client` runs (`calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`, plus any future promoted probes).
 
-- **In reference:** shared probe variants used by `model_calibration.py` and by manual runs via `--server` / `--client` (footprint, ctx-probe, hello-world-baseline, and any future global probes).
-- **Not in reference:** model-specific experiments (for example `hello-world-bench` on one slug only). Do not add those to `reference/` unless the user intends global rollout.
+**Not in reference:** per-model variants such as `bench/` or one-off experiments. Add those only under `configs/{model_slug}/`.
 
-Live model directories hold `model.yaml` and a scaffolded `bench/` variant (copied from `hello-world-baseline/` when using the create-model-configs skill). Optional extra experiment variant dirs may be added manually.
+## Promote / demote
 
-## Promoting and demoting variants
+- **Promote:** add `{variant}/server.yaml` and `client.yaml` under `reference/`, then register the variant in `model_calibration` (today hardcoded to the three names above). Do not copy probe YAML into live model dirs; see `configs-reference-sync.mdc`.
+- **Demote:** remove from `reference/` only; live copies may stay.
 
-- **Promote to global:** add a variant under `reference/` with `server.yaml` and `client.yaml`. Calibration picks it up automatically once `model_calibration` is taught the variant name (today: the three built-in names). Do not copy YAML into live model dirs (see [configs-reference-sync.mdc](configs-reference-sync.mdc)).
-- **Demote from global:** remove the variant from `reference/` only. Model-specific copies under a live slug may remain.
+**Default edits:** change shared behavior in `reference/`. One-off tweaks stay in that model's variant dir and are not copied to `reference/` unless promoted.
 
-## Editing shared behavior
+When `reference/` changes, follow `configs-reference-sync.mdc`.
 
-- **Default:** edit `reference/` for shared probe behavior. Live `model.yaml` files are unchanged.
-- **Exception:** one-off tweaks on a single model stay in that model's own variant subdirectory and must not be copied into `reference/` unless the user promotes them.
+## How calibration uses reference
 
-When `reference/` changes, follow [configs-reference-sync.mdc](configs-reference-sync.mdc).
+`model_calibration.py` checks `configs/reference/{variant}/`, then runs `single_test_runner.py` with:
 
-## Calibration and reference
-
-`model_calibration.py` validates that `configs/reference/{variant}/` exists, then runs `single_test_runner.py` with `config_dir` at `configs/{model}/{variant}/` (ephemeral, for result layout) and `--server` / `--client` pointing at `configs/reference/{variant}/`. Model path comes from `configs/{model}/model.yaml`.
+- `config_dir` = `configs/{model}/{variant}/` (ephemeral dir for result layout; parent supplies `model.yaml`)
+- `--server` / `--client` = `configs/reference/{variant}/`
 
 ## Do not run on reference
 
-Do not run `single_test_runner.py` or `model_calibration.py` with `config_dir` under `configs/reference/`.
+Never pass `config_dir` under `configs/reference/` to `single_test_runner.py` or `model_calibration.py`.

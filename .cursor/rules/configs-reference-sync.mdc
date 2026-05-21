@@ -14,7 +14,7 @@ All immediate subdirectories of `tester-v1/configs/` except `reference/`. Discov
 
 ## What to sync
 
-Live model directories contain `model.yaml` only (plus optional model-specific experiment variant dirs). **Do not** copy `reference/{variant}/` into live models when reference changes.
+Live model directories contain `model.yaml`, a scaffolded `bench/` variant (not synced from reference), and any optional model-specific experiment variant dirs. **Do not** copy `reference/{variant}/` into live models when reference changes.
 
 After editing `reference/`:
 
@@ -22,7 +22,7 @@ After editing `reference/`:
 
 2. **Do not create or update** `calibration-footprint/`, `calibration-ctx-probe/`, or `hello-world-baseline/` under live models. Calibration and default hello-world runs read those YAML files from `configs/reference/` via `--server` and `--client`.
 
-3. **Do not delete** model-specific variant directories on live models when they are absent from `reference/` (for example `hello-world-bench`).
+3. **Do not delete** model-specific variant directories on live models when they are absent from `reference/` (for example `bench/` or `hello-world-bench`).
 
 4. **Do not overwrite** live `{model_slug}/model.yaml` from `reference/model.yaml` when syncing existing models.
 
@@ -41,5 +41,5 @@ Example:
 Updated reference/hello-world-baseline/server.yaml.
 Live models: no variant dirs copied (calibration reads configs/reference/).
 Preserved: qwen3.5-9b-q8/model.yaml, gemma-4-e4b-it-q8/model.yaml.
-Not touched: hello-world-bench on gemma (model-specific).
+Not touched: bench/ on live models (model-specific; not auto-synced from reference).
 ```

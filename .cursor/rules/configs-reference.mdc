@@ -15,7 +15,7 @@ alwaysApply: false
 - **In reference:** shared probe variants used by `model_calibration.py` and by manual runs via `--server` / `--client` (footprint, ctx-probe, hello-world-baseline, and any future global probes).
 - **Not in reference:** model-specific experiments (for example `hello-world-bench` on one slug only). Do not add those to `reference/` unless the user intends global rollout.
 
-Live model directories hold `model.yaml` only unless the user adds experiment variant dirs.
+Live model directories hold `model.yaml` and a scaffolded `bench/` variant (copied from `hello-world-baseline/` when using the create-model-configs skill). Optional extra experiment variant dirs may be added manually.
 
 ## Promoting and demoting variants
 

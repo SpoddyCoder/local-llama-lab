@@ -75,7 +75,7 @@ Each model directory (for example `configs/qwen3.5-9b-q8/`) must include `model.
 - **`calibration-ctx-probe/`** — same server flags except a higher `-c` (typically `16384`). The footprint and ctx-probe `-c` values must differ so KV VRAM per token can be estimated from the idle delta.
 - **`hello-world-baseline/`** — standard smoke prompt; `decode_tok_s` from the completion becomes generation throughput in the summary.
 
-Live models may add extra variant dirs (for example `hello-world-bench/`) for experiments; those are not copied from `reference/` automatically.
+New models scaffold a `bench/` variant (hello-world templates from `reference/hello-world-baseline/`). You may add other variant dirs for experiments; those are not copied from `reference/` automatically.
 
 From `tester-v1/`:
 
@@ -117,11 +117,11 @@ Copy the summary lines into your model notes (see the repo root README Qwen sect
 ./model_calibration.py configs/qwen3.5-9b-q8 --save-result
 ```
 
-To scaffold all reference variants for a new model, use the [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) project skill (copies every variant under `configs/reference/`).
+To scaffold a new model (`model.yaml` plus `bench/`), use the [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) project skill.
 
 ## configs layout
 
-Variant configs live under `configs/reference/` for shared probes; live model dirs hold `model.yaml` only unless you add experiment variants. Saved results mirror `configs/{model}/{variant}/` under `results/` (calibration creates ephemeral `{model}/{variant}/` dirs for layout when saving). [configs/reference/README.md](configs/reference/README.md) documents the reference tree.
+Variant configs live under `configs/reference/` for shared probes; live model dirs hold `model.yaml` and usually `bench/` (editable hello-world copy). Saved results mirror `configs/{model}/{variant}/` under `results/` (calibration creates ephemeral `{model}/{variant}/` dirs for layout when saving). [configs/reference/README.md](configs/reference/README.md) documents the reference tree.
 
 Example:
 
@@ -134,7 +134,8 @@ configs/
     hello-world-baseline/
   qwen3.5-9b-q8/       # live model
     model.yaml
-    hello-world-bench/     # optional, model-specific experiment
+    bench/                 # scaffolded hello-world copy (tweak locally)
+    hello-world-bench/     # optional, extra model-specific experiment
 ```
 
 Each live model folder (for example `qwen3.5-9b-q8`) must contain `model.yaml` with the GGUF path. Reference variant subdirs each have `server.yaml` and `client.yaml`. `model_calibration.py` reads reference YAML and uses `{model}/{variant}/` only for result path layout (and removes empty dirs after each probe).

@@ -46,6 +46,8 @@ Note: this example shows just one quantized model, if you omit the 2nd argument 
   * Model VRAM: 5781 MiB
   * KV VRAM: 10422 MiB
   * GGUF on disk: 8.03 GB
+* [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-GGUF/tree/main)
+  * Released: April 20206
 
 ### Dense Models
 * [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/tree/main)

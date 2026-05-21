@@ -253,6 +253,7 @@ def run_variant_subprocess(
     save_result: bool,
     quiet: bool,
     session_id: str | None = None,
+    n_cpu_moe: int | None = None,
 ) -> tuple[int, str]:
     """Run single_test_runner for a calibration variant; return (returncode, captured output).
 
@@ -278,6 +279,8 @@ def run_variant_subprocess(
         cmd.append("--quiet")
     if session_id is not None:
         cmd.extend(["--session-id", session_id])
+    if n_cpu_moe is not None:
+        cmd.extend(["--n-cpu-moe", str(n_cpu_moe)])
     try:
         proc = subprocess.run(
             cmd,

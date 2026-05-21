@@ -135,6 +135,8 @@ Add `--save-result` to write JSON under `results/{model_slug}/bench/`.
 
 For what the probes mean and how to interpret stdout, see [Model calibration](../../../tester-v1/README.md#model-calibration) in `tester-v1/README.md`.
 
+**MoE models:** put offload flags in `{model_slug}/bench/server.yaml` for bench runs. For calibration against reference probes, pass `--n-cpu-moe N` on `model_calibration.py` and `single_test_runner.py` instead of editing reference YAML.
+
 ## Example
 
 User: scaffold configs for GGUF `~/models/My_Model-Q4_0.gguf` (they said "my model q4")

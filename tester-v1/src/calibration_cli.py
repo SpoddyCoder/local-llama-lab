@@ -34,19 +34,19 @@ from result_layout import find_latest_result
 from results import format_compact_utc, utc_now
 from vram import query_gpu_total_mb
 
-_DEFAULT_TESTER_ROOT = Path(__file__).resolve().parent.parent
+_TESTER_ROOT = Path(__file__).resolve().parent.parent
 _RESULTS_DIRNAME = "results"
 _CONFIGS_DIRNAME = "configs"
 _REFERENCE_DIR = "reference"
 _OUTPUT_TAIL_LINES = 40
 
 
-def _reference_root(tester_root: Path) -> Path:
-    return tester_root / _CONFIGS_DIRNAME / _REFERENCE_DIR
+def _reference_root() -> Path:
+    return _TESTER_ROOT / _CONFIGS_DIRNAME / _REFERENCE_DIR
 
 
-def _reference_variant_dir(tester_root: Path, name: str) -> Path:
-    return _reference_root(tester_root) / name
+def _reference_variant_dir(name: str) -> Path:
+    return _reference_root() / name
 
 
 def _result_config_dir(model_dir: Path, name: str) -> Path:
@@ -63,14 +63,14 @@ def _validate_variant_dir(variant_dir: Path) -> None:
         raise FileNotFoundError(f"Config files missing in {variant_dir}: {names}")
 
 
-def _validate_model_dir(model_dir: Path, tester_root: Path) -> None:
+def _validate_model_dir(model_dir: Path) -> None:
     if not model_dir.is_dir():
         raise FileNotFoundError(f"model directory not found: {model_dir}")
     model_yaml = model_dir / MODEL_YAML
     if not model_yaml.is_file():
         raise FileNotFoundError(f"model config not found: {model_yaml}")
     for variant in (VARIANT_FOOTPRINT, VARIANT_CTX_PROBE, VARIANT_HELLO_WORLD):
-        ref_dir = _reference_variant_dir(tester_root, variant)
+        ref_dir = _reference_variant_dir(variant)
         if not ref_dir.is_dir():
             raise FileNotFoundError(
                 f"reference variant directory not found: {ref_dir} "
@@ -107,13 +107,13 @@ def _print_probe_output(output: str) -> None:
 
 def _run_calibration(
     model_dir: Path,
-    tester_root: Path,
     margin_mib: int,
     *,
     save_result: bool,
     quiet: bool,
+    n_cpu_moe: int | None = None,
 ) -> int:
-    results_dir = tester_root / _RESULTS_DIRNAME
+    results_dir = _TESTER_ROOT / _RESULTS_DIRNAME
     footprint_result_dir = _result_config_dir(model_dir, VARIANT_FOOTPRINT)
     ctx_probe_result_dir = _result_config_dir(model_dir, VARIANT_CTX_PROBE)
     hello_world_result_dir = _result_config_dir(model_dir, VARIANT_HELLO_WORLD)
@@ -125,19 +125,19 @@ def _run_calibration(
         (
             VARIANT_FOOTPRINT,
             footprint_result_dir,
-            _reference_variant_dir(tester_root, VARIANT_FOOTPRINT),
+            _reference_variant_dir(VARIANT_FOOTPRINT),
             "Running calibration-footprint...",
         ),
         (
             VARIANT_CTX_PROBE,
             ctx_probe_result_dir,
-            _reference_variant_dir(tester_root, VARIANT_CTX_PROBE),
+            _reference_variant_dir(VARIANT_CTX_PROBE),
             "Running calibration-ctx-probe...",
         ),
         (
             VARIANT_HELLO_WORLD,
             hello_world_result_dir,
-            _reference_variant_dir(tester_root, VARIANT_HELLO_WORLD),
+            _reference_variant_dir(VARIANT_HELLO_WORLD),
             "Running hello-world-baseline...",
         ),
     ]
@@ -145,12 +145,13 @@ def _run_calibration(
     for _name, result_dir, reference_dir, progress in variants:
         print(progress, file=sys.stderr)
         returncode, output = run_variant_subprocess(
-            tester_root,
+            _TESTER_ROOT,
             result_dir,
             reference_dir,
             save_result=save_result,
             quiet=save_result and quiet,
             session_id=session_id,
+            n_cpu_moe=n_cpu_moe,
         )
         if returncode != 0:
             tail = _output_tail(output)
@@ -165,13 +166,13 @@ def _run_calibration(
     if save_result:
         try:
             footprint_result = find_latest_result(
-                results_dir, footprint_result_dir, tester_root
+                results_dir, footprint_result_dir, _TESTER_ROOT
             )
             ctx_probe_result = find_latest_result(
-                results_dir, ctx_probe_result_dir, tester_root
+                results_dir, ctx_probe_result_dir, _TESTER_ROOT
             )
             hello_world_result = find_latest_result(
-                results_dir, hello_world_result_dir, tester_root
+                results_dir, hello_world_result_dir, _TESTER_ROOT
             )
         except (FileNotFoundError, ValueError) as exc:
             return _fail(f"{exc}\n(results dir: {results_dir})")
@@ -202,12 +203,8 @@ def _run_calibration(
         except ValueError as exc:
             return _fail(str(exc))
 
-    footprint_server_path = (
-        _reference_variant_dir(tester_root, VARIANT_FOOTPRINT) / "server.yaml"
-    )
-    ctx_probe_server_path = (
-        _reference_variant_dir(tester_root, VARIANT_CTX_PROBE) / "server.yaml"
-    )
+    footprint_server_path = _reference_variant_dir(VARIANT_FOOTPRINT) / "server.yaml"
+    ctx_probe_server_path = _reference_variant_dir(VARIANT_CTX_PROBE) / "server.yaml"
     try:
         model_path = load_model_config(model_dir / MODEL_YAML)
         footprint_server = load_server_config(
@@ -259,10 +256,10 @@ def _run_calibration(
         )
 
     if save_result:
-        meta = config_dir_metadata(model_dir, tester_root)
+        meta = config_dir_metadata(model_dir, _TESTER_ROOT)
         model = meta["model"] or model_dir.name
         write_calibration_session_summary(
-            tester_root,
+            _TESTER_ROOT,
             model,
             session_id,
             summary,
@@ -285,10 +282,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "model_dir",
         type=Path,
-        help=(
-            "model directory containing model.yaml only; calibration probes use "
-            "server/client YAML from configs/reference/{variant}/"
-        ),
+        help="model directory containing model.yaml",
     )
     parser.add_argument(
         "--margin-mib",
@@ -300,35 +294,38 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--tester-root",
-        type=Path,
-        default=_DEFAULT_TESTER_ROOT,
-        help="tester-v1 root (default: directory containing this package)",
-    )
-    parser.add_argument(
         "--save-result",
         action="store_true",
-        help="run probes with --save-result and read idle_vram_mb from results/ JSON",
+        help="save calibration tests JSON to the results directory",
     )
     parser.add_argument(
         "--quiet",
         action="store_true",
         help="only applies with --save-result; suppress calibration summary on stdout",
     )
-    args = parser.parse_args(argv)
+    parser.add_argument(
+        "--n-cpu-moe",
+        type=int,
+        default=None,
+        help="offload N MoE layers to CPU (appends --n-cpu-moe and --n-gpu-layers)",
+    )
+    effective = sys.argv[1:] if argv is None else argv
+    if not effective:
+        parser.print_help()
+        return 0
+    args = parser.parse_args(effective)
 
-    tester_root = args.tester_root.resolve()
     model_dir = args.model_dir.resolve()
 
     try:
-        _validate_model_dir(model_dir, tester_root)
+        _validate_model_dir(model_dir)
     except FileNotFoundError as exc:
         return _fail(str(exc))
 
     return _run_calibration(
         model_dir,
-        tester_root,
         args.margin_mib,
         save_result=args.save_result,
         quiet=args.quiet if args.save_result else False,
+        n_cpu_moe=args.n_cpu_moe,
     )

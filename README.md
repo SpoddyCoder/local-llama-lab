@@ -96,6 +96,8 @@ cd tester-v1
 ./model_calibration.py configs/gemma-4-e4b-it-q8
 ```
 
+For MoE models, pass `--n-cpu-moe N` on calibration and probe runs that use reference YAML instead of editing `configs/reference/` ([Model calibration](tester-v1/README.md#model-calibration)).
+
 Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
 Calibration subtracts a small VRAM safety buffer from the KV budget (default 100 MiB; see `--margin-mib` in [Model calibration](tester-v1/README.md#model-calibration)).

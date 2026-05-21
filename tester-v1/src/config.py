@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import re
 import shlex
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -342,6 +342,22 @@ def parse_port_from_args(args: list[str]) -> int | None:
             return port
         i += 1
     return None
+
+
+def apply_n_cpu_moe(server: ServerConfig, n: int) -> ServerConfig:
+    """Append MoE CPU offload flags to server args."""
+    if n <= 0:
+        raise ValueError(f"n_cpu_moe must be a positive integer, got {n}")
+    return replace(
+        server,
+        args=[
+            *server.args,
+            "--n-cpu-moe",
+            str(n),
+            "--n-gpu-layers",
+            "999",
+        ],
+    )
 
 
 def _load_yaml(path: str | Path) -> Any:

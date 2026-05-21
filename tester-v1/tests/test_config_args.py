@@ -11,6 +11,8 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from config import (  # noqa: E402
+    ServerConfig,
+    apply_n_cpu_moe,
     load_server_config,
     parse_args_block,
     parse_context_from_args,
@@ -172,6 +174,37 @@ class TestLoadServerConfigArgs(unittest.TestCase):
             cfg = load_server_config(yaml_path, model=model)
             self.assertEqual(parse_context_from_args(cfg.args), 4096)
             self.assertEqual(parse_port_from_args(cfg.args), 7070)
+
+
+class TestApplyNCpuMoe(unittest.TestCase):
+    def _server(self, args: list[str] | None = None) -> ServerConfig:
+        return ServerConfig(model="/tmp/model.gguf", args=list(args or []))
+
+    def test_appends_flags(self) -> None:
+        server = self._server(["--host", "127.0.0.1", "-c", "4096"])
+        updated = apply_n_cpu_moe(server, 22)
+        self.assertEqual(
+            updated.args,
+            [
+                "--host",
+                "127.0.0.1",
+                "-c",
+                "4096",
+                "--n-cpu-moe",
+                "22",
+                "--n-gpu-layers",
+                "999",
+            ],
+        )
+        self.assertEqual(server.args, ["--host", "127.0.0.1", "-c", "4096"])
+
+    def test_rejects_non_positive_n(self) -> None:
+        server = self._server()
+        for n in (0, -1):
+            with self.subTest(n=n):
+                with self.assertRaises(ValueError) as ctx:
+                    apply_n_cpu_moe(server, n)
+                self.assertIn("positive integer", str(ctx.exception))
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from client import run_chat_completion
 from config import (
     MODEL_YAML,
     ServerConfig,
+    apply_n_cpu_moe,
     config_dir_metadata,
     load_client_config,
     load_variant_server,
@@ -57,12 +58,19 @@ def _run(
     quiet: bool,
     include_output: bool = False,
     session_id: str | None = None,
+    n_cpu_moe: int | None = None,
 ) -> int:
     if save_result and config_dir is None:
         print("Error: --save-result requires config_dir", file=sys.stderr)
         return 1
 
     server = _load_server(server_path, model_yaml_path)
+    if n_cpu_moe is not None:
+        try:
+            server = apply_n_cpu_moe(server, n_cpu_moe)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
     client = replace(client, base_url=base_url)
@@ -193,8 +201,16 @@ def _run_test_server(
     client_path: Path,
     model_yaml_path: Path,
     config_dir: Path | None = None,
+    *,
+    n_cpu_moe: int | None = None,
 ) -> int:
     server = _load_server(server_path, model_yaml_path)
+    if n_cpu_moe is not None:
+        try:
+            server = apply_n_cpu_moe(server, n_cpu_moe)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
 
@@ -321,6 +337,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="optional session id for result JSON (e.g. calibration)",
     )
+    parser.add_argument(
+        "--n-cpu-moe",
+        type=int,
+        default=None,
+        help="offload N MoE layers to CPU (appends --n-cpu-moe and --n-gpu-layers)",
+    )
     args = parser.parse_args(argv)
 
     if args.config_dir is None and args.server is None and args.client is None:
@@ -342,7 +364,11 @@ def main(argv: list[str] | None = None) -> int:
     config_dir = args.config_dir
     if args.test_server:
         return _run_test_server(
-            server_path, client_path, model_yaml_path, config_dir
+            server_path,
+            client_path,
+            model_yaml_path,
+            config_dir,
+            n_cpu_moe=args.n_cpu_moe,
         )
 
     return _run(
@@ -354,4 +380,5 @@ def main(argv: list[str] | None = None) -> int:
         quiet=args.quiet if args.save_result else False,
         include_output=args.include_output,
         session_id=args.session_id,
+        n_cpu_moe=args.n_cpu_moe,
     )

@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
-from config import ServerConfig  # noqa: E402
-from server import ServerProcess, fetch_model_max_context  # noqa: E402
+from config import ServerConfig, apply_n_cpu_moe  # noqa: E402
+from server import ServerProcess, build_argv, fetch_model_max_context  # noqa: E402
 
 
 class TestServerReadyS(unittest.TestCase):
@@ -39,6 +39,31 @@ class TestServerReadyS(unittest.TestCase):
         self.assertIsNotNone(proc.server_ready_s)
         self.assertGreaterEqual(proc.server_ready_s, 0.0)
         self.assertEqual(proc.ready_endpoint, "/health")
+
+
+class TestBuildArgvNCpuMoe(unittest.TestCase):
+    def test_includes_n_cpu_moe_flags_after_yaml_args(self) -> None:
+        server = ServerConfig(
+            model="/tmp/model.gguf",
+            args=["--host", "127.0.0.1", "-c", "4096"],
+        )
+        argv = build_argv(apply_n_cpu_moe(server, 22))
+        self.assertEqual(
+            argv,
+            [
+                server.binary,
+                "--host",
+                "127.0.0.1",
+                "-c",
+                "4096",
+                "--n-cpu-moe",
+                "22",
+                "--n-gpu-layers",
+                "999",
+                "-m",
+                "/tmp/model.gguf",
+            ],
+        )
 
 
 class TestFetchModelMaxContext(unittest.TestCase):

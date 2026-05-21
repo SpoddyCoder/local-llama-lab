@@ -107,7 +107,7 @@ Copy the summary lines into your model notes (see the repo root README Qwen sect
 | `--save-result` | Run probes with `--save-result --quiet` and shared `--session-id`; read latest JSON per variant dir; write `calibration-sessions/{session_id}.json` |
 | `--quiet` | Only with `--save-result`: suppress the six-line calibration summary on stdout |
 | `--margin-mib` | VRAM safety buffer subtracted from KV budget (default `100`) |
-| `--tester-root` | Harness root (default: `tester-v1/`) |
+| `--n-cpu-moe N` | Append `--n-cpu-moe N` and `--n-gpu-layers 999` to llama-server args on every probe server start (after loading YAML) |
 
 ```bash
 # Probe calibration (stdout only)
@@ -115,6 +115,9 @@ Copy the summary lines into your model notes (see the repo root README Qwen sect
 
 # Record probe JSON + calibration-sessions summary
 ./model_calibration.py configs/qwen3.5-9b-q8 --save-result
+
+# MoE calibration (CPU expert offload)
+./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 22
 ```
 
 To scaffold a new model (`model.yaml` plus `bench/`), use the [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) project skill.
@@ -228,6 +231,7 @@ Flags (same config resolution as above; pass `config_dir` when testing a variant
 | `--include-output` | Print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON |
 | `--model-yaml`   | `model.yaml` path (default: parent of `config_dir`; required with `--server` and `--client` when `config_dir` is omitted) |
 | `--session-id`   | Optional; set on saved JSON (used by `model_calibration` subprocesses)                                      |
+| `--n-cpu-moe N`  | Append `--n-cpu-moe N` and `--n-gpu-layers 999` to llama-server args on every probe server start (after loading YAML) |
 | `--test-server`  | Start server, wait for health, hold until Ctrl+C (no completion, no JSON)                                     |
 
 

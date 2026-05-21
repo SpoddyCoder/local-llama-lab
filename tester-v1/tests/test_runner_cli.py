@@ -331,6 +331,81 @@ class TestRunStdoutDefault(unittest.TestCase):
             self.assertEqual(stderr.getvalue(), "")
 
 
+class TestRunNCpuMoe(unittest.TestCase):
+    def _fake_server(self, tmp: str) -> ServerConfig:
+        model_path = Path(tmp) / "model.gguf"
+        model_path.write_bytes(b"gguf")
+        return ServerConfig(model=str(model_path), args=["-c", "4096"])
+
+    def test_run_passes_augmented_server_to_managed_server(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            server = self._fake_server(tmp)
+            client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
+            captured_servers: list[ServerConfig] = []
+
+            @contextmanager
+            def fake_managed_server(server_arg, *_args, **_kwargs):
+                captured_servers.append(server_arg)
+                proc = MagicMock()
+                proc.server_ready_s = 0.1
+                yield proc
+
+            completion = MagicMock()
+            completion.completion_text = ""
+            with (
+                patch("runner._load_server", return_value=server),
+                patch("runner.load_client_config", return_value=client),
+                patch("runner.resolve_base_url", return_value="http://127.0.0.1:8080"),
+                patch("runner.managed_server", fake_managed_server),
+                patch("runner.run_chat_completion", return_value=completion),
+                patch("runner.sample_vram_mb", return_value=None),
+                patch("runner.VramPoller") as poller_cls,
+                patch(
+                    "runner.build_metrics_dict",
+                    return_value={"wall_time_s": 1.0},
+                ),
+                _capture_output(),
+            ):
+                poller = poller_cls.return_value
+                poller.stop.return_value = None
+                code = _run(
+                    Path(tmp) / "server.yaml",
+                    Path(tmp) / "client.yaml",
+                    Path(tmp) / "model.yaml",
+                    save_result=False,
+                    quiet=False,
+                    include_output=False,
+                    n_cpu_moe=22,
+                )
+
+            self.assertEqual(code, 0)
+            self.assertEqual(len(captured_servers), 1)
+            passed_server = captured_servers[0]
+            self.assertEqual(
+                passed_server.args,
+                ["-c", "4096", "--n-cpu-moe", "22", "--n-gpu-layers", "999"],
+            )
+
+    def test_run_invalid_n_cpu_moe_returns_one(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            server = self._fake_server(tmp)
+            with (
+                patch("runner._load_server", return_value=server),
+                _capture_output() as (_stdout, stderr),
+            ):
+                code = _run(
+                    Path(tmp) / "server.yaml",
+                    Path(tmp) / "client.yaml",
+                    Path(tmp) / "model.yaml",
+                    save_result=False,
+                    quiet=False,
+                    include_output=False,
+                    n_cpu_moe=0,
+                )
+            self.assertEqual(code, 1)
+            self.assertIn("n_cpu_moe must be a positive integer", stderr.getvalue())
+
+
 class TestMainArgparse(unittest.TestCase):
     def test_main_no_args_prints_help(self) -> None:
         stdout = io.StringIO()
@@ -399,6 +474,34 @@ class TestMainArgparse(unittest.TestCase):
                 main([config, "--save-result", "--session-id", "cal-1"])
         kwargs = run.call_args.kwargs
         self.assertEqual(kwargs["session_id"], "cal-1")
+
+    def test_main_n_cpu_moe_passes_to_run(self) -> None:
+        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        with patch("runner.resolve_config_paths") as resolve:
+            resolve.return_value = (
+                _TESTER_ROOT / "server.yaml",
+                _TESTER_ROOT / "client.yaml",
+                _TESTER_ROOT / "model.yaml",
+            )
+            with patch("runner._run", return_value=0) as run:
+                main([config, "--n-cpu-moe", "22"])
+        run.assert_called_once()
+        kwargs = run.call_args.kwargs
+        self.assertEqual(kwargs["n_cpu_moe"], 22)
+
+    def test_main_n_cpu_moe_passes_to_test_server(self) -> None:
+        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        with patch("runner.resolve_config_paths") as resolve:
+            resolve.return_value = (
+                _TESTER_ROOT / "server.yaml",
+                _TESTER_ROOT / "client.yaml",
+                _TESTER_ROOT / "model.yaml",
+            )
+            with patch("runner._run_test_server", return_value=0) as run_test_server:
+                main([config, "--test-server", "--n-cpu-moe", "22"])
+        run_test_server.assert_called_once()
+        kwargs = run_test_server.call_args.kwargs
+        self.assertEqual(kwargs["n_cpu_moe"], 22)
 
     def test_main_quiet_without_save_result_is_noop(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"

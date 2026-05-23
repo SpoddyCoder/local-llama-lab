@@ -458,7 +458,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         parse_ram.assert_called_once_with("foot\n")
-        self.assertIn("* Model System RAM: 5000 MiB", stdout.getvalue())
+        self.assertIn("* Model System RAM: 4.88 GB", stdout.getvalue())
 
     def test_save_result_n_cpu_moe_includes_model_system_ram_in_session_summary(
         self,

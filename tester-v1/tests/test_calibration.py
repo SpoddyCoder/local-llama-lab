@@ -15,6 +15,7 @@ from calibration import (  # noqa: E402
     DEFAULT_CALIBRATION_MARGIN_MIB,
     compute_summary,
     format_generation_throughput_line,
+    format_mib_as_gb,
     format_summary_lines,
     parse_decode_tok_s_from_metrics_stdout,
     parse_idle_system_ram_from_metrics_stdout,
@@ -470,6 +471,12 @@ class TestReadDecodeTokSFromResult(unittest.TestCase):
             self.assertIsNone(read_decode_tok_s_from_result(path))
 
 
+class TestFormatMibAsGb(unittest.TestCase):
+    def test_converts_mib_to_two_decimal_gb(self) -> None:
+        self.assertEqual(format_mib_as_gb(10353), "10.11 GB")
+        self.assertEqual(format_mib_as_gb(5781), "5.65 GB")
+
+
 class TestFormatGenerationThroughputLine(unittest.TestCase):
     def test_rounds_to_readme_style(self) -> None:
         self.assertEqual(
@@ -499,8 +506,8 @@ class TestFormatSummaryLines(unittest.TestCase):
         self.assertEqual(lines[0], "* Generation throughput: ~91 tok/s")
         self.assertEqual(lines[1], "* Estimated Max Context: 128000 tokens")
         self.assertEqual(lines[2], "* Model Max Context: 128000 tokens")
-        self.assertEqual(lines[3], "* Model VRAM: 10353 MiB")
-        self.assertEqual(lines[4], "* KV VRAM: 4414 MiB")
+        self.assertEqual(lines[3], "* Model VRAM: 10.11 GB")
+        self.assertEqual(lines[4], "* KV VRAM: 4.31 GB")
         self.assertEqual(lines[5], "* GGUF on disk: 9.55 GB")
 
     def test_model_max_context_na(self) -> None:
@@ -526,9 +533,9 @@ class TestFormatSummaryLines(unittest.TestCase):
         }
         lines = format_summary_lines(summary)
         self.assertEqual(len(lines), 7)
-        self.assertEqual(lines[3], "* Model VRAM: 10353 MiB")
-        self.assertEqual(lines[4], "* Model System RAM: 24000 MiB")
-        self.assertEqual(lines[5], "* KV VRAM: 4414 MiB")
+        self.assertEqual(lines[3], "* Model VRAM: 10.11 GB")
+        self.assertEqual(lines[4], "* Model System RAM: 23.44 GB")
+        self.assertEqual(lines[5], "* KV VRAM: 4.31 GB")
 
     def test_model_system_ram_unavailable(self) -> None:
         summary = {
@@ -540,9 +547,9 @@ class TestFormatSummaryLines(unittest.TestCase):
         }
         lines = format_summary_lines(summary)
         self.assertEqual(len(lines), 7)
-        self.assertEqual(lines[3], "* Model VRAM: 1000 MiB")
+        self.assertEqual(lines[3], "* Model VRAM: 0.98 GB")
         self.assertEqual(lines[4], "* Model System RAM: unavailable")
-        self.assertEqual(lines[5], "* KV VRAM: 2000 MiB")
+        self.assertEqual(lines[5], "* KV VRAM: 1.95 GB")
 
 
 if __name__ == "__main__":

@@ -249,6 +249,11 @@ def compute_summary(
     }
 
 
+def format_mib_as_gb(mib: int | float) -> str:
+    """Format MiB as XX.YY GB for README-style calibration output."""
+    return f"{mib / 1024:.2f} GB"
+
+
 def format_generation_throughput_line(decode_tok_s: float | None) -> str:
     """Format README-style generation throughput line."""
     if decode_tok_s is None:
@@ -272,17 +277,17 @@ def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
         format_generation_throughput_line(decode),
         f"* Estimated Max Context: {summary['estimated_context_max']} tokens",
         model_max_line,
-        f"* Model VRAM: {summary['model_vram_mb']} MiB",
+        f"* Model VRAM: {format_mib_as_gb(summary['model_vram_mb'])}",
     ]
     if "model_system_ram_mb" in summary:
         ram = summary["model_system_ram_mb"]
         if ram is None:
             lines.append("* Model System RAM: unavailable")
         else:
-            lines.append(f"* Model System RAM: {int(ram)} MiB")
+            lines.append(f"* Model System RAM: {format_mib_as_gb(int(ram))}")
     lines.extend(
         [
-            f"* KV VRAM: {summary['kv_vram_mb']} MiB",
+            f"* KV VRAM: {format_mib_as_gb(summary['kv_vram_mb'])}",
             f"* GGUF on disk: {summary['gguf_gb']:.2f} GB",
         ]
     )

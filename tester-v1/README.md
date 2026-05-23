@@ -96,7 +96,7 @@ Without `config_dir`, pass all three of `--server`, `--client`, and `--model-yam
 
 `model_calibration.py` runs three reference probes (footprint, ctx-probe, hello-world-baseline) and prints a VRAM and throughput summary on six lines by default. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
 
-When calibration runs with MoE CPU offload (`./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24`, same pattern as Usage), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N} MiB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
+When calibration runs with MoE CPU offload (`./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24`, same pattern as Usage), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N.NN} GB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
 
 ```bash
 ./model_calibration.py configs/qwen3.5-9b-q8

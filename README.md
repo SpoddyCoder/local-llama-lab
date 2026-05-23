@@ -41,42 +41,18 @@ hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
 Note: if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
 
 ### MoE Models
-* [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)
-  * Released: April 2026, outstanding for local developer setups that require tool-calling capabilities and structured outputs.
-  * Generation throughput: ~114 tok/s
-  * Estimated Max Context: 130028 tokens
-  * Model Max Context: 131072 tokens
-  * Model VRAM: 5781 MiB
-  * KV VRAM: 10422 MiB
-  * GGUF on disk: 8.03 GB
-* [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)
-  * Released: April 2026
-  * Setup: `--n-gpu-layers 999 --n-cpu-moe 24` to fit on card and leave 5GB for KV cache.
-  * Generation throughput: ~52 tok/s
-  * Estimated Max Context: 69533 tokens
-  * Model Max Context: 262144 tokens
-  * Model VRAM: 10749 MiB
-  * Model System RAM: 12257 MiB
-  * KV VRAM: 5454 MiB
-  * GGUF on disk: 22.36 GB
+
+| Model | Throughput · context | Memory · setup |
+|-------|------------------------|----------------|
+| [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>April 2026. Tool-calling and structured output. | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB** |
+| [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)<br>April 2026. | Throughput: **~52 tok/s**<br>Est. context: **69K**<br>Max context: **262K** | Model VRAM: **10.50 GB**<br>System RAM: **11.97 GB**<br>KV VRAM: **5.33 GB**<br>Disk: **22.36 GB**<br>Setup: **`--n-gpu-layers 999 --n-cpu-moe 24`** (~5 GB KV headroom) |
 
 ### Dense Models
-* [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)
-  * Released: March 2026, broad multilingual support (100+ languages) and highly competitive, generalist benchmark scores.
-  * Generation throughput: ~86 tok/s
-  * Estimated Max Context: 79443 tokens
-  * Model Max Context: 262144 tokens
-  * Model VRAM: 9001 MiB
-  * KV VRAM: 7202 MiB
-  * GGUF on disk: 9.55 GB
-* [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)
-  * Released: April 2026, barely fits in 16Gb, no room for context, but I wanted to test it, so I did!
-  * Generation throughput: ~46 tok/s
-  * Estimated Max Context: 9176 tokens
-  * Model Max Context: 262144 tokens
-  * Model VRAM: 15584 MiB
-  * KV VRAM: 619 MiB
-  * GGUF on disk: 15.79 GB
+
+| Model | Throughput · context | Memory |
+|-------|------------------------|--------|
+| [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)<br>March 2026. 100+ languages; strong generalist scores. | Throughput: **~86 tok/s**<br>Est. context: **79K**<br>Max context: **262K** | Model VRAM: **8.79 GB**<br>KV VRAM: **7.03 GB**<br>Disk: **9.55 GB** |
+| [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)<br>April 2026. Barely fits 16 GB; almost no ctx headroom. | Throughput: **~46 tok/s**<br>Est. context: **9K**<br>Max context: **262K** | Model VRAM: **15.22 GB**<br>KV VRAM: **0.60 GB**<br>Disk: **15.79 GB** |
 
 
 ## Tester v1

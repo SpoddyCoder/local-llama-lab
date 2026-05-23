@@ -157,7 +157,7 @@ Example: `Qwen3.6-35B-A3B-UD-Q4_K_XL` = MoE model, Unsloth Dynamic mixed Q4 quan
 
 Some repos are labelled **MTP-GGUF** (e.g. `unsloth/Qwen3.6-35B-A3B-MTP-GGUF`). The file includes extra prediction heads baked into the model.
 
-Why: llama.cpp can draft several tokens ahead and verify them in one pass, giving roughly **1.5-2x faster generation** with no accuracy loss when enabled.
+With those flags enabled, llama.cpp drafts several tokens ahead and verifies them in one pass, giving roughly **1.5-2x faster generation** with no accuracy loss.
 
 Requires an MTP GGUF and server flags:
 

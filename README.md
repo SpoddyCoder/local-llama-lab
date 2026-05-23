@@ -109,24 +109,74 @@ Use a browser to access the llama web UI while it is running (port depends on `s
 * Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
 ## Key Learnings
-* Quantization is important for squeezing larger models into a consumer graphics card:
-  * FP16 - near full quality, considered lossless, huge
-  * Q8 - considered relatively lossless, >2x smaller
-  * Q4 - quality reduced, answers slip, >4x smaller
-  * Q2 - quality significantly reduced, answers slip more, very model dependant how they react to this much quantization, >8x smaller
-  * TurboQuant - relatively new way to quantize with minimal quality loss.
-  * _K_XL models - use mixed quants and can be slightly better that the same standard quantized model
-    * The difference is more noticeable at greater quantizations, ie Q4_K_XL vs Q4_0 will often be a much bigger gain than Q8_K_XL vs Q8_0
-* Server Flags
-  * `--fit off` - disable llama.cpp auto VRAM fitting on load (on by default).
-    * Fit can shrink context or move layers to CPU to avoid OOM; on large models that often costs a lot of tok/s.
-    * Use when you already set `--ctx-size`.
-  * `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
-    * Negatively affects startup time tho.
-  * `--n-gpu-layers 999 --n-cpu-moe 41` - use with MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
-    * Tune 42 down to use more gpu vram (more experts on vram)
-    * Any VRAM not used by the model is used by the KV cache (context length), so you should wnat to leave 1-4Gb free.
-  * `--cache-type-k turbo4 --cache-type-v turbo3` - use turbo4 for cache keys and turbo3 for cache values (TurboQuant).
-    * Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
-    * Doesn't appear to be available in the WSL fork of llama.cpp yet
-  * `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
+
+### MoE vs dense
+
+Model filenames often encode the architecture:
+
+* **Dense** (e.g. `Qwen3.5-9B`): every parameter runs on every token. Simpler to load; VRAM scales with total size.
+* **MoE** (e.g. `35B-A3B`): many experts, but only a few fire per token (~3B active here). Delivers near-large-model quality at small-model speed, but you may need `--n-cpu-moe` to split expert weights between GPU and CPU on a 16Gb card.
+
+### Reading quant names
+
+Quantization shrinks weights so bigger models fit on consumer GPUs. Names look cryptic; they are mostly `{prefix}-{family}_{tier}`.
+
+**Bit width (the number):**
+
+* `FP16` / `BF16`: near full quality; huge files. Use when VRAM is not a constraint and you want baseline fidelity.
+* `Q8`: ~8 bits per weight; often hard to tell from full precision. Best quality-to-size ratio when you have headroom.
+* `Q4`: ~4 bits; answers can slip on hard tasks. The usual tradeoff for fitting 20B+ models locally.
+* `Q2`: ~2 bits; quality drops sharply and varies by model. Last resort when nothing else fits.
+
+**Prefix:**
+
+* `UD-` (Unsloth Dynamic): mixed precision per layer, tuned with calibration data. Better chat/coding quality at the same nominal Q4 size, at the cost of slightly slower inference.
+
+**Family:**
+
+* `Q4_K`: standard llama.cpp K-quants; mixed block sizes inside the file. Predictable, well-tested 4-bit format.
+* `IQ4`: importance quants; lean harder on calibration to preserve quality at lower size. Smallest files in the ~4-bit class (e.g. `IQ4_XS` ~18 GB vs `Q4_K_XL` ~23 GB on the same model).
+* `MXFP4_MOE`: microscaling FP4 aimed at MoE expert weights. Tuned for sparse expert layers rather than uniform `Q4_K` blocks.
+
+**Tier suffix (`S` / `M` / `L` / `XL` / `XS` / `NL`):**
+
+* `S` (small): most compressed in that family. Saves disk and VRAM but expect more quality loss.
+* `M` (medium): balanced default and a safe general-purpose pick when you are unsure.
+* `L` (large): less compression than `S`/`M`; a step up in quality within the same Q4 family.
+* `XL`: not "extra large file" but a smart mix that keeps sensitive tensors at `Q5`/`Q6` while the rest stays `Q4`. Best quality in the Q4 class; Unsloth's usual recommendation over plain `Q4_K_M`.
+* `XS` (I-quants only): extra-small; most aggressive IQ compression. Maximum headroom for context on tight VRAM.
+* `NL` (I-quants only): non-linear dequant scheme; slightly larger than `XS`. Often a better speed/quality tradeoff than `XS` at similar size.
+
+**Other:**
+
+* `TurboQuant`: newer KV-cache compression (`turbo3` / `turbo4`), not the weight file itself. Stretches context without re-downloading a different GGUF.
+
+Example: `Qwen3.6-35B-A3B-UD-Q4_K_XL` = MoE model, Unsloth Dynamic mixed Q4 quant, XL tier (best Q4 quality).
+
+### Multi-Token Prediction (MTP)
+
+Some repos are labelled **MTP-GGUF** (e.g. `unsloth/Qwen3.6-35B-A3B-MTP-GGUF`). The file includes extra prediction heads baked into the model.
+
+Why: llama.cpp can draft several tokens ahead and verify them in one pass, giving roughly **1.5-2x faster generation** with no accuracy loss when enabled.
+
+Requires an MTP GGUF and server flags:
+
+```bash
+--spec-type draft-mtp --spec-draft-n-max 2
+```
+
+Without those flags you carry the extra weights but get no speed benefit.
+
+### Server Config
+* `--fit off` - disable llama.cpp auto VRAM fitting on load (on by default).
+  * Fit can shrink context or move layers to CPU to avoid OOM; on large models that often costs a lot of tok/s.
+  * Use when you already set `--ctx-size`.
+* `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
+  * Negatively affects startup time tho.
+* `--n-gpu-layers 999 --n-cpu-moe 41` - use with MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
+  * Tune 42 down to use more gpu vram (more experts on vram)
+  * Any VRAM not used by the model is used by the KV cache (context length), so you should wnat to leave 1-4Gb free.
+* `--cache-type-k turbo4 --cache-type-v turbo3` - use turbo4 for cache keys and turbo3 for cache values (TurboQuant).
+  * Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
+  * Doesn't appear to be available in the WSL fork of llama.cpp yet
+* `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)

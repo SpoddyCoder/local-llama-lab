@@ -16,6 +16,7 @@ from config import (  # noqa: E402
     load_server_config,
     parse_args_block,
     parse_context_from_args,
+    parse_n_cpu_moe_from_args,
     parse_port_from_args,
 )
 
@@ -205,6 +206,35 @@ class TestApplyNCpuMoe(unittest.TestCase):
                 with self.assertRaises(ValueError) as ctx:
                     apply_n_cpu_moe(server, n)
                 self.assertIn("positive integer", str(ctx.exception))
+
+
+class TestParseNCpuMoeFromArgs(unittest.TestCase):
+    def test_returns_positive_n_when_present(self) -> None:
+        self.assertEqual(parse_n_cpu_moe_from_args(["--n-cpu-moe", "22"]), 22)
+        self.assertEqual(
+            parse_n_cpu_moe_from_args(
+                ["--host", "127.0.0.1", "--n-cpu-moe", "3", "-c", "4096"]
+            ),
+            3,
+        )
+        self.assertEqual(parse_n_cpu_moe_from_args(["--n-cpu-moe=7"]), 7)
+
+    def test_returns_none_when_absent(self) -> None:
+        self.assertIsNone(parse_n_cpu_moe_from_args(["--host", "127.0.0.1", "-c", "4096"]))
+
+    def test_raises_when_invalid(self) -> None:
+        cases: list[tuple[list[str], str]] = [
+            (["--n-cpu-moe"], "requires a value"),
+            (["--n-cpu-moe", "two"], "invalid"),
+            (["--n-cpu-moe="], "invalid"),
+            (["--n-cpu-moe", "0"], "positive"),
+            (["--n-cpu-moe", "-1"], "positive"),
+        ]
+        for args, needle in cases:
+            with self.subTest(args=args):
+                with self.assertRaises(ValueError) as ctx:
+                    parse_n_cpu_moe_from_args(args)
+                self.assertIn(needle, str(ctx.exception))
 
 
 if __name__ == "__main__":

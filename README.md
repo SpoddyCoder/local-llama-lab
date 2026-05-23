@@ -3,7 +3,7 @@ First forays into local model usage, this is about tuning and understanding the 
 
 ## Setup
 Relatively modest for AI work, but it's surprisingly viable. 
-Running on a WSL2 instance on a Windows host with 32Gb sys RAM (24Gb allocated to WSL) and a 5080 with 16Gb VRAM...
+Running on a WSL2 instance on a Windows host with 32Gb System RAM (26Gb allocated to WSL) and a 5080 with 16Gb VRAM...
 
 ```bash
 local-model-tests$ nvidia-smi
@@ -52,11 +52,12 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
 * [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)
   * Released: April 2026
   * Setup: `--n-gpu-layers 999 --n-cpu-moe 24` to fit on card and leave 5GB for KV cache.
-  * Generation throughput: ~47 tok/s
-  * Estimated Max Context: 69409 tokens
+  * Generation throughput: ~52 tok/s
+  * Estimated Max Context: 69533 tokens
   * Model Max Context: 262144 tokens
-  * Model VRAM: 10869 MiB
-  * KV VRAM: 5334 MiB
+  * Model VRAM: 10749 MiB
+  * Model System RAM: 12257 MiB
+  * KV VRAM: 5454 MiB
   * GGUF on disk: 22.36 GB
 
 ### Dense Models

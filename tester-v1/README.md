@@ -1,6 +1,6 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server (`server.yaml`), run one streaming chat completion (`client.yaml`), print all thirteen metrics plus a headline footer on stdout, then tear down. 
+Single-run harness for `llama-server`: start the server (`server.yaml`), run one streaming chat completion (`client.yaml`), print all fourteen metrics plus a headline footer on stdout, then tear down.
 
 - Pass `--save-result` with a config directory to write JSON under `results/{model}/{variant}/` and print the full run summary. 
 - Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
@@ -94,7 +94,9 @@ Without `config_dir`, pass all three of `--server`, `--client`, and `--model-yam
 
 ## Calibration
 
-`model_calibration.py` runs three reference probes (footprint, ctx-probe, hello-world-baseline) and prints a six-line VRAM and throughput summary. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
+`model_calibration.py` runs three reference probes (footprint, ctx-probe, hello-world-baseline) and prints a VRAM and throughput summary on six lines by default. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
+
+When calibration runs with MoE CPU offload (`./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24`, same pattern as Usage), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N} MiB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
 
 ```bash
 ./model_calibration.py configs/qwen3.5-9b-q8
@@ -106,7 +108,7 @@ Without `config_dir`, pass all three of `--server`, `--client`, and `--model-yam
 
 ## Results
 
-`results/` is gitignored. Probe JSON: `results/{model}/{variant}/{timestamp}.json`. Calibration with `--save-result` also writes `results/{model}/calibration-sessions/{session_id}.json`.
+`results/` is gitignored. Probe JSON: `results/{model}/{variant}/{timestamp}.json`. Calibration with `--save-result` also writes `results/{model}/calibration-sessions/{session_id}.json`; MoE offload runs include `model_system_ram_mb` in the session `summary` when `--n-cpu-moe` was set.
 
 Default stdout: all metrics (rounded), blank line, three headline lines (end-to-end time, peak VRAM, decode tok/s). With `--save-result`, stdout is a run summary unless `--quiet`.
 
@@ -126,6 +128,7 @@ Default stdout: all metrics (rounded), blank line, three headline lines (end-to-
 | `decode_tok_s`      | `completion_tokens` / `completion_time_s`; approximate generation rate after the first token.                    |
 | `tokens_per_second` | `completion_tokens` / `wall_time_s`; end-to-end completion throughput including TTFT.                            |
 | `idle_vram_mb`      | GPU memory in MB after the server is ready and before the measured prompt (`nvidia-smi`; `null` if unavailable). |
+| `idle_system_ram_mb` | Process RSS (MiB) for `llama-server` after load at idle, before the measured prompt (`VmRSS` from `/proc/{pid}/status`; same idle window as `idle_vram_mb`, which uses `nvidia-smi`). Only sampled when resolved server args include `--n-cpu-moe` (MoE CPU offload); `null` / n/a when not applicable or if sampling fails. |
 | `peak_vram_mb`      | Peak GPU memory in MB during the measured prompt (background `nvidia-smi` poll; `null` if unavailable).          |
 | `model_max_context` | Native context limit from `GET /v1/models` (`data[0].meta.n_ctx_train`; `null` if missing or unreadable).        |
 

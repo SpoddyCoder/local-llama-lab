@@ -29,6 +29,7 @@ def _sample_metrics() -> dict[str, float | int | None]:
         "decode_tok_s": 116.32,
         "tokens_per_second": 28.01,
         "idle_vram_mb": 8000,
+        "idle_system_ram_mb": 12000,
         "peak_vram_mb": 8961,
     }
 
@@ -51,14 +52,16 @@ class TestFormatMetricsSummary(unittest.TestCase):
         decode_idx = keys.index("decode_tok_s")
         self.assertEqual(keys[decode_idx + 1], "tokens_per_second")
         self.assertEqual(keys[decode_idx + 2], "idle_vram_mb")
-        self.assertEqual(keys[decode_idx + 3], "peak_vram_mb")
-        self.assertEqual(keys[decode_idx + 4], "model_max_context")
+        self.assertEqual(keys[decode_idx + 3], "idle_system_ram_mb")
+        self.assertEqual(keys[decode_idx + 4], "peak_vram_mb")
+        self.assertEqual(keys[decode_idx + 5], "model_max_context")
 
     def test_missing_values_render_as_na(self) -> None:
         text = format_metrics_summary({"wall_time_s": 1.0})
-        self.assertIn("completion_time_s n/a", text)
-        self.assertIn("total_tokens      n/a", text)
-        self.assertIn("tokens_per_second n/a", text)
+        self.assertRegex(text, r"completion_time_s\s+n/a")
+        self.assertRegex(text, r"total_tokens\s+n/a")
+        self.assertRegex(text, r"tokens_per_second\s+n/a")
+        self.assertRegex(text, r"idle_system_ram_mb\s+n/a")
 
 
 class TestFormatHeadlineSummary(unittest.TestCase):

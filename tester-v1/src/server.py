@@ -59,6 +59,14 @@ class ServerProcess:
         self.server_ready_s: float | None = None
         self._start_monotonic: float | None = None
 
+    @property
+    def pid(self) -> int | None:
+        """Subprocess PID while the server process is running, else None."""
+        proc = self._proc
+        if proc is None or proc.poll() is not None:
+            return None
+        return proc.pid
+
     def start(self) -> None:
         if self._proc is not None:
             raise RuntimeError("server already started")

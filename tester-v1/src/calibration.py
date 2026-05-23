@@ -20,6 +20,7 @@ DEFAULT_CALIBRATION_MARGIN_MIB = 100
 
 
 _IDLE_VRAM_METRIC_KEY = "idle_vram_mb"
+_IDLE_SYSTEM_RAM_METRIC_KEY = "idle_system_ram_mb"
 _MODEL_MAX_CONTEXT_METRIC_KEY = "model_max_context"
 _DECODE_TOK_S_METRIC_KEY = "decode_tok_s"
 
@@ -34,6 +35,18 @@ def parse_idle_vram_from_metrics_stdout(text: str) -> int:
             raise ValueError("idle_vram_mb unavailable in probe stdout")
         return int(float(value_part))
     raise ValueError("idle_vram_mb not found in probe stdout")
+
+
+def parse_idle_system_ram_from_metrics_stdout(text: str) -> int | None:
+    """Parse idle_system_ram_mb from probe stdout; None if missing or n/a."""
+    for line in text.splitlines():
+        if not line.startswith(_IDLE_SYSTEM_RAM_METRIC_KEY):
+            continue
+        value_part = line[len(_IDLE_SYSTEM_RAM_METRIC_KEY) :].strip()
+        if not value_part or value_part == "n/a":
+            return None
+        return int(float(value_part))
+    return None
 
 
 def parse_model_max_context_from_metrics_stdout(text: str) -> int | None:
@@ -105,6 +118,21 @@ def read_idle_vram_from_result(path: Path) -> int:
     return int(idle)
 
 
+def read_idle_system_ram_from_result(path: Path) -> int | None:
+    """Load idle_system_ram_mb from result JSON metrics; None if absent or null."""
+    with path.open(encoding="utf-8") as f:
+        document = json.load(f)
+    if document.get("status") != "ok":
+        return None
+    metrics = document.get("metrics")
+    if not isinstance(metrics, dict):
+        return None
+    value = metrics.get("idle_system_ram_mb")
+    if value is None:
+        return None
+    return int(value)
+
+
 def _relative_result_path(path: Path, tester_root: Path) -> str:
     try:
         return str(path.resolve().relative_to(tester_root.resolve()))
@@ -147,6 +175,11 @@ def write_calibration_session_summary(
             "estimated_context_max": summary["estimated_context_max"],
             "model_max_context": summary.get("model_max_context"),
             "generation_throughput_tok_s": summary.get("generation_throughput_tok_s"),
+            **(
+                {"model_system_ram_mb": summary["model_system_ram_mb"]}
+                if "model_system_ram_mb" in summary
+                else {}
+            ),
         },
         "probes": {
             "footprint": _probe_ref(footprint_result, tester_root),
@@ -235,14 +268,25 @@ def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
         decode = None
     elif decode is not None:
         decode = float(decode)
-    return [
+    lines = [
         format_generation_throughput_line(decode),
         f"* Estimated Max Context: {summary['estimated_context_max']} tokens",
         model_max_line,
         f"* Model VRAM: {summary['model_vram_mb']} MiB",
-        f"* KV VRAM: {summary['kv_vram_mb']} MiB",
-        f"* GGUF on disk: {summary['gguf_gb']:.2f} GB",
     ]
+    if "model_system_ram_mb" in summary:
+        ram = summary["model_system_ram_mb"]
+        if ram is None:
+            lines.append("* Model System RAM: unavailable")
+        else:
+            lines.append(f"* Model System RAM: {int(ram)} MiB")
+    lines.extend(
+        [
+            f"* KV VRAM: {summary['kv_vram_mb']} MiB",
+            f"* GGUF on disk: {summary['gguf_gb']:.2f} GB",
+        ]
+    )
+    return lines
 
 
 def run_variant_subprocess(

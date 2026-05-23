@@ -41,6 +41,33 @@ class TestServerReadyS(unittest.TestCase):
         self.assertEqual(proc.ready_endpoint, "/health")
 
 
+class TestServerProcessPid(unittest.TestCase):
+    def test_pid_none_before_start(self) -> None:
+        server = ServerConfig(model="/tmp/model.gguf", args=[])
+        proc = ServerProcess(server, "http://127.0.0.1:8080")
+        self.assertIsNone(proc.pid)
+
+    def test_pid_set_when_running_after_start(self) -> None:
+        server = ServerConfig(
+            model="/tmp/model.gguf",
+            args=[],
+            ready_timeout_s=10.0,
+            ready_poll_interval_s=0.01,
+        )
+        proc = ServerProcess(server, "http://127.0.0.1:8080")
+        mock_proc = MagicMock()
+        mock_proc.stdout = MagicMock()
+        mock_proc.stderr = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.pid = 424242
+        mock_popen = MagicMock(return_value=mock_proc)
+
+        with patch("server.subprocess.Popen", mock_popen), patch("server._stream_lines"):
+            proc.start()
+
+        self.assertEqual(proc.pid, 424242)
+
+
 class TestBuildArgvNCpuMoe(unittest.TestCase):
     def test_includes_n_cpu_moe_flags_after_yaml_args(self) -> None:
         server = ServerConfig(

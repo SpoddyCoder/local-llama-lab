@@ -52,6 +52,7 @@ def empty_metrics() -> dict[str, float | int | None]:
         "tokens_per_second": None,
         "server_ready_s": None,
         "idle_vram_mb": None,
+        "idle_system_ram_mb": None,
         "peak_vram_mb": None,
     }
 
@@ -96,6 +97,8 @@ def build_result_document(
         metrics["server_ready_s"] = None
     if "idle_vram_mb" not in metrics:
         metrics["idle_vram_mb"] = None
+    if "idle_system_ram_mb" not in metrics:
+        metrics["idle_system_ram_mb"] = None
     if "peak_vram_mb" not in metrics:
         metrics["peak_vram_mb"] = None
 

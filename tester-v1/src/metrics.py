@@ -44,6 +44,7 @@ def build_metrics_dict(result: CompletionResult) -> dict[str, float | int | None
         "tokens_per_second": tokens_per_second,
         "server_ready_s": None,
         "idle_vram_mb": None,
+        "idle_system_ram_mb": None,
         "peak_vram_mb": None,
         "model_max_context": None,
     }
@@ -52,7 +53,7 @@ def build_metrics_dict(result: CompletionResult) -> dict[str, float | int | None
 def format_metrics_summary(metrics: dict[str, float | int | None]) -> str:
     """Human-readable metrics block matching the Phase 1 stdout plan."""
 
-    def _fmt(key: str, width: int = 18) -> str:
+    def _fmt(key: str, width: int = 21) -> str:
         value = metrics.get(key)
         if value is None:
             text = "n/a"
@@ -74,6 +75,7 @@ def format_metrics_summary(metrics: dict[str, float | int | None]) -> str:
         _fmt("decode_tok_s"),
         _fmt("tokens_per_second"),
         _fmt("idle_vram_mb"),
+        _fmt("idle_system_ram_mb"),
         _fmt("peak_vram_mb"),
         _fmt("model_max_context"),
     ]

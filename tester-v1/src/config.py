@@ -344,6 +344,41 @@ def parse_port_from_args(args: list[str]) -> int | None:
     return None
 
 
+def parse_n_cpu_moe_from_args(args: list[str]) -> int | None:
+    """Return MoE CPU offload count from --n-cpu-moe in llama-server args, or None."""
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--n-cpu-moe":
+            if i + 1 >= len(args):
+                raise ValueError("server config args: --n-cpu-moe requires a value")
+            try:
+                n = int(args[i + 1])
+            except ValueError as exc:
+                raise ValueError(
+                    f"server config args: invalid --n-cpu-moe value {args[i + 1]!r}"
+                ) from exc
+            if n < 1:
+                raise ValueError(
+                    f"server config args: --n-cpu-moe must be positive: {n}"
+                )
+            return n
+        if arg.startswith("--n-cpu-moe="):
+            try:
+                n = int(arg.split("=", 1)[1])
+            except ValueError as exc:
+                raise ValueError(
+                    f"server config args: invalid --n-cpu-moe in {arg!r}"
+                ) from exc
+            if n < 1:
+                raise ValueError(
+                    f"server config args: --n-cpu-moe must be positive: {n}"
+                )
+            return n
+        i += 1
+    return None
+
+
 def apply_n_cpu_moe(server: ServerConfig, n: int) -> ServerConfig:
     """Append MoE CPU offload flags to server args."""
     if n <= 0:

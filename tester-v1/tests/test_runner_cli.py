@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
+from calibration import parse_idle_system_ram_from_metrics_stdout  # noqa: E402
 from config import ClientConfig, ServerConfig  # noqa: E402
 from runner import _TESTER_ROOT, _run, main  # noqa: E402
 
@@ -404,6 +405,172 @@ class TestRunNCpuMoe(unittest.TestCase):
                 )
             self.assertEqual(code, 1)
             self.assertIn("n_cpu_moe must be a positive integer", stderr.getvalue())
+
+    def test_save_result_sets_idle_system_ram_mb_when_n_cpu_moe(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            server = self._fake_server(tmp)
+            client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
+            result_path = (
+                _TESTER_ROOT
+                / "results"
+                / "qwen3.5-9b-q8"
+                / "hello-world-baseline"
+                / "20260101T000000Z.json"
+            )
+
+            @contextmanager
+            def fake_managed_server(*_args, **_kwargs):
+                proc = MagicMock()
+                proc.pid = 12345
+                proc.server_ready_s = 0.1
+                yield proc
+
+            completion = MagicMock()
+            with (
+                patch("runner._load_server", return_value=server),
+                patch("runner.load_client_config", return_value=client),
+                patch("runner.resolve_base_url", return_value="http://127.0.0.1:8080"),
+                patch("runner.managed_server", fake_managed_server),
+                patch("runner.run_chat_completion", return_value=completion),
+                patch("runner.sample_vram_mb", return_value=None),
+                patch("runner.sample_process_rss_mb", return_value=8888) as sample_rss,
+                patch("runner.VramPoller") as poller_cls,
+                patch(
+                    "runner.build_metrics_dict",
+                    return_value={"wall_time_s": 1.0},
+                ),
+                patch("runner.collect_run_metadata", return_value={}),
+                patch("runner.write_result", return_value=result_path) as write_result,
+                _capture_output(),
+            ):
+                poller = poller_cls.return_value
+                poller.stop.return_value = None
+                config_dir = _ephemeral_config_dir(tmp)
+                code = _run(
+                    Path(tmp) / "server.yaml",
+                    Path(tmp) / "client.yaml",
+                    _MODEL_DIR / "model.yaml",
+                    config_dir,
+                    save_result=True,
+                    quiet=True,
+                    include_output=False,
+                    n_cpu_moe=22,
+                )
+
+            self.assertEqual(code, 0)
+            sample_rss.assert_called_once_with(12345)
+            document = write_result.call_args.args[1]
+            self.assertEqual(document["metrics"]["idle_system_ram_mb"], 8888)
+
+    def test_probe_stdout_includes_idle_system_ram_parsed_by_calibration_when_n_cpu_moe(
+        self,
+    ) -> None:
+        """MoE run prints idle_system_ram_mb; calibration helpers parse it from captured stdout."""
+        with tempfile.TemporaryDirectory() as tmp:
+            server = self._fake_server(tmp)
+            client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
+
+            @contextmanager
+            def fake_managed_server(*_args, **_kwargs):
+                proc = MagicMock()
+                proc.pid = 44444
+                proc.server_ready_s = 0.1
+                yield proc
+
+            completion = MagicMock()
+            completion.completion_text = ""
+            with (
+                patch("runner._load_server", return_value=server),
+                patch("runner.load_client_config", return_value=client),
+                patch("runner.resolve_base_url", return_value="http://127.0.0.1:8080"),
+                patch("runner.managed_server", fake_managed_server),
+                patch("runner.run_chat_completion", return_value=completion),
+                patch("runner.sample_vram_mb", return_value=None),
+                patch("runner.sample_process_rss_mb", return_value=6611) as sample_rss,
+                patch("runner.VramPoller") as poller_cls,
+                patch(
+                    "runner.build_metrics_dict",
+                    return_value={"wall_time_s": 1.0},
+                ),
+                patch("runner.write_result") as write_result,
+                _capture_output() as (stdout, stderr),
+            ):
+                poller = poller_cls.return_value
+                poller.stop.return_value = None
+                code = _run(
+                    Path(tmp) / "server.yaml",
+                    Path(tmp) / "client.yaml",
+                    Path(tmp) / "model.yaml",
+                    save_result=False,
+                    quiet=False,
+                    include_output=False,
+                    n_cpu_moe=22,
+                )
+
+            self.assertEqual(code, 0)
+            write_result.assert_not_called()
+            sample_rss.assert_called_once_with(44444)
+            out = stdout.getvalue()
+            self.assertEqual(parse_idle_system_ram_from_metrics_stdout(out), 6611)
+            self.assertEqual(stderr.getvalue(), "")
+
+    def test_save_result_defaults_idle_system_ram_mb_null_without_n_cpu_moe(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            server = self._fake_server(tmp)
+            client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
+            result_path = (
+                _TESTER_ROOT
+                / "results"
+                / "qwen3.5-9b-q8"
+                / "hello-world-baseline"
+                / "20260101T000000Z.json"
+            )
+
+            @contextmanager
+            def fake_managed_server(*_args, **_kwargs):
+                proc = MagicMock()
+                proc.pid = 99999
+                proc.server_ready_s = 0.1
+                yield proc
+
+            completion = MagicMock()
+            with (
+                patch("runner._load_server", return_value=server),
+                patch("runner.load_client_config", return_value=client),
+                patch("runner.resolve_base_url", return_value="http://127.0.0.1:8080"),
+                patch("runner.managed_server", fake_managed_server),
+                patch("runner.run_chat_completion", return_value=completion),
+                patch("runner.sample_vram_mb", return_value=None),
+                patch("runner.sample_process_rss_mb") as sample_rss,
+                patch("runner.VramPoller") as poller_cls,
+                patch(
+                    "runner.build_metrics_dict",
+                    return_value={"wall_time_s": 1.0},
+                ),
+                patch("runner.collect_run_metadata", return_value={}),
+                patch("runner.write_result", return_value=result_path) as write_result,
+                _capture_output(),
+            ):
+                poller = poller_cls.return_value
+                poller.stop.return_value = None
+                config_dir = _ephemeral_config_dir(tmp)
+                code = _run(
+                    Path(tmp) / "server.yaml",
+                    Path(tmp) / "client.yaml",
+                    _MODEL_DIR / "model.yaml",
+                    config_dir,
+                    save_result=True,
+                    quiet=True,
+                    include_output=False,
+                )
+
+            self.assertEqual(code, 0)
+            sample_rss.assert_not_called()
+            document = write_result.call_args.args[1]
+            self.assertIn("idle_system_ram_mb", document["metrics"])
+            self.assertIsNone(document["metrics"]["idle_system_ram_mb"])
 
 
 class TestMainArgparse(unittest.TestCase):

@@ -410,6 +410,132 @@ class TestRunCalibrationStdout(unittest.TestCase):
         for call in run.call_args_list:
             self.assertEqual(call.kwargs["session_id"], "sess456")
 
+    def test_n_cpu_moe_stdout_includes_model_system_ram_from_footprint_parse(self) -> None:
+        model_dir = Path("/tmp/model")
+        stdout = io.StringIO()
+        with (
+            patch("calibration_cli.run_variant_subprocess", return_value=(0, "foot\n")),
+            patch("calibration_cli._idle_vram_from_probe_output", side_effect=[1000, 1100]),
+            patch(
+                "calibration_cli.parse_model_max_context_from_metrics_stdout",
+                return_value=128000,
+            ),
+            patch(
+                "calibration_cli.parse_decode_tok_s_from_metrics_stdout",
+                return_value=91.2,
+            ),
+            patch(
+                "calibration_cli.parse_idle_system_ram_from_metrics_stdout",
+                return_value=5000,
+            ) as parse_ram,
+            patch(
+                "calibration_cli.load_model_config",
+                return_value="/tmp/model.gguf",
+            ),
+            patch("calibration_cli.load_server_config") as load_server,
+            patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
+            patch("calibration_cli.gguf_size_gb", return_value=1.0),
+            patch("calibration_cli.query_gpu_total_mb", return_value=16000),
+            patch(
+                "calibration_cli.compute_summary",
+                return_value={
+                    "gguf_gb": 1.0,
+                    "model_vram_mb": 1000,
+                    "kv_vram_mb": 2000,
+                    "estimated_context_max": 4096,
+                },
+            ),
+            patch("sys.stdout", stdout),
+            patch("sys.stderr", io.StringIO()),
+        ):
+            load_server.return_value.args = []
+            code = _run_calibration(
+                model_dir,
+                0,
+                save_result=False,
+                quiet=False,
+                n_cpu_moe=4,
+            )
+        self.assertEqual(code, 0)
+        parse_ram.assert_called_once_with("foot\n")
+        self.assertIn("* Model System RAM: 5000 MiB", stdout.getvalue())
+
+    def test_save_result_n_cpu_moe_includes_model_system_ram_in_session_summary(
+        self,
+    ) -> None:
+        model_dir = Path("/tmp/model")
+        stdout = io.StringIO()
+        footprint_result = Path("/footprint.json")
+        ctx_probe_result = Path("/ctx_probe.json")
+        hello_world_result = Path("/hello_world.json")
+
+        def fake_find_latest(
+            results_dir: Path, config_dir: Path, root: Path
+        ) -> Path:
+            config_str = str(config_dir)
+            if "footprint" in config_str:
+                return footprint_result
+            if "ctx-probe" in config_str:
+                return ctx_probe_result
+            return hello_world_result
+
+        with (
+            patch("calibration_cli.run_variant_subprocess", return_value=(0, "")),
+            patch("calibration_cli.format_compact_utc", return_value="sessmoe"),
+            patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
+            patch(
+                "calibration_cli.read_idle_vram_from_result",
+                side_effect=[1000, 1100],
+            ),
+            patch(
+                "calibration_cli.read_idle_system_ram_from_result",
+                return_value=8765,
+            ) as read_ram,
+            patch(
+                "calibration_cli.read_model_max_context_from_result",
+                return_value=None,
+            ),
+            patch(
+                "calibration_cli.read_decode_tok_s_from_result",
+                return_value=None,
+            ),
+            patch(
+                "calibration_cli.load_model_config",
+                return_value="/tmp/model.gguf",
+            ),
+            patch("calibration_cli.load_server_config") as load_server,
+            patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
+            patch("calibration_cli.gguf_size_gb", return_value=1.0),
+            patch("calibration_cli.query_gpu_total_mb", return_value=16000),
+            patch(
+                "calibration_cli.compute_summary",
+                return_value={
+                    "gguf_gb": 1.0,
+                    "model_vram_mb": 1000,
+                    "kv_vram_mb": 2000,
+                    "estimated_context_max": 4096,
+                },
+            ),
+            patch("calibration_cli.config_dir_metadata") as meta,
+            patch("calibration_cli.write_calibration_session_summary") as write_summary,
+            patch("sys.stdout", stdout),
+            patch("sys.stderr", io.StringIO()),
+        ):
+            load_server.return_value.args = []
+            meta.return_value = {"model": "m", "variant": None, "config_path": None}
+            code = _run_calibration(
+                model_dir,
+                0,
+                save_result=True,
+                quiet=True,
+                n_cpu_moe=2,
+            )
+        self.assertEqual(code, 0)
+        read_ram.assert_called_once_with(footprint_result)
+        write_summary.assert_called_once()
+        passed_summary = write_summary.call_args.args[3]
+        self.assertEqual(passed_summary["model_system_ram_mb"], 8765)
+
     def test_save_result_find_latest_failure_returns_error(self) -> None:
         model_dir = Path("/tmp/model")
 

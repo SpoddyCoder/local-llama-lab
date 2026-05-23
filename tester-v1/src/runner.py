@@ -18,6 +18,7 @@ from config import (
     config_dir_metadata,
     load_client_config,
     load_variant_server,
+    parse_n_cpu_moe_from_args,
     redact_model_path,
 )
 from result_layout import completion_output_path
@@ -30,6 +31,7 @@ from results import (
     utc_now,
     write_result,
 )
+from host_ram import sample_process_rss_mb
 from server import fetch_model_max_context, managed_server, resolve_base_url
 from vram import VramPoller, sample_vram_mb
 
@@ -92,6 +94,10 @@ def _run(
             with httpx.Client(timeout=2.0) as http_client:
                 model_max_context = fetch_model_max_context(http_client, base_url)
             idle_vram_mb = sample_vram_mb()
+            idle_system_ram_mb: int | None = None
+            n_cpu_moe_from_args = parse_n_cpu_moe_from_args(server.args)
+            if n_cpu_moe_from_args is not None:
+                idle_system_ram_mb = sample_process_rss_mb(proc.pid)
             poller = VramPoller()
             poller.start()
             try:
@@ -105,6 +111,8 @@ def _run(
             metrics_dict["idle_vram_mb"] = idle_vram_mb
             metrics_dict["peak_vram_mb"] = peak_vram_mb
             metrics_dict["model_max_context"] = model_max_context
+            if n_cpu_moe_from_args is not None:
+                metrics_dict["idle_system_ram_mb"] = idle_system_ram_mb
     except (TimeoutError, RuntimeError, ValueError, KeyboardInterrupt) as exc:
         if save_result:
             status = "error"

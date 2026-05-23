@@ -16,6 +16,7 @@ sys.path.insert(0, str(_SRC))
 from config import ClientConfig, ServerConfig, redact_model_path  # noqa: E402
 from results import (  # noqa: E402
     build_result_document,
+    empty_metrics,
     format_compact_utc,
     format_run_summary,
     make_run_id,
@@ -82,6 +83,7 @@ class TestBuildResultDocument(unittest.TestCase):
             "tokens_per_second": 7.4,
             "server_ready_s": 45.2,
             "idle_vram_mb": None,
+            "idle_system_ram_mb": None,
             "peak_vram_mb": None,
         }
         self.config_dir = (
@@ -112,6 +114,7 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertEqual(doc["client_config"]["params"]["max_tokens"], 1024)
         self.assertEqual(doc["metrics"]["server_ready_s"], 45.2)
         self.assertIsNone(doc["metrics"]["idle_vram_mb"])
+        self.assertIsNone(doc["metrics"]["idle_system_ram_mb"])
         self.assertIsNone(doc["metrics"]["peak_vram_mb"])
         self.assertEqual(
             doc["metadata"],
@@ -160,7 +163,27 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertIsNone(doc["metrics"]["wall_time_s"])
         self.assertIsNone(doc["metrics"]["server_ready_s"])
         self.assertIsNone(doc["metrics"]["idle_vram_mb"])
+        self.assertIsNone(doc["metrics"]["idle_system_ram_mb"])
         self.assertIsNone(doc["metrics"]["peak_vram_mb"])
+
+    def test_empty_metrics_includes_idle_system_ram_mb(self) -> None:
+        m = empty_metrics()
+        self.assertIn("idle_system_ram_mb", m)
+        self.assertIsNone(m["idle_system_ram_mb"])
+
+    def test_build_result_document_defaults_missing_idle_system_ram_mb(self) -> None:
+        metrics_no_sys_ram = dict(self.metrics)
+        del metrics_no_sys_ram["idle_system_ram_mb"]
+        doc = build_result_document(
+            server_config=self.server,
+            client_config=self.client,
+            metrics_dict=metrics_no_sys_ram,
+            status="ok",
+            started_at=self.started,
+            finished_at=self.finished,
+        )
+        self.assertIn("idle_system_ram_mb", doc["metrics"])
+        self.assertIsNone(doc["metrics"]["idle_system_ram_mb"])
 
     def test_config_dir_drives_run_id_and_suite(self) -> None:
         meta = {

@@ -17,9 +17,11 @@ from calibration import (  # noqa: E402
     format_generation_throughput_line,
     format_summary_lines,
     parse_decode_tok_s_from_metrics_stdout,
+    parse_idle_system_ram_from_metrics_stdout,
     parse_idle_vram_from_metrics_stdout,
     parse_model_max_context_from_metrics_stdout,
     read_decode_tok_s_from_result,
+    read_idle_system_ram_from_result,
     read_idle_vram_from_result,
     read_model_max_context_from_result,
     write_calibration_session_summary,
@@ -35,15 +37,19 @@ def _write_result(
     status: str = "ok",
     model_max_context: int | None = None,
     decode_tok_s: float | None = None,
+    include_idle_system_ram: bool = False,
+    idle_system_ram_mb: int | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    metrics: dict[str, int | float] = {}
+    metrics: dict[str, int | float | None] = {}
     if idle_vram_mb is not None:
         metrics["idle_vram_mb"] = idle_vram_mb
     if model_max_context is not None:
         metrics["model_max_context"] = model_max_context
     if decode_tok_s is not None:
         metrics["decode_tok_s"] = decode_tok_s
+    if include_idle_system_ram:
+        metrics["idle_system_ram_mb"] = idle_system_ram_mb
     document = {
         "run_id": path.stem,
         "status": status,
@@ -251,6 +257,39 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
                 },
             )
 
+    def test_writes_model_system_ram_mb_when_present(self) -> None:
+        summary = {
+            "gguf_gb": 9.55,
+            "model_vram_mb": 10353,
+            "kv_vram_mb": 4414,
+            "estimated_context_max": 128000,
+            "model_max_context": 128000,
+            "generation_throughput_tok_s": 91.2,
+            "model_system_ram_mb": 24000,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            tester_root = Path(tmp)
+            footprint = (
+                tester_root / "results" / "x" / "calibration-footprint" / "a.json"
+            )
+            ctx_probe = tester_root / "results" / "x" / "calibration-ctx-probe" / "b.json"
+            hello_world = (
+                tester_root / "results" / "x" / "hello-world-baseline" / "c.json"
+            )
+            for p in (footprint, ctx_probe, hello_world):
+                _write_result(p, idle_vram_mb=1)
+            out_path = write_calibration_session_summary(
+                tester_root,
+                "x",
+                "sess",
+                summary,
+                footprint,
+                ctx_probe,
+                hello_world,
+            )
+            doc = json.loads(out_path.read_text(encoding="utf-8"))
+            self.assertEqual(doc["summary"]["model_system_ram_mb"], 24000)
+
 
 class TestReadIdleVramFromResult(unittest.TestCase):
     def test_reads_ok_result(self) -> None:
@@ -335,6 +374,70 @@ class TestParseIdleVramFromMetricsStdout(unittest.TestCase):
         self.assertIn("unavailable", str(ctx.exception))
 
 
+class TestParseIdleSystemRamFromMetricsStdout(unittest.TestCase):
+    def test_reads_from_probe_block(self) -> None:
+        metrics = {
+            "server_ready_s": 1.0,
+            "wall_time_s": 2.0,
+            "idle_vram_mb": 10353,
+            "idle_system_ram_mb": 24000,
+        }
+        text = f"Model: example\n\n{format_metrics_summary(metrics)}\n"
+        self.assertEqual(parse_idle_system_ram_from_metrics_stdout(text), 24000)
+
+    def test_returns_none_when_missing(self) -> None:
+        self.assertIsNone(
+            parse_idle_system_ram_from_metrics_stdout("idle_vram_mb 100\n")
+        )
+
+    def test_returns_none_for_na(self) -> None:
+        self.assertIsNone(
+            parse_idle_system_ram_from_metrics_stdout("idle_system_ram_mb n/a\n")
+        )
+
+
+class TestReadIdleSystemRamFromResult(unittest.TestCase):
+    def test_reads_ok_result(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(
+                path,
+                idle_vram_mb=100,
+                include_idle_system_ram=True,
+                idle_system_ram_mb=32000,
+            )
+            self.assertEqual(read_idle_system_ram_from_result(path), 32000)
+
+    def test_returns_none_when_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(path, idle_vram_mb=100)
+            self.assertIsNone(read_idle_system_ram_from_result(path))
+
+    def test_returns_none_when_json_null(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(
+                path,
+                idle_vram_mb=100,
+                include_idle_system_ram=True,
+                idle_system_ram_mb=None,
+            )
+            self.assertIsNone(read_idle_system_ram_from_result(path))
+
+    def test_returns_none_for_non_ok_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            _write_result(
+                path,
+                idle_vram_mb=100,
+                status="error",
+                include_idle_system_ram=True,
+                idle_system_ram_mb=1,
+            )
+            self.assertIsNone(read_idle_system_ram_from_result(path))
+
+
 class TestParseDecodeTokSFromMetricsStdout(unittest.TestCase):
     def test_reads_decode_tok_s(self) -> None:
         text = "decode_tok_s          91.24\n"
@@ -410,6 +513,36 @@ class TestFormatSummaryLines(unittest.TestCase):
         lines = format_summary_lines(summary)
         self.assertEqual(lines[0], "* Generation throughput: n/a")
         self.assertEqual(lines[2], "* Model Max Context: n/a")
+
+    def test_includes_model_system_ram_after_model_vram(self) -> None:
+        summary = {
+            "gguf_gb": 9.55,
+            "model_vram_mb": 10353,
+            "kv_vram_mb": 4414,
+            "estimated_context_max": 128000,
+            "model_max_context": 128000,
+            "generation_throughput_tok_s": 91.24,
+            "model_system_ram_mb": 24000,
+        }
+        lines = format_summary_lines(summary)
+        self.assertEqual(len(lines), 7)
+        self.assertEqual(lines[3], "* Model VRAM: 10353 MiB")
+        self.assertEqual(lines[4], "* Model System RAM: 24000 MiB")
+        self.assertEqual(lines[5], "* KV VRAM: 4414 MiB")
+
+    def test_model_system_ram_unavailable(self) -> None:
+        summary = {
+            "gguf_gb": 1.0,
+            "model_vram_mb": 1000,
+            "kv_vram_mb": 2000,
+            "estimated_context_max": 4096,
+            "model_system_ram_mb": None,
+        }
+        lines = format_summary_lines(summary)
+        self.assertEqual(len(lines), 7)
+        self.assertEqual(lines[3], "* Model VRAM: 1000 MiB")
+        self.assertEqual(lines[4], "* Model System RAM: unavailable")
+        self.assertEqual(lines[5], "* KV VRAM: 2000 MiB")
 
 
 if __name__ == "__main__":

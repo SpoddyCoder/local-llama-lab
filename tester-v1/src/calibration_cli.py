@@ -15,9 +15,11 @@ from calibration import (
     format_summary_lines,
     gguf_size_gb,
     parse_decode_tok_s_from_metrics_stdout,
+    parse_idle_system_ram_from_metrics_stdout,
     parse_idle_vram_from_metrics_stdout,
     parse_model_max_context_from_metrics_stdout,
     read_decode_tok_s_from_result,
+    read_idle_system_ram_from_result,
     read_idle_vram_from_result,
     read_model_max_context_from_result,
     run_variant_subprocess,
@@ -184,6 +186,12 @@ def _run_calibration(
             generation_throughput_tok_s = read_decode_tok_s_from_result(
                 hello_world_result
             )
+            if n_cpu_moe is not None:
+                footprint_model_system_ram_mb = read_idle_system_ram_from_result(
+                    footprint_result
+                )
+            else:
+                footprint_model_system_ram_mb = None
         except ValueError as exc:
             return _fail(str(exc))
     else:
@@ -200,6 +208,12 @@ def _run_calibration(
             generation_throughput_tok_s = parse_decode_tok_s_from_metrics_stdout(
                 probe_outputs[2][1]
             )
+            if n_cpu_moe is not None:
+                footprint_model_system_ram_mb = (
+                    parse_idle_system_ram_from_metrics_stdout(probe_outputs[0][1])
+                )
+            else:
+                footprint_model_system_ram_mb = None
         except ValueError as exc:
             return _fail(str(exc))
 
@@ -240,6 +254,8 @@ def _run_calibration(
         )
         summary["model_max_context"] = model_max_context
         summary["generation_throughput_tok_s"] = generation_throughput_tok_s
+        if n_cpu_moe is not None:
+            summary["model_system_ram_mb"] = footprint_model_system_ram_mb
     except ValueError as exc:
         if save_result:
             return _fail(

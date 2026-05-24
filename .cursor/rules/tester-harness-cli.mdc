@@ -27,4 +27,4 @@ Run these from the repo root. Probe runs without `--save-result` are stdout-only
 
 ## Do not use calibration-tests as config_dir
 
-Do not pass `tester-v1/calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Run test expects a model variant dir such as `models/{slug}/bench/`. Calibration loads probes from `calibration-tests/` internally; pass `models/{slug}/` only. See `calibration-tests.mdc`.
+Do not pass `tester-v1/calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Pass `models/{slug}/` and select a probe or sandbox with `--variant` (default `hello-world-baseline`). Calibration loads probes from `calibration-tests/` internally; pass `models/{slug}/` only. See `calibration-tests.mdc`.

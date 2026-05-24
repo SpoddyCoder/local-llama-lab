@@ -11,8 +11,6 @@ from typing import Any
 
 import yaml
 
-from paths import MODELS_ROOT
-
 MODEL_YAML = "model.yaml"
 _MODEL_FLAGS = frozenset({"-m", "--model"})
 _DEFAULT_BINARY = "llama-server"
@@ -63,49 +61,23 @@ class ServerConfig:
         }
 
 
-def _models_parts(config_dir: Path) -> tuple[str, str]:
-    """Return (model, variant) for a config directory under MODELS_ROOT."""
-    config_dir = config_dir.resolve()
-    models_root = MODELS_ROOT.resolve()
-    try:
-        parts = config_dir.relative_to(models_root).parts
-    except ValueError as exc:
-        raise ValueError(
-            f"config_dir must be under {models_root}: {config_dir}"
-        ) from exc
-    if len(parts) != 2:
-        raise ValueError(
-            f"config_dir must be models/{{model}}/{{variant}}, got {len(parts)} "
-            f"part(s): {config_dir.relative_to(models_root)}"
-        )
-    return parts[0], parts[1]
-
-
-def slug_from_config_dir(config_dir: Path, tester_root: Path) -> str:
-    """Derive a result filename slug from a config directory path."""
-    model, variant = _models_parts(config_dir)
-    return _sanitize_slug(f"{model}-{variant}")
-
-
-def config_dir_metadata(
-    config_dir: Path | None,
-    tester_root: Path,
-) -> dict[str, str | None]:
+def run_metadata(model: str, variant: str) -> dict[str, str | None]:
     """Derive config path fields for result JSON metadata."""
-    empty: dict[str, str | None] = {
-        "config_path": None,
-        "model": None,
-        "variant": None,
-    }
-    if config_dir is None:
-        return empty
-
-    model, variant = _models_parts(config_dir)
     return {
-        "config_path": f"models/{model}/{variant}/",
+        "config_path": f"models/{model}/",
         "model": model,
         "variant": variant,
     }
+
+
+def slug_from_run(model: str, variant: str) -> str:
+    """Derive a sanitized result filename slug from model and variant names.
+
+    Nested variants (e.g. ``foo/bar``) normalize ``/`` to ``-`` before
+    sanitization so the slug matches ``run_id_suffix`` style.
+    """
+    suffix = f"{model}-{variant.replace('/', '-')}"
+    return _sanitize_slug(suffix)
 
 
 @dataclass(frozen=True)
@@ -147,11 +119,6 @@ def parse_args_block(text: str, path: str | Path | None = None) -> list[str]:
             raise ValueError(msg)
         result.extend(shlex.split(stripped))
     return result
-
-
-def model_yaml_path_for_variant(variant_dir: Path) -> Path:
-    """Return the model.yaml path for a variant config directory."""
-    return variant_dir.parent / MODEL_YAML
 
 
 def load_model_config(path: str | Path) -> str:
@@ -347,6 +314,139 @@ def parse_port_from_args(args: list[str]) -> int | None:
     return None
 
 
+_FLAG_ALIAS_GROUPS: tuple[frozenset[str], ...] = (
+    frozenset({"-c", "--ctx-size"}),
+    frozenset({"-p", "--port"}),
+)
+_VALUE_FLAGS_WITH_EQUALS = (
+    "-c",
+    "--ctx-size",
+    "--n-cpu-moe",
+    "--n-gpu-layers",
+    "--host",
+    "--port",
+    "-p",
+    "--parallel",
+    "--fit",
+)
+_BOOLEAN_SERVER_FLAGS = frozenset({"--no-mmap"})
+
+
+def _aliases_for_flag(flag: str) -> frozenset[str]:
+    for group in _FLAG_ALIAS_GROUPS:
+        if flag in group:
+            return group
+    return frozenset({flag})
+
+
+def replace_flag_args(
+    args: list[str],
+    replacements: dict[str, str | None],
+) -> list[str]:
+    """Return args with selected flags removed and optionally re-appended.
+
+    Keys in *replacements* are flag names (e.g. ``--ctx-size``, ``-c``).
+    Value ``None`` removes the flag; a string value appends ``[flag, value]``
+    at the end (or just ``flag`` for boolean flags when value is ``""``).
+    ``-c`` / ``--ctx-size`` and ``-p`` / ``--port`` are treated as aliases.
+    """
+    flags_to_remove: set[str] = set()
+    to_append: list[tuple[str, str | None]] = []
+    for flag, value in replacements.items():
+        flags_to_remove.update(_aliases_for_flag(flag))
+        to_append.append((flag, value))
+
+    result: list[str] = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        removed = False
+        for flag in flags_to_remove:
+            if arg == flag:
+                if i + 1 < len(args) and not args[i + 1].startswith("-"):
+                    i += 2
+                else:
+                    i += 1
+                removed = True
+                break
+            prefix = f"{flag}="
+            if arg.startswith(prefix):
+                i += 1
+                removed = True
+                break
+        if not removed:
+            result.append(arg)
+            i += 1
+
+    for flag, value in to_append:
+        if value is None:
+            continue
+        if value == "":
+            result.append(flag)
+        else:
+            result.extend([flag, value])
+    return result
+
+
+def _extract_flag_replacements_from_args(args: list[str]) -> dict[str, str | None]:
+    """Parse known llama-server flags from args into a replacements dict."""
+    replacements: dict[str, str | None] = {}
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in ("-c", "--ctx-size", "--port", "-p", "--n-cpu-moe", "--n-gpu-layers",
+                   "--host", "--parallel", "--fit"):
+            if i + 1 >= len(args):
+                raise ValueError(f"server config args: {arg} requires a value")
+            replacements[arg] = args[i + 1]
+            i += 2
+            continue
+        matched_equals = False
+        for flag in _VALUE_FLAGS_WITH_EQUALS:
+            prefix = f"{flag}="
+            if arg.startswith(prefix):
+                replacements[flag] = arg[len(prefix):]
+                i += 1
+                matched_equals = True
+                break
+        if matched_equals:
+            continue
+        if arg in _BOOLEAN_SERVER_FLAGS:
+            replacements[arg] = ""
+            i += 1
+            continue
+        i += 1
+    return replacements
+
+
+def merge_server_configs(
+    base: ServerConfig,
+    override: ServerConfig | None,
+    *,
+    n_cpu_moe: int | None = None,
+) -> ServerConfig:
+    """Merge server args: override YAML flags on base; CLI *n_cpu_moe* wins last."""
+    merged_args = list(base.args)
+    if override is not None:
+        merged_args = replace_flag_args(
+            merged_args,
+            _extract_flag_replacements_from_args(override.args),
+        )
+    if n_cpu_moe is not None:
+        if n_cpu_moe <= 0:
+            raise ValueError(
+                f"n_cpu_moe must be a positive integer, got {n_cpu_moe}"
+            )
+        merged_args = replace_flag_args(
+            merged_args,
+            {
+                "--n-cpu-moe": str(n_cpu_moe),
+                "--n-gpu-layers": "999",
+            },
+        )
+    return replace(base, args=merged_args)
+
+
 def parse_n_cpu_moe_from_args(args: list[str]) -> int | None:
     """Return MoE CPU offload count from --n-cpu-moe in llama-server args, or None."""
     i = 0
@@ -383,18 +483,18 @@ def parse_n_cpu_moe_from_args(args: list[str]) -> int | None:
 
 
 def apply_n_cpu_moe(server: ServerConfig, n: int) -> ServerConfig:
-    """Append MoE CPU offload flags to server args."""
+    """Set MoE CPU offload flags on server args (replace if already present)."""
     if n <= 0:
         raise ValueError(f"n_cpu_moe must be a positive integer, got {n}")
     return replace(
         server,
-        args=[
-            *server.args,
-            "--n-cpu-moe",
-            str(n),
-            "--n-gpu-layers",
-            "999",
-        ],
+        args=replace_flag_args(
+            server.args,
+            {
+                "--n-cpu-moe": str(n),
+                "--n-gpu-layers": "999",
+            },
+        ),
     )
 
 

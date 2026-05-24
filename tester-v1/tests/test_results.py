@@ -13,8 +13,6 @@ from unittest.mock import patch
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
-from paths import MODELS_ROOT, RESULTS_DIR, TESTER_ROOT  # noqa: E402
-
 from config import ClientConfig, ServerConfig, redact_model_path  # noqa: E402
 from results import (  # noqa: E402
     build_result_document,
@@ -88,9 +86,6 @@ class TestBuildResultDocument(unittest.TestCase):
             "idle_system_ram_mb": None,
             "peak_vram_mb": None,
         }
-        self.config_dir = (
-            MODELS_ROOT / "qwen3.5-9b-q8" / "hello-world-baseline"
-        )
 
     def test_document_shape_ok(self) -> None:
         doc = build_result_document(
@@ -135,7 +130,7 @@ class TestBuildResultDocument(unittest.TestCase):
             "server_version": "version: 9158 (abc)",
             "gpu_name": "NVIDIA GeForce RTX 4090",
             "driver_version": "550.54.15",
-            "config_path": "models/qwen3.5-9b-q8/hello-world-baseline/",
+            "config_path": "models/qwen3.5-9b-q8/",
             "model": "qwen3.5-9b-q8",
             "variant": "hello-world-baseline",
         }
@@ -187,12 +182,12 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertIn("idle_system_ram_mb", doc["metrics"])
         self.assertIsNone(doc["metrics"]["idle_system_ram_mb"])
 
-    def test_config_dir_drives_run_id_and_suite(self) -> None:
+    def test_model_variant_drives_run_id_and_suite(self) -> None:
         meta = {
             "server_version": None,
             "gpu_name": None,
             "driver_version": None,
-            "config_path": "models/qwen3.5-9b-q8/hello-world-baseline/",
+            "config_path": "models/qwen3.5-9b-q8/",
             "model": "qwen3.5-9b-q8",
             "variant": "hello-world-baseline",
         }
@@ -204,8 +199,8 @@ class TestBuildResultDocument(unittest.TestCase):
             started_at=self.started,
             finished_at=self.finished,
             metadata=meta,
-            config_dir=self.config_dir,
-            tester_root=TESTER_ROOT,
+            model="qwen3.5-9b-q8",
+            variant="hello-world-baseline",
             session_id="sess-abc",
         )
         self.assertEqual(
@@ -215,7 +210,7 @@ class TestBuildResultDocument(unittest.TestCase):
         self.assertEqual(doc["suite"], "probe")
         self.assertEqual(doc["session_id"], "sess-abc")
 
-    def test_fallback_run_id_uses_model_slug_without_config_dir(self) -> None:
+    def test_fallback_run_id_uses_model_slug_without_model_variant(self) -> None:
         doc = build_result_document(
             server_config=self.server,
             client_config=self.client,
@@ -223,8 +218,8 @@ class TestBuildResultDocument(unittest.TestCase):
             status="ok",
             started_at=self.started,
             finished_at=self.finished,
-            config_dir=None,
-            tester_root=None,
+            model=None,
+            variant=None,
         )
         self.assertEqual(
             doc["run_id"],
@@ -238,11 +233,10 @@ class TestBuildResultDocument(unittest.TestCase):
             "server_version": None,
             "gpu_name": None,
             "driver_version": None,
-            "config_path": "models/qwen3.5-9b-q8/calibration-footprint/",
+            "config_path": "models/qwen3.5-9b-q8/",
             "model": "qwen3.5-9b-q8",
             "variant": "calibration-footprint",
         }
-        config_dir = MODELS_ROOT / "qwen3.5-9b-q8" / "calibration-footprint"
         doc = build_result_document(
             server_config=self.server,
             client_config=self.client,
@@ -251,8 +245,8 @@ class TestBuildResultDocument(unittest.TestCase):
             started_at=self.started,
             finished_at=self.finished,
             metadata=meta,
-            config_dir=config_dir,
-            tester_root=TESTER_ROOT,
+            model="qwen3.5-9b-q8",
+            variant="calibration-footprint",
         )
         self.assertEqual(doc["suite"], "calibration")
 
@@ -274,16 +268,8 @@ class TestWriteResult(unittest.TestCase):
     def test_writes_hierarchical_file(self) -> None:
         started = datetime(2026, 5, 16, 13, 45, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            models_root = root / "models"
-            config_dir = models_root / "qwen3.5-9b-q8" / "hello-world-baseline"
-            config_dir.mkdir(parents=True)
-            results_dir = root / "results"
-            with (
-                patch("config.MODELS_ROOT", models_root),
-                patch("paths.MODELS_ROOT", models_root),
-                patch("result_layout.RESULTS_DIR", results_dir),
-            ):
+            results_dir = Path(tmp) / "results"
+            with patch("result_layout.RESULTS_DIR", results_dir):
                 doc = build_result_document(
                     server_config=ServerConfig(
                         model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
@@ -300,18 +286,18 @@ class TestWriteResult(unittest.TestCase):
                         "server_version": None,
                         "gpu_name": None,
                         "driver_version": None,
-                        "config_path": "models/qwen3.5-9b-q8/hello-world-baseline/",
+                        "config_path": "models/qwen3.5-9b-q8/",
                         "model": "qwen3.5-9b-q8",
                         "variant": "hello-world-baseline",
                     },
-                    config_dir=config_dir,
-                    tester_root=root,
+                    model="qwen3.5-9b-q8",
+                    variant="hello-world-baseline",
                 )
                 path = write_result(
                     results_dir,
                     doc,
-                    config_dir=config_dir,
-                    tester_root=root,
+                    model="qwen3.5-9b-q8",
+                    variant="hello-world-baseline",
                     started_at=started,
                 )
             self.assertEqual(
@@ -324,13 +310,12 @@ class TestWriteResult(unittest.TestCase):
             loaded = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(loaded["run_id"], doc["run_id"])
 
-    def test_outside_models_raises(self) -> None:
-        started = datetime(2026, 5, 17, 17, 2, 40, tzinfo=timezone.utc)
+    def test_nested_variant_writes_nested_dir(self) -> None:
+        started = datetime(2026, 5, 16, 13, 45, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            config_dir = Path("/tmp/my-run")
-            with self.assertRaises(ValueError) as ctx:
-                build_result_document(
+            results_dir = Path(tmp) / "results"
+            with patch("result_layout.RESULTS_DIR", results_dir):
+                doc = build_result_document(
                     server_config=ServerConfig(
                         model="/home/user/models/Qwen_Qwen3.5-9B-Q8_0.gguf",
                         args=[],
@@ -342,10 +327,27 @@ class TestWriteResult(unittest.TestCase):
                     status="ok",
                     started_at=started,
                     finished_at=started,
-                    config_dir=config_dir,
-                    tester_root=root,
+                    model="qwen3.5-9b-q8",
+                    variant="sandbox",
                 )
-            self.assertIn("must be under", str(ctx.exception))
+                path = write_result(
+                    results_dir,
+                    doc,
+                    model="qwen3.5-9b-q8",
+                    variant="sandbox",
+                    started_at=started,
+                )
+            self.assertEqual(
+                path,
+                results_dir
+                / "qwen3.5-9b-q8"
+                / "sandbox"
+                / "20260516T134500Z.json",
+            )
+            self.assertEqual(
+                doc["run_id"],
+                "20260516T134500Z_qwen3.5-9b-q8-sandbox",
+            )
 
 
 class TestFormatRunSummary(unittest.TestCase):

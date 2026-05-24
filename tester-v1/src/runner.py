@@ -11,15 +11,11 @@ import httpx
 
 from client import run_chat_completion
 from config import (
-    MODEL_YAML,
-    ServerConfig,
-    apply_n_cpu_moe,
-    config_dir_metadata,
     load_client_config,
-    load_variant_server,
     parse_n_cpu_moe_from_args,
     redact_model_path,
 )
+from model_layout import RunConfig, resolve_run_config
 from result_layout import completion_output_path
 from metadata import collect_run_metadata
 from metrics import build_metrics_dict, format_probe_stdout
@@ -38,10 +34,6 @@ from vram import VramPoller, sample_vram_mb
 _TESTER_ROOT = TESTER_ROOT
 
 
-def _load_server(server_path: Path, model_yaml_path: Path) -> ServerConfig:
-    return load_variant_server(server_path, model_yaml_path)
-
-
 def _result_path_display(result_path: Path) -> str:
     try:
         return str(result_path.relative_to(TESTER_ROOT))
@@ -50,35 +42,24 @@ def _result_path_display(result_path: Path) -> str:
 
 
 def _run(
-    server_path: Path,
-    client_path: Path,
-    model_yaml_path: Path,
-    config_dir: Path | None = None,
+    run_config: RunConfig,
     *,
     save_result: bool,
     quiet: bool,
     include_output: bool = False,
     session_id: str | None = None,
-    n_cpu_moe: int | None = None,
 ) -> int:
-    if save_result and config_dir is None:
-        print("Error: --save-result requires config_dir", file=sys.stderr)
+    if save_result and (not run_config.model or not run_config.variant):
+        print("Error: --save-result requires model and variant", file=sys.stderr)
         return 1
 
-    server = _load_server(server_path, model_yaml_path)
-    if n_cpu_moe is not None:
-        try:
-            server = apply_n_cpu_moe(server, n_cpu_moe)
-        except ValueError as exc:
-            print(exc, file=sys.stderr)
-            return 1
-    client = load_client_config(client_path)
+    server = run_config.server
+    client = load_client_config(run_config.client_path)
     base_url = resolve_base_url(server, client.base_url)
     client = replace(client, base_url=base_url)
 
     if not save_result:
-        meta = config_dir_metadata(config_dir, TESTER_ROOT)
-        model_display = meta.get("model") or server.model_slug
+        model_display = run_config.model or server.model_slug
         print(f"Starting {server.binary} (model: {model_display})...")
         print(f"API URL: {base_url}")
 
@@ -135,6 +116,8 @@ def _run(
     finished_at = utc_now()
     result_path: Path | None = None
     run_id: str | None = None
+    model_name = run_config.model
+    variant_name = run_config.variant
 
     try:
         document = build_result_document(
@@ -147,19 +130,19 @@ def _run(
             error=error,
             metadata=collect_run_metadata(
                 server,
-                config_dir=config_dir,
-                tester_root=TESTER_ROOT,
+                model=model_name,
+                variant=variant_name,
             ),
-            config_dir=config_dir,
-            tester_root=TESTER_ROOT,
+            model=model_name,
+            variant=variant_name,
             session_id=session_id,
         )
         run_id = document["run_id"]
         result_path = write_result(
             RESULTS_DIR,
             document,
-            config_dir=config_dir,
-            tester_root=TESTER_ROOT,
+            model=model_name,
+            variant=variant_name,
             started_at=started_at,
         )
     except OSError as exc:
@@ -203,37 +186,18 @@ def _run(
     return 1
 
 
-def resolve_config_paths(config_dir: Path) -> tuple[Path, Path, Path]:
-    if not config_dir.is_dir():
-        raise FileNotFoundError(f"Config directory not found: {config_dir}")
-
-    server = config_dir / "server.yaml"
-    client = config_dir / "client.yaml"
-    model_yaml = config_dir.parent / MODEL_YAML
-
-    missing: list[str] = []
-    if not server.is_file():
-        missing.append(server.name)
-    if not client.is_file():
-        missing.append(client.name)
-    if not model_yaml.is_file():
-        missing.append(MODEL_YAML)
-    if missing:
-        names = ", ".join(missing)
-        raise FileNotFoundError(f"Config files missing in {config_dir}: {names}")
-
-    return server, client, model_yaml
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Local model tester v1")
     parser.add_argument(
-        "config_dir",
+        "model_dir",
         type=Path,
-        help=(
-            "variant directory containing server.yaml and client.yaml "
-            "(model path from parent model.yaml)"
-        ),
+        help="model directory containing model.yaml and server.yaml",
+    )
+    parser.add_argument(
+        "--variant",
+        type=str,
+        default="hello-world-baseline",
+        help="variant name (default: hello-world-baseline)",
     )
     parser.add_argument(
         "--save-result",
@@ -260,24 +224,24 @@ def main(argv: list[str] | None = None) -> int:
         "--n-cpu-moe",
         type=int,
         default=None,
-        help="offload N MoE layers to CPU (appends --n-cpu-moe and --n-gpu-layers)",
+        help="offload N MoE layers to CPU (replace --n-cpu-moe and --n-gpu-layers)",
     )
     args = parser.parse_args(argv)
 
     try:
-        server_path, client_path, model_yaml_path = resolve_config_paths(args.config_dir)
-    except FileNotFoundError as exc:
+        run_config = resolve_run_config(
+            args.model_dir,
+            args.variant,
+            n_cpu_moe=args.n_cpu_moe,
+        )
+    except (FileNotFoundError, ValueError) as exc:
         print(exc, file=sys.stderr)
         return 1
 
     return _run(
-        server_path,
-        client_path,
-        model_yaml_path,
-        args.config_dir,
+        run_config,
         save_result=args.save_result,
         quiet=args.quiet if args.save_result else False,
         include_output=args.include_output,
         session_id=args.session_id,
-        n_cpu_moe=args.n_cpu_moe,
     )

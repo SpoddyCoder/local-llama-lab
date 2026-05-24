@@ -7,15 +7,18 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from calibration import VARIANT_FOOTPRINT  # noqa: E402
-from calibration import DEFAULT_CALIBRATION_MARGIN_MIB  # noqa: E402
+from calibration import (  # noqa: E402
+    DEFAULT_CALIBRATION_MARGIN_MIB,
+    VARIANT_CTX_PROBE,
+    VARIANT_HELLO_WORLD,
+)
 from calibration_cli import (  # noqa: E402
-    _result_config_dir,
     _run_calibration,
     _validate_model_dir,
     main,
@@ -24,21 +27,61 @@ from config import MODEL_YAML  # noqa: E402
 from paths import TESTER_ROOT  # noqa: E402
 
 
+from paths import TESTER_ROOT  # noqa: E402
+
+_CALIBRATION_VARIANTS = (
+    VARIANT_FOOTPRINT,
+    VARIANT_CTX_PROBE,
+    VARIANT_HELLO_WORLD,
+)
+
+
+def _write_probe_variants(cal_root: Path) -> None:
+    for variant in _CALIBRATION_VARIANTS:
+        probe_dir = cal_root / variant
+        probe_dir.mkdir(parents=True, exist_ok=True)
+        (probe_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
+        (probe_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
+
+
+def _resolve_run_config_side_effect() -> list[MagicMock]:
+    footprint_cfg = MagicMock()
+    ctx_cfg = MagicMock()
+    footprint_cfg.server.args = []
+    ctx_cfg.server.args = []
+    return [footprint_cfg, ctx_cfg]
+
+
 class TestValidateModelDir(unittest.TestCase):
-    def test_accepts_model_yaml_only(self) -> None:
+    def test_accepts_model_and_server_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            model_dir = Path(tmp) / "my-model"
-            model_dir.mkdir()
+            harness = Path(tmp) / "tester"
+            cal_root = harness / "calibration-tests"
+            _write_probe_variants(cal_root)
+            model_dir = harness / "models" / "my-model"
+            model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
-            _validate_model_dir(model_dir)
+            (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
+            with patch("calibration_cli.CALIBRATION_TESTS_ROOT", cal_root):
+                _validate_model_dir(model_dir)
 
     def test_missing_model_yaml_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             model_dir = Path(tmp) / "my-model"
             model_dir.mkdir()
+            (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             with self.assertRaises(FileNotFoundError) as ctx:
                 _validate_model_dir(model_dir)
             self.assertIn("model config not found", str(ctx.exception))
+
+    def test_missing_server_yaml_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            model_dir = Path(tmp) / "my-model"
+            model_dir.mkdir()
+            (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
+            with self.assertRaises(FileNotFoundError) as ctx:
+                _validate_model_dir(model_dir)
+            self.assertIn("server config not found", str(ctx.exception))
 
     def test_missing_calibration_variant_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -51,14 +94,16 @@ class TestValidateModelDir(unittest.TestCase):
             model_dir = harness / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
+            (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             with patch("calibration_cli.CALIBRATION_TESTS_ROOT", cal_root):
                 with self.assertRaises(FileNotFoundError) as ctx:
                     _validate_model_dir(model_dir)
+            self.assertIn("calibration probe config missing", str(ctx.exception))
             self.assertIn("calibration-tests/", str(ctx.exception))
 
 
 class TestRunCalibrationVariant(unittest.TestCase):
-    def test_passes_reference_server_and_client_paths(self) -> None:
+    def test_resolves_run_config_and_calls_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             harness = Path(tmp) / "tester"
             cal_root = harness / "calibration-tests"
@@ -69,33 +114,42 @@ class TestRunCalibrationVariant(unittest.TestCase):
             model_dir = harness / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
-            result_dir = _result_config_dir(model_dir, VARIANT_FOOTPRINT)
+            (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
 
             from calibration import run_calibration_variant  # noqa: E402
+            from model_layout import RunConfig  # noqa: E402
 
-            with patch("calibration._run", return_value=0) as run:
+            fake_config = RunConfig(
+                server=MagicMock(),
+                client_path=ref_dir / "client.yaml",
+                model_yaml_path=model_dir / MODEL_YAML,
+                model="my-model",
+                variant=VARIANT_FOOTPRINT,
+            )
+
+            with (
+                patch("calibration.resolve_run_config", return_value=fake_config) as resolve,
+                patch("calibration._run", return_value=0) as run,
+            ):
                 returncode, _output = run_calibration_variant(
                     model_dir,
-                    result_dir,
-                    ref_dir,
+                    VARIANT_FOOTPRINT,
                     save_result=True,
                     quiet=True,
                     session_id="sess1",
                 )
             self.assertEqual(returncode, 0)
+            resolve.assert_called_once_with(
+                model_dir, VARIANT_FOOTPRINT, n_cpu_moe=None
+            )
             run.assert_called_once()
-            args = run.call_args.args
             kwargs = run.call_args.kwargs
-            self.assertEqual(args[0], ref_dir / "server.yaml")
-            self.assertEqual(args[1], ref_dir / "client.yaml")
-            self.assertEqual(args[2], model_dir / MODEL_YAML)
-            self.assertEqual(args[3], result_dir)
+            self.assertIs(run.call_args.args[0], fake_config)
             self.assertTrue(kwargs["save_result"])
             self.assertTrue(kwargs["quiet"])
             self.assertEqual(kwargs["session_id"], "sess1")
-            self.assertFalse(result_dir.exists())
 
-    def test_passes_n_cpu_moe_when_set(self) -> None:
+    def test_passes_n_cpu_moe_to_resolve_run_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             harness = Path(tmp) / "tester"
             cal_root = harness / "calibration-tests"
@@ -106,20 +160,31 @@ class TestRunCalibrationVariant(unittest.TestCase):
             model_dir = harness / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
-            result_dir = _result_config_dir(model_dir, VARIANT_FOOTPRINT)
+            (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
 
             from calibration import run_calibration_variant  # noqa: E402
+            from model_layout import RunConfig  # noqa: E402
 
-            with patch("calibration._run", return_value=0) as run:
+            fake_config = RunConfig(
+                server=MagicMock(),
+                client_path=ref_dir / "client.yaml",
+                model_yaml_path=model_dir / MODEL_YAML,
+                model="my-model",
+                variant=VARIANT_FOOTPRINT,
+            )
+
+            with (
+                patch("calibration.resolve_run_config", return_value=fake_config) as resolve,
+                patch("calibration._run", return_value=0),
+            ):
                 run_calibration_variant(
                     model_dir,
-                    result_dir,
-                    ref_dir,
+                    VARIANT_FOOTPRINT,
                     save_result=False,
                     quiet=False,
                     n_cpu_moe=22,
                 )
-            self.assertEqual(run.call_args.kwargs["n_cpu_moe"], 22)
+            self.assertEqual(resolve.call_args.kwargs["n_cpu_moe"], 22)
 
 
 class TestMainArgparse(unittest.TestCase):
@@ -208,7 +273,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ) as load_model,
-            patch("calibration_cli.load_server_config") as load_server,
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=_resolve_run_config_side_effect(),
+            ) as resolve,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
             patch("calibration_cli.query_gpu_total_mb", return_value=16000),
@@ -216,7 +284,6 @@ class TestRunCalibrationStdout(unittest.TestCase):
             patch("sys.stdout", io.StringIO()),
             patch("sys.stderr", io.StringIO()),
         ):
-            load_server.return_value.args = []
             code = _run_calibration(
                 model_dir,
                 0,
@@ -225,6 +292,9 @@ class TestRunCalibrationStdout(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         load_model.assert_called_once_with(model_dir / MODEL_YAML)
+        self.assertEqual(resolve.call_count, 2)
+        resolve.assert_any_call(model_dir, VARIANT_FOOTPRINT, n_cpu_moe=None)
+        resolve.assert_any_call(model_dir, VARIANT_CTX_PROBE, n_cpu_moe=None)
 
     def test_default_prints_summary_not_suppressed(self) -> None:
         model_dir = Path("/tmp/model")
@@ -252,7 +322,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ),
-            patch("calibration_cli.load_server_config") as load_server,
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=_resolve_run_config_side_effect(),
+            ),
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
             patch("calibration_cli.query_gpu_total_mb", return_value=16000),
@@ -260,7 +333,6 @@ class TestRunCalibrationStdout(unittest.TestCase):
             patch("sys.stdout", stdout),
             patch("sys.stderr", stderr),
         ):
-            load_server.return_value.args = []
             run_variant.return_value = (0, "probe\n")
             code = _run_calibration(
                 model_dir,
@@ -284,12 +356,11 @@ class TestRunCalibrationStdout(unittest.TestCase):
         hello_world_result = Path("/hello_world.json")
 
         def fake_find_latest(
-            results_dir: Path, config_dir: Path, root: Path
+            results_dir: Path, model: str, variant: str
         ) -> Path:
-            config_str = str(config_dir)
-            if "footprint" in config_str:
+            if variant == "calibration-footprint":
                 return footprint_result
-            if "ctx-probe" in config_str:
+            if variant == "calibration-ctx-probe":
                 return ctx_probe_result
             return hello_world_result
 
@@ -310,7 +381,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ),
-            patch("calibration_cli.load_server_config") as load_server,
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=_resolve_run_config_side_effect(),
+            ),
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
             patch("calibration_cli.query_gpu_total_mb", return_value=16000),
@@ -323,13 +397,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                     "estimated_context_max": 4096,
                 },
             ),
-            patch("calibration_cli.config_dir_metadata") as meta,
             patch("calibration_cli.write_calibration_session_summary") as write_summary,
             patch("sys.stdout", stdout),
             patch("sys.stderr", io.StringIO()),
         ):
-            load_server.return_value.args = []
-            meta.return_value = {"model": "my-model", "variant": None, "config_path": None}
             code = _run_calibration(
                 model_dir,
                 0,
@@ -340,7 +411,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "")
         write_summary.assert_called_once_with(
             TESTER_ROOT,
-            "my-model",
+            "model",
             "sess123",
             {
                 "gguf_gb": 1.0,
@@ -366,7 +437,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
         }
 
         def fake_find_latest(
-            results_dir: Path, config_dir: Path, root: Path
+            results_dir: Path, model: str, variant: str
         ) -> Path:
             return Path("/result.json")
 
@@ -387,18 +458,18 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ),
-            patch("calibration_cli.load_server_config") as load_server,
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=_resolve_run_config_side_effect(),
+            ),
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
             patch("calibration_cli.query_gpu_total_mb", return_value=16000),
             patch("calibration_cli.compute_summary", return_value=summary),
-            patch("calibration_cli.config_dir_metadata") as meta,
             patch("calibration_cli.write_calibration_session_summary"),
             patch("sys.stdout", io.StringIO()),
             patch("sys.stderr", io.StringIO()),
         ):
-            load_server.return_value.args = []
-            meta.return_value = {"model": None, "variant": None, "config_path": None}
             code = _run_calibration(
                 model_dir,
                 0,
@@ -432,7 +503,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ),
-            patch("calibration_cli.load_server_config") as load_server,
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=_resolve_run_config_side_effect(),
+            ) as resolve,
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
             patch("calibration_cli.query_gpu_total_mb", return_value=16000),
@@ -448,7 +522,6 @@ class TestRunCalibrationStdout(unittest.TestCase):
             patch("sys.stdout", stdout),
             patch("sys.stderr", io.StringIO()),
         ):
-            load_server.return_value.args = []
             code = _run_calibration(
                 model_dir,
                 0,
@@ -459,6 +532,9 @@ class TestRunCalibrationStdout(unittest.TestCase):
         self.assertEqual(code, 0)
         parse_ram.assert_called_once_with("foot\n")
         self.assertIn("* Model System RAM: 4.88 GB", stdout.getvalue())
+        self.assertEqual(resolve.call_count, 2)
+        for call in resolve.call_args_list:
+            self.assertEqual(call.kwargs["n_cpu_moe"], 4)
 
     def test_save_result_n_cpu_moe_includes_model_system_ram_in_session_summary(
         self,
@@ -470,12 +546,11 @@ class TestRunCalibrationStdout(unittest.TestCase):
         hello_world_result = Path("/hello_world.json")
 
         def fake_find_latest(
-            results_dir: Path, config_dir: Path, root: Path
+            results_dir: Path, model: str, variant: str
         ) -> Path:
-            config_str = str(config_dir)
-            if "footprint" in config_str:
+            if variant == "calibration-footprint":
                 return footprint_result
-            if "ctx-probe" in config_str:
+            if variant == "calibration-ctx-probe":
                 return ctx_probe_result
             return hello_world_result
 
@@ -503,7 +578,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ),
-            patch("calibration_cli.load_server_config") as load_server,
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=_resolve_run_config_side_effect(),
+            ),
             patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
             patch("calibration_cli.gguf_size_gb", return_value=1.0),
             patch("calibration_cli.query_gpu_total_mb", return_value=16000),
@@ -516,13 +594,10 @@ class TestRunCalibrationStdout(unittest.TestCase):
                     "estimated_context_max": 4096,
                 },
             ),
-            patch("calibration_cli.config_dir_metadata") as meta,
             patch("calibration_cli.write_calibration_session_summary") as write_summary,
             patch("sys.stdout", stdout),
             patch("sys.stderr", io.StringIO()),
         ):
-            load_server.return_value.args = []
-            meta.return_value = {"model": "m", "variant": None, "config_path": None}
             code = _run_calibration(
                 model_dir,
                 0,
@@ -550,11 +625,9 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ),
-            patch("calibration_cli.load_server_config") as load_server,
             patch("sys.stdout", io.StringIO()),
             patch("sys.stderr", io.StringIO()) as stderr,
         ):
-            load_server.return_value.args = []
             code = _run_calibration(
                 model_dir,
                 0,

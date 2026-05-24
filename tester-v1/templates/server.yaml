@@ -1,0 +1,7 @@
+args: |
+  --host 127.0.0.1
+  --port 8080
+  --parallel 1
+  --no-mmap
+  --fit off
+  --ctx-size 4096

@@ -68,22 +68,22 @@ def build_result_document(
     error: str | None = None,
     notes: str | None = None,
     metadata: dict[str, str | None] | None = None,
-    config_dir: Path | None = None,
-    tester_root: Path | None = None,
+    model: str | None = None,
+    variant: str | None = None,
     session_id: str | None = None,
 ) -> dict[str, Any]:
     meta = dict(metadata) if metadata is not None else empty_metadata()
     for key in empty_metadata():
         meta.setdefault(key, None)
 
-    if config_dir is not None and tester_root is not None:
+    if model is not None and variant is not None:
         from result_layout import (
             resolve_result_target,
             run_id_from_started_at,
             suite_from_variant,
         )
 
-        target = resolve_result_target(config_dir, tester_root, started_at)
+        target = resolve_result_target(model, variant, started_at)
         run_id = run_id_from_started_at(started_at, target.run_id_suffix)
         suite = suite_from_variant(
             meta.get("variant") if isinstance(meta.get("variant"), str) else None
@@ -123,14 +123,14 @@ def write_result(
     results_dir: str | Path,
     document: dict[str, Any],
     *,
-    config_dir: Path,
-    tester_root: Path,
+    model: str,
+    variant: str,
     started_at: datetime,
 ) -> Path:
     """Write document to hierarchical result path."""
     from result_layout import resolve_result_target
 
-    target = resolve_result_target(config_dir, tester_root, started_at)
+    target = resolve_result_target(model, variant, started_at)
     json_path = target.json_path
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with json_path.open("w", encoding="utf-8") as f:

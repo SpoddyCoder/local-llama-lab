@@ -96,6 +96,31 @@ class TestCollectRunMetadata(unittest.TestCase):
                 },
             )
 
+    def test_includes_model_variant_metadata(self) -> None:
+        server = ServerConfig(model="/path/model.gguf", args=[], binary="llama-server")
+        with (
+            patch("metadata.query_server_version", return_value="version: 1"),
+            patch(
+                "metadata.query_gpu_info",
+                return_value=("GPU A", "535.00"),
+            ),
+        ):
+            self.assertEqual(
+                collect_run_metadata(
+                    server,
+                    model="qwen3.5-9b-q8",
+                    variant="hello-world-baseline",
+                ),
+                {
+                    "server_version": "version: 1",
+                    "gpu_name": "GPU A",
+                    "driver_version": "535.00",
+                    "config_path": "models/qwen3.5-9b-q8/",
+                    "model": "qwen3.5-9b-q8",
+                    "variant": "hello-world-baseline",
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

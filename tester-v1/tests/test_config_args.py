@@ -14,10 +14,12 @@ from config import (  # noqa: E402
     ServerConfig,
     apply_n_cpu_moe,
     load_server_config,
+    merge_server_configs,
     parse_args_block,
     parse_context_from_args,
     parse_n_cpu_moe_from_args,
     parse_port_from_args,
+    replace_flag_args,
 )
 
 
@@ -177,11 +179,123 @@ class TestLoadServerConfigArgs(unittest.TestCase):
             self.assertEqual(parse_port_from_args(cfg.args), 7070)
 
 
+class TestReplaceFlagArgs(unittest.TestCase):
+    def test_replaces_ctx_size(self) -> None:
+        args = ["--host", "127.0.0.1", "-c", "4096"]
+        self.assertEqual(
+            replace_flag_args(args, {"--ctx-size": "8192"}),
+            ["--host", "127.0.0.1", "--ctx-size", "8192"],
+        )
+
+    def test_removes_flag_with_none(self) -> None:
+        args = ["--host", "127.0.0.1", "--n-cpu-moe", "24", "--parallel", "1"]
+        self.assertEqual(
+            replace_flag_args(args, {"--n-cpu-moe": None}),
+            ["--host", "127.0.0.1", "--parallel", "1"],
+        )
+
+    def test_replaces_existing_n_cpu_moe_instead_of_duplicating(self) -> None:
+        args = ["--host", "127.0.0.1", "--n-cpu-moe", "24", "-c", "4096"]
+        self.assertEqual(
+            replace_flag_args(args, {"--n-cpu-moe": "22"}),
+            ["--host", "127.0.0.1", "-c", "4096", "--n-cpu-moe", "22"],
+        )
+
+    def test_c_and_ctx_size_are_aliases(self) -> None:
+        args = ["--host", "127.0.0.1", "-c", "4096"]
+        self.assertEqual(
+            replace_flag_args(args, {"--ctx-size": "8192"}),
+            ["--host", "127.0.0.1", "--ctx-size", "8192"],
+        )
+        args = ["--host", "127.0.0.1", "--ctx-size", "4096"]
+        self.assertEqual(
+            replace_flag_args(args, {"-c": "8192"}),
+            ["--host", "127.0.0.1", "-c", "8192"],
+        )
+
+    def test_removes_equals_form(self) -> None:
+        args = ["--host", "127.0.0.1", "--ctx-size=4096"]
+        self.assertEqual(
+            replace_flag_args(args, {"--ctx-size": "8192"}),
+            ["--host", "127.0.0.1", "--ctx-size", "8192"],
+        )
+
+
+class TestMergeServerConfigs(unittest.TestCase):
+    def _server(self, args: list[str], **kwargs: object) -> ServerConfig:
+        defaults = {
+            "model": "/tmp/model.gguf",
+            "args": args,
+            "binary": "llama-server",
+            "ready_timeout_s": 120.0,
+            "ready_poll_interval_s": 0.5,
+        }
+        defaults.update(kwargs)
+        return ServerConfig(**defaults)  # type: ignore[arg-type]
+
+    def test_thin_override_changes_ctx_only(self) -> None:
+        base = self._server(
+            [
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8080",
+                "--parallel",
+                "1",
+                "--no-mmap",
+                "--fit",
+                "off",
+                "--ctx-size",
+                "4096",
+            ]
+        )
+        override = self._server(["--ctx-size", "8192"])
+        merged = merge_server_configs(base, override)
+        self.assertEqual(
+            merged.args,
+            [
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8080",
+                "--parallel",
+                "1",
+                "--no-mmap",
+                "--fit",
+                "off",
+                "--ctx-size",
+                "8192",
+            ],
+        )
+        self.assertEqual(merged.binary, "llama-server")
+        self.assertEqual(merged.ready_timeout_s, 120.0)
+
+    def test_cli_n_cpu_moe_wins_over_base_yaml(self) -> None:
+        base = self._server(
+            ["--host", "127.0.0.1", "-c", "4096", "--n-cpu-moe", "24", "--n-gpu-layers", "999"]
+        )
+        merged = merge_server_configs(base, None, n_cpu_moe=22)
+        self.assertEqual(parse_n_cpu_moe_from_args(merged.args), 22)
+        self.assertEqual(merged.args.count("--n-cpu-moe"), 1)
+        self.assertIn("--n-gpu-layers", merged.args)
+        self.assertEqual(merged.args[-1], "999")
+
+    def test_override_ctx_wins_over_base(self) -> None:
+        base = self._server(["--host", "127.0.0.1", "-c", "4096"])
+        override = self._server(["-c", "16384"])
+        merged = merge_server_configs(base, override)
+        self.assertEqual(parse_context_from_args(merged.args), 16384)
+        self.assertEqual(
+            merged.args,
+            ["--host", "127.0.0.1", "-c", "16384"],
+        )
+
+
 class TestApplyNCpuMoe(unittest.TestCase):
     def _server(self, args: list[str] | None = None) -> ServerConfig:
         return ServerConfig(model="/tmp/model.gguf", args=list(args or []))
 
-    def test_appends_flags(self) -> None:
+    def test_sets_flags_with_replace_semantics(self) -> None:
         server = self._server(["--host", "127.0.0.1", "-c", "4096"])
         updated = apply_n_cpu_moe(server, 22)
         self.assertEqual(
@@ -198,6 +312,25 @@ class TestApplyNCpuMoe(unittest.TestCase):
             ],
         )
         self.assertEqual(server.args, ["--host", "127.0.0.1", "-c", "4096"])
+
+    def test_replaces_existing_n_cpu_moe(self) -> None:
+        server = self._server(
+            ["--host", "127.0.0.1", "--n-cpu-moe", "24", "--n-gpu-layers", "999"]
+        )
+        updated = apply_n_cpu_moe(server, 22)
+        self.assertEqual(
+            updated.args,
+            [
+                "--host",
+                "127.0.0.1",
+                "--n-cpu-moe",
+                "22",
+                "--n-gpu-layers",
+                "999",
+            ],
+        )
+        self.assertEqual(updated.args.count("--n-cpu-moe"), 1)
+        self.assertEqual(updated.args.count("--n-gpu-layers"), 1)
 
     def test_rejects_non_positive_n(self) -> None:
         server = self._server()

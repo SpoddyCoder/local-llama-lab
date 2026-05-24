@@ -14,17 +14,7 @@ from config import (  # noqa: E402
     MODEL_YAML,
     load_model_config,
     load_variant_server,
-    model_yaml_path_for_variant,
 )
-
-
-class TestModelYamlPathForVariant(unittest.TestCase):
-    def test_returns_parent_model_yaml(self) -> None:
-        variant_dir = Path("/tmp/models/my-model/hello-world-baseline")
-        self.assertEqual(
-            model_yaml_path_for_variant(variant_dir),
-            Path("/tmp/models/my-model") / MODEL_YAML,
-        )
 
 
 class TestLoadModelConfig(unittest.TestCase):
@@ -80,14 +70,13 @@ class TestLoadModelConfig(unittest.TestCase):
 
 
 class TestLoadVariantServer(unittest.TestCase):
-    def test_loads_server_with_model_from_yaml(self) -> None:
+    def test_loads_root_server_with_model_from_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             model_path = root / "model.gguf"
             model_path.write_bytes(b"gguf")
             (root / MODEL_YAML).write_text(f"model: {model_path}\n", encoding="utf-8")
-            server_path = root / "hello-world-baseline" / "server.yaml"
-            server_path.parent.mkdir()
+            server_path = root / "server.yaml"
             server_path.write_text(
                 "args: |\n  --host 127.0.0.1\n  -c 4096\n",
                 encoding="utf-8",

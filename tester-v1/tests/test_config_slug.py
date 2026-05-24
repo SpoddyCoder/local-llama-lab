@@ -1,4 +1,4 @@
-"""Unit tests for path-derived config slugs and model_slug."""
+"""Unit tests for run metadata slugs and model_slug."""
 
 from __future__ import annotations
 
@@ -12,54 +12,62 @@ sys.path.insert(0, str(_SRC))
 
 from config import (  # noqa: E402
     ServerConfig,
-    config_dir_metadata,
     load_server_config,
-    slug_from_config_dir,
+    run_metadata,
+    slug_from_run,
 )
-from paths import MODELS_ROOT, TESTER_ROOT  # noqa: E402
 
 
-class TestSlugFromConfigDir(unittest.TestCase):
-    def test_under_models(self) -> None:
-        config_dir = MODELS_ROOT / "qwen3.5-9b-q8" / "hello-world-baseline"
+class TestSlugFromRun(unittest.TestCase):
+    def test_flat_variant(self) -> None:
         self.assertEqual(
-            slug_from_config_dir(config_dir, TESTER_ROOT),
+            slug_from_run("qwen3.5-9b-q8", "hello-world-baseline"),
             "qwen3.5-9b-q8-hello-world-baseline",
         )
 
-    def test_outside_models_raises(self) -> None:
-        config_dir = Path("/tmp/my-run")
-        with self.assertRaises(ValueError) as ctx:
-            slug_from_config_dir(config_dir, TESTER_ROOT)
-        self.assertIn("must be under", str(ctx.exception))
-
-
-class TestConfigDirMetadata(unittest.TestCase):
-    def test_under_models(self) -> None:
-        config_dir = MODELS_ROOT / "qwen3.5-9b-q8" / "hello-world-baseline"
+    def test_sandbox_variant(self) -> None:
         self.assertEqual(
-            config_dir_metadata(config_dir, TESTER_ROOT),
+            slug_from_run("qwen3.5-9b-q8", "sandbox"),
+            "qwen3.5-9b-q8-sandbox",
+        )
+
+    def test_nested_variant_normalizes_slashes(self) -> None:
+        self.assertEqual(
+            slug_from_run("qwen3.5-9b-q8", "foo/bar"),
+            "qwen3.5-9b-q8-foo-bar",
+        )
+
+
+class TestRunMetadata(unittest.TestCase):
+    def test_flat_variant(self) -> None:
+        self.assertEqual(
+            run_metadata("qwen3.5-9b-q8", "hello-world-baseline"),
             {
-                "config_path": "models/qwen3.5-9b-q8/hello-world-baseline/",
+                "config_path": "models/qwen3.5-9b-q8/",
                 "model": "qwen3.5-9b-q8",
                 "variant": "hello-world-baseline",
             },
         )
 
-    def test_none_config_dir(self) -> None:
+    def test_sandbox_variant(self) -> None:
         self.assertEqual(
-            config_dir_metadata(None, TESTER_ROOT),
+            run_metadata("qwen3.5-9b-q8", "sandbox"),
             {
-                "config_path": None,
-                "model": None,
-                "variant": None,
+                "config_path": "models/qwen3.5-9b-q8/",
+                "model": "qwen3.5-9b-q8",
+                "variant": "sandbox",
             },
         )
 
-    def test_outside_models_raises(self) -> None:
-        with self.assertRaises(ValueError) as ctx:
-            config_dir_metadata(Path("/tmp/my-run"), TESTER_ROOT)
-        self.assertIn("must be under", str(ctx.exception))
+    def test_nested_variant(self) -> None:
+        self.assertEqual(
+            run_metadata("qwen3.5-9b-q8", "foo/bar"),
+            {
+                "config_path": "models/qwen3.5-9b-q8/",
+                "model": "qwen3.5-9b-q8",
+                "variant": "foo/bar",
+            },
+        )
 
 
 class TestServerConfigSlug(unittest.TestCase):

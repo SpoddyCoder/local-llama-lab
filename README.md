@@ -45,6 +45,8 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
 
 Run CLIs from the repo root (no `cd tester-v1`).
 
+Each model under [models/](models/) has `model.yaml` (GGUF path) and `server.yaml` (base llama-server load profile) at the model root. Scaffold new slugs from [tester-v1/templates/](tester-v1/templates/).
+
 ### Run a server
 
 ```bash
@@ -54,6 +56,15 @@ Run CLIs from the repo root (no `cd tester-v1`).
 Use a browser to access the llama web UI while it is running (port depends on `server.yaml` but is typically 8080):
 
 [https://localhost:8080](https://localhost:8080)
+
+### Run a test
+
+```bash
+./tester_v1_run_test.py models/qwen3.5-9b-q8/
+./tester_v1_run_test.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
+```
+
+Default variant is `hello-world-baseline` (shared probe under [tester-v1/calibration-tests/](tester-v1/calibration-tests/)). Pass `--variant NAME` for other probes or the local sandbox.
 
 ### Calibration probe runs
 
@@ -65,9 +76,8 @@ Use a browser to access the llama web UI while it is running (port depends on `s
 ./tester_v1_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
 ```
 
-- Each model has `model.yaml` under [models/{model}/](models/).
 - Shared calibration probe YAML lives under [tester-v1/calibration-tests/](tester-v1/calibration-tests/).
-- For MoE models, pass `--n-cpu-moe N` on calibration (also works for `tester_v1_run_test.py`).
+- For MoE models, pass `--n-cpu-moe N` on calibration and run-test (replaces any existing MoE offload flags in merged server config).
 - Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
 ---

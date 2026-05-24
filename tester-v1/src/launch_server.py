@@ -7,22 +7,8 @@ import sys
 import time
 from pathlib import Path
 
-from config import (
-    apply_n_cpu_moe,
-    config_dir_metadata,
-    load_client_config,
-    load_variant_server,
-)
-from model_layout import resolve_model_variant
-from paths import TESTER_ROOT
+from model_layout import resolve_model_server
 from server import managed_server, resolve_base_url
-
-_TESTER_ROOT = TESTER_ROOT
-
-
-def resolve_launch_config_paths(model_dir: Path) -> tuple[Path, Path, Path]:
-    """Resolve server.yaml, client.yaml, and model.yaml for launch_server."""
-    return resolve_model_variant(model_dir)
 
 
 def run_launch_server(
@@ -30,20 +16,14 @@ def run_launch_server(
     *,
     n_cpu_moe: int | None = None,
 ) -> int:
-    server_path, client_path, model_yaml_path = resolve_launch_config_paths(model_dir)
-    server = load_variant_server(server_path, model_yaml_path)
-    if n_cpu_moe is not None:
-        try:
-            server = apply_n_cpu_moe(server, n_cpu_moe)
-        except ValueError as exc:
-            print(exc, file=sys.stderr)
-            return 1
+    try:
+        server, _model_yaml_path = resolve_model_server(model_dir, n_cpu_moe=n_cpu_moe)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
 
-    client = load_client_config(client_path)
-    base_url = resolve_base_url(server, client.base_url)
-
-    meta = config_dir_metadata(server_path.parent, TESTER_ROOT)
-    model_display = meta.get("model") or server.model_slug
+    base_url = resolve_base_url(server, None)
+    model_display = model_dir.name
 
     print(f"Starting {server.binary} (model: {model_display})...")
     print(f"Health URL: {base_url}")
@@ -70,10 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "model_dir",
         type=Path,
-        help=(
-            "model directory (uses bench/server.yaml) or variant directory "
-            "containing server.yaml"
-        ),
+        help="model directory containing model.yaml and server.yaml",
     )
     parser.add_argument(
         "--n-cpu-moe",

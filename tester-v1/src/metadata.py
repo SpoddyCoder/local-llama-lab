@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
-from pathlib import Path
-
-from config import ServerConfig, config_dir_metadata
+from config import ServerConfig, run_metadata
 
 _NVIDIA_SMI_GPU_QUERY = [
     "nvidia-smi",
@@ -96,8 +94,8 @@ def query_gpu_info() -> tuple[str | None, str | None]:
 def collect_run_metadata(
     server: ServerConfig,
     *,
-    config_dir: Path | None = None,
-    tester_root: Path | None = None,
+    model: str | None = None,
+    variant: str | None = None,
 ) -> dict[str, str | None]:
     """Gather optional metadata fields for a result JSON document."""
     gpu_name, driver_version = query_gpu_info()
@@ -105,8 +103,8 @@ def collect_run_metadata(
     meta["server_version"] = query_server_version(server.binary)
     meta["gpu_name"] = gpu_name
     meta["driver_version"] = driver_version
-    if config_dir is not None and tester_root is not None:
-        meta.update(config_dir_metadata(config_dir, tester_root))
+    if model is not None and variant is not None:
+        meta.update(run_metadata(model, variant))
     return meta
 
 

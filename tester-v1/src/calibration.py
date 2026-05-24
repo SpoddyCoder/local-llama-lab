@@ -9,7 +9,7 @@ import math
 import os
 from pathlib import Path
 
-from config import MODEL_YAML
+from model_layout import resolve_run_config
 from results import format_iso_utc, utc_now
 from runner import _run
 
@@ -298,65 +298,38 @@ def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
 
 def run_calibration_variant(
     model_dir: Path,
-    result_config_dir: Path,
-    reference_variant_dir: Path,
+    variant: str,
     *,
     save_result: bool,
     quiet: bool,
     session_id: str | None = None,
     n_cpu_moe: int | None = None,
 ) -> tuple[int, str]:
-    """Run a calibration probe in-process; return (returncode, captured output).
-
-    ``result_config_dir`` is passed as config_dir for result path layout (parent model.yaml).
-    Server and client YAML come from ``reference_variant_dir`` under calibration-tests/.
-    """
-    result_config_dir.mkdir(parents=True, exist_ok=True)
-    ref_server = reference_variant_dir / "server.yaml"
-    ref_client = reference_variant_dir / "client.yaml"
-    model_yaml = model_dir / MODEL_YAML
+    """Run a calibration probe in-process via resolve_run_config; return (returncode, captured output)."""
+    run_config = resolve_run_config(model_dir, variant, n_cpu_moe=n_cpu_moe)
     captured = io.StringIO()
-    try:
-        if save_result and quiet:
-            with contextlib.redirect_stdout(captured):
-                returncode = _run(
-                    ref_server,
-                    ref_client,
-                    model_yaml,
-                    result_config_dir,
-                    save_result=save_result,
-                    quiet=quiet,
-                    session_id=session_id,
-                    n_cpu_moe=n_cpu_moe,
-                )
-        elif not save_result:
-            with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
-                returncode = _run(
-                    ref_server,
-                    ref_client,
-                    model_yaml,
-                    result_config_dir,
-                    save_result=save_result,
-                    quiet=False,
-                    session_id=session_id,
-                    n_cpu_moe=n_cpu_moe,
-                )
-        else:
-            with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
-                returncode = _run(
-                    ref_server,
-                    ref_client,
-                    model_yaml,
-                    result_config_dir,
-                    save_result=save_result,
-                    quiet=quiet,
-                    session_id=session_id,
-                    n_cpu_moe=n_cpu_moe,
-                )
-    finally:
-        try:
-            if result_config_dir.is_dir() and not any(result_config_dir.iterdir()):
-                result_config_dir.rmdir()
-        except OSError:
-            pass
+    if save_result and quiet:
+        with contextlib.redirect_stdout(captured):
+            returncode = _run(
+                run_config,
+                save_result=save_result,
+                quiet=quiet,
+                session_id=session_id,
+            )
+    elif not save_result:
+        with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+            returncode = _run(
+                run_config,
+                save_result=save_result,
+                quiet=False,
+                session_id=session_id,
+            )
+    else:
+        with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+            returncode = _run(
+                run_config,
+                save_result=save_result,
+                quiet=quiet,
+                session_id=session_id,
+            )
     return returncode, captured.getvalue()

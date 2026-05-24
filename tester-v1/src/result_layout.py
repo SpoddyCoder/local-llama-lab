@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from config import _models_parts, config_dir_metadata
+from config import run_metadata
 from paths import RESULTS_DIR
 from results import format_compact_utc
 
@@ -20,25 +20,33 @@ class ResultTarget:
     layout: str
 
 
-def _result_variant_dir(config_dir: Path, tester_root: Path) -> Path:
-    """Directory that holds result JSON files for a config directory."""
-    model, variant = _models_parts(config_dir)
-    return RESULTS_DIR / model / variant
+def _variant_path_parts(variant: str) -> tuple[str, ...]:
+    """Split a variant string into directory components (e.g. foo/bar)."""
+    return tuple(part for part in variant.split("/") if part)
+
+
+def _run_id_suffix(model: str, variant: str) -> str:
+    """Build run_id suffix; nested variant slashes become hyphens for safety."""
+    return f"{model}-{variant.replace('/', '-')}"
+
+
+def _result_variant_dir(model: str, variant: str) -> Path:
+    """Directory that holds result JSON files for a model + variant."""
+    return RESULTS_DIR.joinpath(model, *_variant_path_parts(variant))
 
 
 def resolve_result_target(
-    config_dir: Path,
-    tester_root: Path,
+    model: str,
+    variant: str,
     started_at: datetime,
 ) -> ResultTarget:
-    """Resolve result JSON path and run_id suffix for a config directory."""
+    """Resolve result JSON path and run_id suffix for a model + variant."""
     compact = format_compact_utc(started_at)
-    meta = config_dir_metadata(config_dir, tester_root)
-    model, variant = _models_parts(config_dir)
-    json_path = RESULTS_DIR / model / variant / f"{compact}.json"
+    meta = run_metadata(model, variant)
+    json_path = _result_variant_dir(model, variant) / f"{compact}.json"
     return ResultTarget(
         json_path=json_path,
-        run_id_suffix=f"{model}-{variant}",
+        run_id_suffix=_run_id_suffix(model, variant),
         model=meta["model"],
         variant=meta["variant"],
         layout="standard",
@@ -52,11 +60,11 @@ def run_id_from_started_at(started_at: datetime, run_id_suffix: str) -> str:
 
 def find_latest_result(
     results_dir: Path,
-    config_dir: Path,
-    tester_root: Path,
+    model: str,
+    variant: str,
 ) -> Path:
-    """Return the newest result JSON for a config directory (by filename stem)."""
-    variant_dir = _result_variant_dir(config_dir, tester_root)
+    """Return the newest result JSON for a model + variant (by filename stem)."""
+    variant_dir = _result_variant_dir(model, variant)
     if not variant_dir.is_dir():
         raise FileNotFoundError(f"no result directory: {variant_dir}")
 

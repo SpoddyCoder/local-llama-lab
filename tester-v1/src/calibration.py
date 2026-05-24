@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import math
 import os
-import subprocess
-import sys
 from pathlib import Path
 
+from config import MODEL_YAML
 from results import format_iso_utc, utc_now
+from runner import _run
 
 VARIANT_FOOTPRINT = "calibration-footprint"
 VARIANT_CTX_PROBE = "calibration-ctx-probe"
@@ -26,7 +28,7 @@ _DECODE_TOK_S_METRIC_KEY = "decode_tok_s"
 
 
 def parse_idle_vram_from_metrics_stdout(text: str) -> int:
-    """Parse idle_vram_mb from a default single_test_runner probe stdout block."""
+    """Parse idle_vram_mb from a default probe stdout block."""
     for line in text.splitlines():
         if not line.startswith(_IDLE_VRAM_METRIC_KEY):
             continue
@@ -294,8 +296,8 @@ def format_summary_lines(summary: dict[str, float | int | None]) -> list[str]:
     return lines
 
 
-def run_variant_subprocess(
-    tester_root: Path,
+def run_calibration_variant(
+    model_dir: Path,
     result_config_dir: Path,
     reference_variant_dir: Path,
     *,
@@ -304,49 +306,57 @@ def run_variant_subprocess(
     session_id: str | None = None,
     n_cpu_moe: int | None = None,
 ) -> tuple[int, str]:
-    """Run single_test_runner for a calibration variant; return (returncode, captured output).
+    """Run a calibration probe in-process; return (returncode, captured output).
 
     ``result_config_dir`` is passed as config_dir for result path layout (parent model.yaml).
-    Server and client YAML come from ``reference_variant_dir`` under configs/reference/.
+    Server and client YAML come from ``reference_variant_dir`` under calibration-tests/.
     """
     result_config_dir.mkdir(parents=True, exist_ok=True)
     ref_server = reference_variant_dir / "server.yaml"
     ref_client = reference_variant_dir / "client.yaml"
-    runner = tester_root / "single_test_runner.py"
-    cmd = [
-        sys.executable,
-        str(runner),
-        str(result_config_dir),
-        "--server",
-        str(ref_server),
-        "--client",
-        str(ref_client),
-    ]
-    if save_result:
-        cmd.append("--save-result")
-    if save_result and quiet:
-        cmd.append("--quiet")
-    if session_id is not None:
-        cmd.extend(["--session-id", session_id])
-    if n_cpu_moe is not None:
-        cmd.extend(["--n-cpu-moe", str(n_cpu_moe)])
+    model_yaml = model_dir / MODEL_YAML
+    captured = io.StringIO()
     try:
-        proc = subprocess.run(
-            cmd,
-            cwd=tester_root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        if save_result and quiet:
+            with contextlib.redirect_stdout(captured):
+                returncode = _run(
+                    ref_server,
+                    ref_client,
+                    model_yaml,
+                    result_config_dir,
+                    save_result=save_result,
+                    quiet=quiet,
+                    session_id=session_id,
+                    n_cpu_moe=n_cpu_moe,
+                )
+        elif not save_result:
+            with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+                returncode = _run(
+                    ref_server,
+                    ref_client,
+                    model_yaml,
+                    result_config_dir,
+                    save_result=save_result,
+                    quiet=False,
+                    session_id=session_id,
+                    n_cpu_moe=n_cpu_moe,
+                )
+        else:
+            with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+                returncode = _run(
+                    ref_server,
+                    ref_client,
+                    model_yaml,
+                    result_config_dir,
+                    save_result=save_result,
+                    quiet=quiet,
+                    session_id=session_id,
+                    n_cpu_moe=n_cpu_moe,
+                )
     finally:
         try:
             if result_config_dir.is_dir() and not any(result_config_dir.iterdir()):
                 result_config_dir.rmdir()
         except OSError:
             pass
-    parts: list[str] = []
-    if proc.stdout:
-        parts.append(proc.stdout)
-    if proc.stderr:
-        parts.append(proc.stderr)
-    return proc.returncode, "".join(parts)
+    return returncode, captured.getvalue()

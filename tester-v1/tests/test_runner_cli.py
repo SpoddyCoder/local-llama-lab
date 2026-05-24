@@ -14,16 +14,20 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from calibration import parse_idle_system_ram_from_metrics_stdout  # noqa: E402
-from config import ClientConfig, ServerConfig  # noqa: E402
-from runner import _TESTER_ROOT, _run, main  # noqa: E402
+from config import MODEL_YAML, ClientConfig, ServerConfig  # noqa: E402
+from paths import MODELS_ROOT, RESULTS_DIR  # noqa: E402
+from runner import _run, main  # noqa: E402
 
-_MODEL_DIR = _TESTER_ROOT / "configs" / "qwen3.5-9b-q8"
+_MODEL_DIR = MODELS_ROOT / "qwen3.5-9b-q8"
 
 
-def _ephemeral_config_dir(tmp: str) -> Path:
-    config_dir = Path(tmp) / "hello-world-baseline"
-    config_dir.mkdir()
-    return config_dir
+def _ephemeral_variant_dir(tmp: str) -> tuple[Path, Path]:
+    models_root = Path(tmp)
+    model_dir = models_root / "qwen3.5-9b-q8"
+    variant_dir = model_dir / "hello-world-baseline"
+    variant_dir.mkdir(parents=True)
+    (model_dir / MODEL_YAML).write_text("model: /tmp/fake.gguf\n", encoding="utf-8")
+    return models_root, variant_dir
 
 
 @contextmanager
@@ -65,8 +69,7 @@ class TestRunSaveResult(unittest.TestCase):
             server = self._fake_server(tmp)
             client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
             result_path = (
-                _TESTER_ROOT
-                / "results"
+                RESULTS_DIR
                 / "qwen3.5-9b-q8"
                 / "hello-world-baseline"
                 / "20260101T000000Z.json"
@@ -97,16 +100,20 @@ class TestRunSaveResult(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
-                config_dir = _ephemeral_config_dir(tmp)
-                code = _run(
-                    Path(tmp) / "server.yaml",
-                    Path(tmp) / "client.yaml",
-                    _MODEL_DIR / "model.yaml",
-                    config_dir,
-                    save_result=True,
-                    quiet=True,
-                    include_output=False,
-                )
+                models_root, config_dir = _ephemeral_variant_dir(tmp)
+                with (
+                    patch("config.MODELS_ROOT", models_root),
+                    patch("paths.MODELS_ROOT", models_root),
+                ):
+                    code = _run(
+                        Path(tmp) / "server.yaml",
+                        Path(tmp) / "client.yaml",
+                        _MODEL_DIR / "model.yaml",
+                        config_dir,
+                        save_result=True,
+                        quiet=True,
+                        include_output=False,
+                    )
 
             self.assertEqual(code, 0)
             write_result.assert_called_once()
@@ -119,8 +126,7 @@ class TestRunSaveResult(unittest.TestCase):
             server = self._fake_server(tmp)
             client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
             result_path = (
-                _TESTER_ROOT
-                / "results"
+                RESULTS_DIR
                 / "qwen3.5-9b-q8"
                 / "hello-world-baseline"
                 / "20260101T000000Z.json"
@@ -151,16 +157,20 @@ class TestRunSaveResult(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
-                config_dir = _ephemeral_config_dir(tmp)
-                code = _run(
-                    Path(tmp) / "server.yaml",
-                    Path(tmp) / "client.yaml",
-                    _MODEL_DIR / "model.yaml",
-                    config_dir,
-                    save_result=True,
-                    quiet=False,
-                    include_output=False,
-                )
+                models_root, config_dir = _ephemeral_variant_dir(tmp)
+                with (
+                    patch("config.MODELS_ROOT", models_root),
+                    patch("paths.MODELS_ROOT", models_root),
+                ):
+                    code = _run(
+                        Path(tmp) / "server.yaml",
+                        Path(tmp) / "client.yaml",
+                        _MODEL_DIR / "model.yaml",
+                        config_dir,
+                        save_result=True,
+                        quiet=False,
+                        include_output=False,
+                    )
 
             self.assertEqual(code, 0)
             self.assertIn("Run:", stdout.getvalue())
@@ -268,16 +278,20 @@ class TestRunStdoutDefault(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
-                config_dir = _ephemeral_config_dir(tmp)
-                code = _run(
-                    Path(tmp) / "server.yaml",
-                    Path(tmp) / "client.yaml",
-                    _MODEL_DIR / "model.yaml",
-                    config_dir,
-                    save_result=True,
-                    quiet=True,
-                    include_output=True,
-                )
+                models_root, config_dir = _ephemeral_variant_dir(tmp)
+                with (
+                    patch("config.MODELS_ROOT", models_root),
+                    patch("paths.MODELS_ROOT", models_root),
+                ):
+                    code = _run(
+                        Path(tmp) / "server.yaml",
+                        Path(tmp) / "client.yaml",
+                        _MODEL_DIR / "model.yaml",
+                        config_dir,
+                        save_result=True,
+                        quiet=True,
+                        include_output=True,
+                    )
 
             self.assertEqual(code, 0)
             self.assertTrue(output_path.is_file())
@@ -411,8 +425,7 @@ class TestRunNCpuMoe(unittest.TestCase):
             server = self._fake_server(tmp)
             client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
             result_path = (
-                _TESTER_ROOT
-                / "results"
+                RESULTS_DIR
                 / "qwen3.5-9b-q8"
                 / "hello-world-baseline"
                 / "20260101T000000Z.json"
@@ -445,17 +458,21 @@ class TestRunNCpuMoe(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
-                config_dir = _ephemeral_config_dir(tmp)
-                code = _run(
-                    Path(tmp) / "server.yaml",
-                    Path(tmp) / "client.yaml",
-                    _MODEL_DIR / "model.yaml",
-                    config_dir,
-                    save_result=True,
-                    quiet=True,
-                    include_output=False,
-                    n_cpu_moe=22,
-                )
+                models_root, config_dir = _ephemeral_variant_dir(tmp)
+                with (
+                    patch("config.MODELS_ROOT", models_root),
+                    patch("paths.MODELS_ROOT", models_root),
+                ):
+                    code = _run(
+                        Path(tmp) / "server.yaml",
+                        Path(tmp) / "client.yaml",
+                        _MODEL_DIR / "model.yaml",
+                        config_dir,
+                        save_result=True,
+                        quiet=True,
+                        include_output=False,
+                        n_cpu_moe=22,
+                    )
 
             self.assertEqual(code, 0)
             sample_rss.assert_called_once_with(12345)
@@ -521,8 +538,7 @@ class TestRunNCpuMoe(unittest.TestCase):
             server = self._fake_server(tmp)
             client = ClientConfig(messages=[{"role": "user", "content": "hi"}])
             result_path = (
-                _TESTER_ROOT
-                / "results"
+                RESULTS_DIR
                 / "qwen3.5-9b-q8"
                 / "hello-world-baseline"
                 / "20260101T000000Z.json"
@@ -555,16 +571,20 @@ class TestRunNCpuMoe(unittest.TestCase):
             ):
                 poller = poller_cls.return_value
                 poller.stop.return_value = None
-                config_dir = _ephemeral_config_dir(tmp)
-                code = _run(
-                    Path(tmp) / "server.yaml",
-                    Path(tmp) / "client.yaml",
-                    _MODEL_DIR / "model.yaml",
-                    config_dir,
-                    save_result=True,
-                    quiet=True,
-                    include_output=False,
-                )
+                models_root, config_dir = _ephemeral_variant_dir(tmp)
+                with (
+                    patch("config.MODELS_ROOT", models_root),
+                    patch("paths.MODELS_ROOT", models_root),
+                ):
+                    code = _run(
+                        Path(tmp) / "server.yaml",
+                        Path(tmp) / "client.yaml",
+                        _MODEL_DIR / "model.yaml",
+                        config_dir,
+                        save_result=True,
+                        quiet=True,
+                        include_output=False,
+                    )
 
             self.assertEqual(code, 0)
             sample_rss.assert_not_called()
@@ -574,21 +594,13 @@ class TestRunNCpuMoe(unittest.TestCase):
 
 
 class TestMainArgparse(unittest.TestCase):
-    def test_main_no_args_prints_help(self) -> None:
-        stdout = io.StringIO()
-        with patch("sys.stdout", stdout):
-            code = main([])
-        self.assertEqual(code, 0)
-        self.assertIn("usage:", stdout.getvalue())
-        self.assertIn("config_dir", stdout.getvalue())
-
     def test_main_save_result_quiet_passes_flags_to_run(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        config = "models/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (
-                _TESTER_ROOT / "server.yaml",
-                _TESTER_ROOT / "client.yaml",
-                _TESTER_ROOT / "model.yaml",
+                Path("/tmp/server.yaml"),
+                Path("/tmp/client.yaml"),
+                Path("/tmp/model.yaml"),
             )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--save-result", "--quiet"])
@@ -600,12 +612,12 @@ class TestMainArgparse(unittest.TestCase):
         self.assertIsNone(kwargs["session_id"])
 
     def test_main_include_output_without_save_result_passes_bool(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        config = "models/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (
-                _TESTER_ROOT / "server.yaml",
-                _TESTER_ROOT / "client.yaml",
-                _TESTER_ROOT / "model.yaml",
+                Path("/tmp/server.yaml"),
+                Path("/tmp/client.yaml"),
+                Path("/tmp/model.yaml"),
             )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--include-output"])
@@ -615,12 +627,12 @@ class TestMainArgparse(unittest.TestCase):
         self.assertTrue(kwargs["include_output"])
 
     def test_main_include_output_with_save_result_passes_bool(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        config = "models/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (
-                _TESTER_ROOT / "server.yaml",
-                _TESTER_ROOT / "client.yaml",
-                _TESTER_ROOT / "model.yaml",
+                Path("/tmp/server.yaml"),
+                Path("/tmp/client.yaml"),
+                Path("/tmp/model.yaml"),
             )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--save-result", "--include-output"])
@@ -630,12 +642,12 @@ class TestMainArgparse(unittest.TestCase):
         self.assertTrue(kwargs["include_output"])
 
     def test_main_session_id_passed_through(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        config = "models/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (
-                _TESTER_ROOT / "server.yaml",
-                _TESTER_ROOT / "client.yaml",
-                _TESTER_ROOT / "model.yaml",
+                Path("/tmp/server.yaml"),
+                Path("/tmp/client.yaml"),
+                Path("/tmp/model.yaml"),
             )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--save-result", "--session-id", "cal-1"])
@@ -643,12 +655,12 @@ class TestMainArgparse(unittest.TestCase):
         self.assertEqual(kwargs["session_id"], "cal-1")
 
     def test_main_n_cpu_moe_passes_to_run(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        config = "models/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (
-                _TESTER_ROOT / "server.yaml",
-                _TESTER_ROOT / "client.yaml",
-                _TESTER_ROOT / "model.yaml",
+                Path("/tmp/server.yaml"),
+                Path("/tmp/client.yaml"),
+                Path("/tmp/model.yaml"),
             )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--n-cpu-moe", "22"])
@@ -657,12 +669,12 @@ class TestMainArgparse(unittest.TestCase):
         self.assertEqual(kwargs["n_cpu_moe"], 22)
 
     def test_main_quiet_without_save_result_is_noop(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
+        config = "models/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
             resolve.return_value = (
-                _TESTER_ROOT / "server.yaml",
-                _TESTER_ROOT / "client.yaml",
-                _TESTER_ROOT / "model.yaml",
+                Path("/tmp/server.yaml"),
+                Path("/tmp/client.yaml"),
+                Path("/tmp/model.yaml"),
             )
             with patch("runner._run", return_value=0) as run:
                 main([config, "--quiet"])
@@ -676,7 +688,7 @@ class TestMainArgparse(unittest.TestCase):
         stderr = io.StringIO()
         with patch("sys.stderr", stderr):
             with self.assertRaises(SystemExit):
-                main(["configs/qwen3.5-9b-q8/bench/", "--test-server"])
+                main(["models/qwen3.5-9b-q8/bench/", "--test-server"])
         self.assertIn("unrecognized arguments", stderr.getvalue())
         self.assertIn("--test-server", stderr.getvalue())
 
@@ -684,7 +696,7 @@ class TestMainArgparse(unittest.TestCase):
         stderr = io.StringIO()
         with patch("sys.stderr", stderr):
             with self.assertRaises(SystemExit):
-                main(["--test-client"])
+                main(["models/qwen3.5-9b-q8/bench/", "--test-client"])
         self.assertIn("unrecognized arguments", stderr.getvalue())
         self.assertIn("--test-client", stderr.getvalue())
 

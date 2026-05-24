@@ -13,13 +13,13 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from launch_server import (  # noqa: E402
-    _TESTER_ROOT,
     main,
     resolve_launch_config_paths,
     run_launch_server,
 )
+from paths import MODELS_ROOT  # noqa: E402
 
-_MODEL_DIR = _TESTER_ROOT / "configs" / "qwen3.5-9b-q8"
+_MODEL_DIR = MODELS_ROOT / "qwen3.5-9b-q8"
 _BENCH_DIR = _MODEL_DIR / "bench"
 
 
@@ -46,7 +46,7 @@ class TestResolveLaunchConfigPaths(unittest.TestCase):
 
     def test_missing_dir_raises(self) -> None:
         with self.assertRaises(FileNotFoundError) as ctx:
-            resolve_launch_config_paths(_TESTER_ROOT / "configs" / "missing-model")
+            resolve_launch_config_paths(MODELS_ROOT / "missing-model")
         self.assertIn("Config directory not found", str(ctx.exception))
 
 
@@ -107,7 +107,7 @@ class TestLaunchServerMain(unittest.TestCase):
 
     def test_main_missing_dir(self) -> None:
         with _capture_output() as (_stdout, stderr):
-            code = main(["configs/missing-model"])
+            code = main(["models/missing-model"])
         self.assertEqual(code, 1)
         self.assertIn("Config directory not found", stderr.getvalue())
 

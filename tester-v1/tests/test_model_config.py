@@ -20,10 +20,10 @@ from config import (  # noqa: E402
 
 class TestModelYamlPathForVariant(unittest.TestCase):
     def test_returns_parent_model_yaml(self) -> None:
-        variant_dir = Path("/tmp/configs/my-model/hello-world-baseline")
+        variant_dir = Path("/tmp/models/my-model/hello-world-baseline")
         self.assertEqual(
             model_yaml_path_for_variant(variant_dir),
-            Path("/tmp/configs/my-model") / MODEL_YAML,
+            Path("/tmp/models/my-model") / MODEL_YAML,
         )
 
 

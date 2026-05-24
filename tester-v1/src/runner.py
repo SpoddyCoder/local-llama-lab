@@ -31,11 +31,11 @@ from results import (
     write_result,
 )
 from host_ram import sample_process_rss_mb
+from paths import RESULTS_DIR, TESTER_ROOT
 from server import fetch_model_max_context, managed_server, resolve_base_url
 from vram import VramPoller, sample_vram_mb
 
-_TESTER_ROOT = Path(__file__).resolve().parent.parent
-_RESULTS_DIR = _TESTER_ROOT / "results"
+_TESTER_ROOT = TESTER_ROOT
 
 
 def _load_server(server_path: Path, model_yaml_path: Path) -> ServerConfig:
@@ -44,7 +44,7 @@ def _load_server(server_path: Path, model_yaml_path: Path) -> ServerConfig:
 
 def _result_path_display(result_path: Path) -> str:
     try:
-        return str(result_path.relative_to(_TESTER_ROOT))
+        return str(result_path.relative_to(TESTER_ROOT))
     except ValueError:
         return str(result_path)
 
@@ -77,7 +77,7 @@ def _run(
     client = replace(client, base_url=base_url)
 
     if not save_result:
-        meta = config_dir_metadata(config_dir, _TESTER_ROOT)
+        meta = config_dir_metadata(config_dir, TESTER_ROOT)
         model_display = meta.get("model") or server.model_slug
         print(f"Starting {server.binary} (model: {model_display})...")
         print(f"API URL: {base_url}")
@@ -148,18 +148,18 @@ def _run(
             metadata=collect_run_metadata(
                 server,
                 config_dir=config_dir,
-                tester_root=_TESTER_ROOT,
+                tester_root=TESTER_ROOT,
             ),
             config_dir=config_dir,
-            tester_root=_TESTER_ROOT,
+            tester_root=TESTER_ROOT,
             session_id=session_id,
         )
         run_id = document["run_id"]
         result_path = write_result(
-            _RESULTS_DIR,
+            RESULTS_DIR,
             document,
             config_dir=config_dir,
-            tester_root=_TESTER_ROOT,
+            tester_root=TESTER_ROOT,
             started_at=started_at,
         )
     except OSError as exc:
@@ -191,49 +191,24 @@ def _run(
                     result_path,
                     server,
                     metrics_dict,
-                    tester_root=_TESTER_ROOT,
+                    tester_root=TESTER_ROOT,
                 )
             )
         return 0
 
     print(
-        format_error_summary(error or "unknown error", result_path, tester_root=_TESTER_ROOT),
+        format_error_summary(error or "unknown error", result_path, tester_root=TESTER_ROOT),
         file=sys.stderr,
     )
     return 1
 
 
-def resolve_config_paths(
-    config_dir: Path | None,
-    server_override: Path | None,
-    client_override: Path | None,
-    model_yaml_override: Path | None,
-    tester_root: Path,
-) -> tuple[Path, Path, Path]:
-    if config_dir is None:
-        if server_override is None or client_override is None:
-            missing = []
-            if server_override is None:
-                missing.append("--server")
-            if client_override is None:
-                missing.append("--client")
-            raise FileNotFoundError(
-                "config_dir is required, or pass both "
-                + " and ".join(missing)
-            )
-        if model_yaml_override is None:
-            raise FileNotFoundError(
-                "config_dir is required, or pass --server, --client, and --model-yaml"
-            )
-        if not model_yaml_override.is_file():
-            raise FileNotFoundError(f"model config not found: {model_yaml_override}")
-        return server_override, client_override, model_yaml_override
-
+def resolve_config_paths(config_dir: Path) -> tuple[Path, Path, Path]:
     if not config_dir.is_dir():
         raise FileNotFoundError(f"Config directory not found: {config_dir}")
 
-    server = server_override or config_dir / "server.yaml"
-    client = client_override or config_dir / "client.yaml"
+    server = config_dir / "server.yaml"
+    client = config_dir / "client.yaml"
     model_yaml = config_dir.parent / MODEL_YAML
 
     missing: list[str] = []
@@ -254,32 +229,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Local model tester v1")
     parser.add_argument(
         "config_dir",
-        nargs="?",
         type=Path,
         help=(
             "variant directory containing server.yaml and client.yaml "
             "(model path from parent model.yaml)"
-        ),
-    )
-    parser.add_argument(
-        "--server",
-        type=Path,
-        default=None,
-        help="server.yaml path (default: config_dir/server.yaml)",
-    )
-    parser.add_argument(
-        "--client",
-        type=Path,
-        default=None,
-        help="client.yaml path (default: config_dir/client.yaml)",
-    )
-    parser.add_argument(
-        "--model-yaml",
-        type=Path,
-        default=None,
-        help=(
-            "model.yaml path (default: parent of config_dir; required with "
-            "--server and --client when config_dir is omitted)"
         ),
     )
     parser.add_argument(
@@ -311,28 +264,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.config_dir is None and args.server is None and args.client is None:
-        parser.print_help()
-        return 0
-
     try:
-        server_path, client_path, model_yaml_path = resolve_config_paths(
-            args.config_dir,
-            args.server,
-            args.client,
-            args.model_yaml,
-            _TESTER_ROOT,
-        )
+        server_path, client_path, model_yaml_path = resolve_config_paths(args.config_dir)
     except FileNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 1
 
-    config_dir = args.config_dir
     return _run(
         server_path,
         client_path,
         model_yaml_path,
-        config_dir,
+        args.config_dir,
         save_result=args.save_result,
         quiet=args.quiet if args.save_result else False,
         include_output=args.include_output,

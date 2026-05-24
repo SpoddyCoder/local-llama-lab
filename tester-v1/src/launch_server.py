@@ -8,47 +8,21 @@ import time
 from pathlib import Path
 
 from config import (
-    MODEL_YAML,
     apply_n_cpu_moe,
     config_dir_metadata,
     load_client_config,
     load_variant_server,
 )
+from model_layout import resolve_model_variant
+from paths import TESTER_ROOT
 from server import managed_server, resolve_base_url
 
-_TESTER_ROOT = Path(__file__).resolve().parent.parent
-_BENCH_VARIANT = "bench"
+_TESTER_ROOT = TESTER_ROOT
 
 
 def resolve_launch_config_paths(model_dir: Path) -> tuple[Path, Path, Path]:
     """Resolve server.yaml, client.yaml, and model.yaml for launch_server."""
-    if not model_dir.is_dir():
-        raise FileNotFoundError(f"Config directory not found: {model_dir}")
-
-    if (model_dir / "server.yaml").is_file():
-        variant_dir = model_dir
-        model_yaml = model_dir.parent / MODEL_YAML
-    elif (model_dir / _BENCH_VARIANT / "server.yaml").is_file():
-        variant_dir = model_dir / _BENCH_VARIANT
-        model_yaml = model_dir / MODEL_YAML
-    else:
-        raise FileNotFoundError(
-            f"No server.yaml in {model_dir} or {model_dir / _BENCH_VARIANT}"
-        )
-
-    server = variant_dir / "server.yaml"
-    client = variant_dir / "client.yaml"
-
-    missing: list[str] = []
-    if not client.is_file():
-        missing.append(client.name)
-    if not model_yaml.is_file():
-        missing.append(MODEL_YAML)
-    if missing:
-        names = ", ".join(missing)
-        raise FileNotFoundError(f"Config files missing for {model_dir}: {names}")
-
-    return server, client, model_yaml
+    return resolve_model_variant(model_dir)
 
 
 def run_launch_server(
@@ -68,7 +42,7 @@ def run_launch_server(
     client = load_client_config(client_path)
     base_url = resolve_base_url(server, client.base_url)
 
-    meta = config_dir_metadata(server_path.parent, _TESTER_ROOT)
+    meta = config_dir_metadata(server_path.parent, TESTER_ROOT)
     model_display = meta.get("model") or server.model_slug
 
     print(f"Starting {server.binary} (model: {model_display})...")

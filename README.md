@@ -1,14 +1,16 @@
 # Local Model Testing (`llama.cpp`)
+
 First forays into local model usage, this is about tuning and understanding the most efficient models and configurations for the llama.cpp server.
 
 System is relatively modest for AI work, but surprisingly viable for cutting edge open-source models...
 
-* WSL2 instance on a Windows host
-* 32Gb System RAM, 26Gb allocated to WSL
-* 5080 with 16Gb VRAM
-* See [system setup](#system-setup) for more details.
+- WSL2 instance on a Windows host
+- 32Gb System RAM, 26Gb allocated to WSL
+- 5080 with 16Gb VRAM
+- See [system setup](#system-setup) for more details.
 
 ## Dependencies
+
 ```bash
 ./wsl-builder.sh dev-python python3
 ./wsl-builder.sh ai cuda132,llama-cpp,huggingface-cli
@@ -16,62 +18,69 @@ System is relatively modest for AI work, but surprisingly viable for cutting edg
 
 ## Models
 
-| Model | Throughput · context | Memory · setup |
-|-------|------------------------|----------------|
-| [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>April 2026 · MoE<br>Tool-calling, structured output. | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB** |
-| [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)<br>April 2026 · MoE<br>35B MoE, 3B active. | Throughput: **~52 tok/s**<br>Est. context: **69K**<br>Max context: **262K** | Model VRAM: **10.50 GB**<br>System RAM: **11.97 GB**<br>KV VRAM: **5.33 GB**<br>Disk: **22.36 GB**<br>`--n-cpu-moe 24`|
-| [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)<br>March 2026 · Dense<br>100+ languages; strong generalist. | Throughput: **~86 tok/s**<br>Est. context: **79K**<br>Max context: **262K** | Model VRAM: **8.79 GB**<br>KV VRAM: **7.03 GB**<br>Disk: **9.55 GB** |
-| [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)<br>April 2026 · Dense<br>Barely fits 16 GB. | Throughput: **~46 tok/s**<br>Est. context: **9K**<br>Max context: **262K** | Model VRAM: **15.22 GB**<br>KV VRAM: **0.60 GB**<br>Disk: **15.79 GB** |
+| Model                                                                                                                                                                                                                 | Throughput · context                                                    | Memory · setup                                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>Edge (4.5B effective)<br>Multimodal, tool-calling; fast on 16 GB VRAM.<br>LiveCodeBench: **52.0%**<br>April 2026                            | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB**                                            |
+| [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)<br>MoE (35B / 3B active)<br>Agentic coding leader; needs CPU-offloaded MoE on 16 GB.<br>LiveCodeBench: **80.4%**<br>April 2026 | Throughput: **~52 tok/s**<br>Est. context: **69K**<br>Max context: **262K**   | Model VRAM: **10.50 GB**<br>System RAM: **11.97 GB**<br>KV VRAM: **5.33 GB**<br>Disk: **22.36 GB**<br>`--n-cpu-moe 24` |
+| [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)<br>Dense 9B<br>201 languages, multimodal; great quality/speed balance<br>LiveCodeBench: **82.7%**<br>March 2026                            | Throughput: **~86 tok/s**<br>Est. context: **79K**<br>Max context: **262K**   | Model VRAM: **8.79 GB**<br>KV VRAM: **7.03 GB**<br>Disk: **9.55 GB**                                             |
+| [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)<br>Dense 27B<br>Strong coding/reasonin; not really usable on 16 GB<br>LiveCodeBench: **83.9%**<br>April 2026                             | Throughput: **~46 tok/s**<br>Est. context: **9K**<br>Max context: **262K**    | Model VRAM: **15.22 GB**<br>KV VRAM: **0.60 GB**<br>Disk: **15.79 GB**                                           |
+
+LiveCodeBench v6 scores from official vendor model cards. [LiveCodeBench](https://livecodebench.github.io/)
+
 
 Download a model from Hugging Face...
 
 ```bash
 hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
 ```
+
 Note: if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
 
 ---
 
 ## Tester v1
-* Calibration tests are used to test overall throughput and rough expected max context window given a 16Gb card.
-* See [tester-v1/README.md](tester-v1/README.md) for more details and requirements.
+
+- Calibration tests measure throughput and rough max context window on a 16 GB card.
+- See [tester-v1/README.md](tester-v1/README.md) for harness details.
+
+Run CLIs from the repo root (no `cd tester-v1`).
 
 ### Run a server
 
 ```bash
-cd tester-v1
-./launch_server.py configs/qwen3.5-9b-q8/
+./launch_server.py models/qwen3.5-9b-q8/
 ```
 
 Use a browser to access the llama web UI while it is running (port depends on `server.yaml` but is typically 8080):
 
 [https://localhost:8080](https://localhost:8080)
 
-### Calibration Probe Runs
+### Calibration probe runs
 
 ```bash
 # standard dense model
-./model_calibration.py configs/qwen3.5-9b-q8
+./tester_v1_calibrate.py models/qwen3.5-9b-q8
 
-# for MoE models, define how many experts you want to lay off the CPU (to fit large models on small cards)...
-./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
+# MoE models: offload experts to CPU (to fit large models on small cards)
+./tester_v1_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
 ```
 
-* Each model has `model.yaml` under [tester-v1/configs/{model}/](tester-v1/configs/).
-* The test probe `client.yaml` & `server.yaml`'s are under [tester-v1/configs/reference/](tester-v1/configs/reference/). 
-* For MoE models, pass `--n-cpu-moe N` on calibration (also works for single_test_runner)
-* Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
+- Each model has `model.yaml` under [models/{model}/](models/).
+- Shared calibration probe YAML lives under [tester-v1/calibration-tests/](tester-v1/calibration-tests/).
+- For MoE models, pass `--n-cpu-moe N` on calibration (also works for `tester_v1_run_test.py`).
+- Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
 ---
 
 ## Key Learnings
 
-### MoE vs dense
+### Model types
 
 Model filenames often encode the architecture:
 
-* **Dense** (e.g. `Qwen3.5-9B`): every parameter runs on every token. Simpler to load; VRAM scales with total size.
-* **MoE** (e.g. `35B-A3B`): many experts, but only a few fire per token (~3B active here). Delivers near-large-model quality at small-model speed, but you may need `--n-cpu-moe` to split expert weights between GPU and CPU on a 16Gb card.
+- **Dense** (e.g. `Qwen3.5-9B`, `Qwen3.6-27B`): every parameter runs on every token. Simpler to load; VRAM scales with total size.
+- **MoE** (e.g. `35B-A3B`): many expert sub-networks, but only a few activate per token (~3B active here). Near-large-model quality at small-model speed; on 16 GB you may need `--n-cpu-moe` to offload experts to CPU RAM.
+- **Edge** (e.g. `Gemma-4-E4B`): Google's Per-Layer Embeddings (PLE), not MoE. Most weights live in per-layer embedding tables (~4.5B effective params, ~8B on disk). Built for laptops and phones: fast decode, modest VRAM, strong tool use for the size. Loads and runs like a dense model in llama.cpp.
 
 ### Reading quant names
 
@@ -79,33 +88,33 @@ Quantization shrinks weights so bigger models fit on consumer GPUs. Names look c
 
 **Bit width (the number):**
 
-* `FP16` / `BF16`: near full quality; huge files. Use when VRAM is not a constraint and you want baseline fidelity.
-* `Q8`: ~8 bits per weight; often hard to tell from full precision. Best quality-to-size ratio when you have headroom.
-* `Q4`: ~4 bits; answers can slip on hard tasks. The usual tradeoff for fitting 20B+ models locally.
-* `Q2`: ~2 bits; quality drops sharply and varies by model. Last resort when nothing else fits.
+- `FP16` / `BF16`: near full quality; huge files. Use when VRAM is not a constraint and you want baseline fidelity.
+- `Q8`: ~8 bits per weight; often hard to tell from full precision. Best quality-to-size ratio when you have headroom.
+- `Q4`: ~4 bits; answers can slip on hard tasks. The usual tradeoff for fitting 20B+ models locally.
+- `Q2`: ~2 bits; quality drops sharply and varies by model. Last resort when nothing else fits.
 
 **Prefix:**
 
-* `UD-` (Unsloth Dynamic): mixed precision per layer, tuned with calibration data. Better chat/coding quality at the same nominal Q4 size, at the cost of slightly slower inference.
+- `UD-` (Unsloth Dynamic): mixed precision per layer, tuned with calibration data. Better chat/coding quality at the same nominal Q4 size, at the cost of slightly slower inference.
 
 **Family:**
 
-* `Q4_K`: standard llama.cpp K-quants; mixed block sizes inside the file. Predictable, well-tested 4-bit format.
-* `IQ4`: importance quants; lean harder on calibration to preserve quality at lower size. Smallest files in the ~4-bit class (e.g. `IQ4_XS` ~18 GB vs `Q4_K_XL` ~23 GB on the same model).
-* `MXFP4_MOE`: microscaling FP4 aimed at MoE expert weights. Tuned for sparse expert layers rather than uniform `Q4_K` blocks.
+- `Q4_K`: standard llama.cpp K-quants; mixed block sizes inside the file. Predictable, well-tested 4-bit format.
+- `IQ4`: importance quants; lean harder on calibration to preserve quality at lower size. Smallest files in the ~4-bit class (e.g. `IQ4_XS` ~18 GB vs `Q4_K_XL` ~23 GB on the same model).
+- `MXFP4_MOE`: microscaling FP4 aimed at MoE expert weights. Tuned for sparse expert layers rather than uniform `Q4_K` blocks.
 
 **Tier suffix (`S` / `M` / `L` / `XL` / `XS` / `NL`):**
 
-* `S` (small): most compressed in that family. Saves disk and VRAM but expect more quality loss.
-* `M` (medium): balanced default and a safe general-purpose pick when you are unsure.
-* `L` (large): less compression than `S`/`M`; a step up in quality within the same Q4 family.
-* `XL`: not "extra large file" but a smart mix that keeps sensitive tensors at `Q5`/`Q6` while the rest stays `Q4`. Best quality in the Q4 class; Unsloth's usual recommendation over plain `Q4_K_M`.
-* `XS` (I-quants only): extra-small; most aggressive IQ compression. Maximum headroom for context on tight VRAM.
-* `NL` (I-quants only): non-linear dequant scheme; slightly larger than `XS`. Often a better speed/quality tradeoff than `XS` at similar size.
+- `S` (small): most compressed in that family. Saves disk and VRAM but expect more quality loss.
+- `M` (medium): balanced default and a safe general-purpose pick when you are unsure.
+- `L` (large): less compression than `S`/`M`; a step up in quality within the same Q4 family.
+- `XL`: not "extra large file" but a smart mix that keeps sensitive tensors at `Q5`/`Q6` while the rest stays `Q4`. Best quality in the Q4 class; Unsloth's usual recommendation over plain `Q4_K_M`.
+- `XS` (I-quants only): extra-small; most aggressive IQ compression. Maximum headroom for context on tight VRAM.
+- `NL` (I-quants only): non-linear dequant scheme; slightly larger than `XS`. Often a better speed/quality tradeoff than `XS` at similar size.
 
 **Other:**
 
-* `TurboQuant`: newer KV-cache compression (`turbo3` / `turbo4`), not the weight file itself. Stretches context without re-downloading a different GGUF.
+- `TurboQuant`: newer KV-cache compression (`turbo3` / `turbo4`), not the weight file itself. Stretches context without re-downloading a different GGUF.
 
 Example: `Qwen3.6-35B-A3B-UD-Q4_K_XL` = MoE model, Unsloth Dynamic mixed Q4 quant, XL tier (best Q4 quality).
 
@@ -124,22 +133,24 @@ Requires an MTP GGUF and server flags:
 Without those flags you carry the extra weights but get no speed benefit.
 
 ### Server Config
-* `--fit off` - disable llama.cpp auto VRAM fitting on load (on by default).
-  * Fit can shrink context or move layers to CPU to avoid OOM; on large models that often costs a lot of tok/s.
-  * Use when you already set `--ctx-size`.
-* `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
-  * Negatively affects startup time tho.
-* `--n-gpu-layers 999 --n-cpu-moe 41` - use with MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
-  * Tune 42 down to use more gpu vram (more experts on vram)
-  * Any VRAM not used by the model is used by the KV cache (context length), so you should wnat to leave 1-4Gb free.
-* `--cache-type-k turbo4 --cache-type-v turbo3` - use turbo4 for cache keys and turbo3 for cache values (TurboQuant).
-  * Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
-  * Doesn't appear to be available in the WSL fork of llama.cpp yet
-* `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
+
+- `--fit off` - disable llama.cpp auto VRAM fitting on load (on by default).
+  - Fit can shrink context or move layers to CPU to avoid OOM; on large models that often costs a lot of tok/s.
+  - Use when you already set `--ctx-size`.
+- `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
+  - Negatively affects startup time tho.
+- `--n-gpu-layers 999 --n-cpu-moe 41` - use with MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
+  - Tune 42 down to use more gpu vram (more experts on vram)
+  - Any VRAM not used by the model is used by the KV cache (context length), so you should wnat to leave 1-4Gb free.
+- `--cache-type-k turbo4 --cache-type-v turbo3` - use turbo4 for cache keys and turbo3 for cache values (TurboQuant).
+  - Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
+  - Doesn't appear to be available in the WSL fork of llama.cpp yet
+- `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
 
 ---
 
 ## System Setup
+
 WSL2, Ubuntu 24.04...
 
 ```
@@ -162,3 +173,4 @@ local-model-tests/$ free -h
 Mem:            25Gi       1.4Gi        10Gi       3.2Mi        13Gi        23Gi
 Swap:           64Gi       351Mi        63Gi
 ```
+

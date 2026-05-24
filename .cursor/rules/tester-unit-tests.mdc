@@ -10,7 +10,7 @@ alwaysApply: false
 
 That tree is gitignored harness output only. Use inline dicts/strings or `tempfile` for fixtures and assertions.
 
-Read-only use of `_TESTER_ROOT / "configs/..."` is fine.
+Read-only use of `MODELS_ROOT / "..."` is fine.
 
 ## Mocked save-result paths
 

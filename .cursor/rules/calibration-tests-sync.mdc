@@ -1,28 +1,28 @@
 ---
-description: Propagate configs/reference template changes (reference only; live models keep model.yaml)
-globs: tester-v1/configs/reference/**
+description: Propagate calibration-tests template changes (calibration-tests only; live models keep model.yaml)
+globs: tester-v1/calibration-tests/**
 alwaysApply: false
 ---
 
-# Reference template updates
+# Calibration test template updates
 
-After editing `tester-v1/configs/reference/` (unless the user says not to sync):
+After editing `tester-v1/calibration-tests/` (unless the user says not to sync):
 
 ## Live models
 
-All subdirs of `tester-v1/configs/` except `reference/`. Discover dynamically; do not hardcode slugs.
+All subdirs of `models/` at the repo root. Discover dynamically; do not hardcode slugs.
 
-Each live dir should have `model.yaml` and usually `bench/` (model-local, not synced from reference). Optional extra variant dirs are model-specific.
+Each live dir should have `model.yaml` and usually `bench/` (model-local, not synced from calibration-tests). Optional extra variant dirs are model-specific.
 
 ## Do not
 
-1. Copy `reference/{variant}/` into live models. Calibration reads reference via `--server` / `--client`.
+1. Copy `calibration-tests/{variant}/` into live models. Calibration reads probes in-process from `calibration-tests/`.
 2. Create or update `calibration-footprint/`, `calibration-ctx-probe/`, or `hello-world-baseline/` under live models.
-3. Delete live variant dirs that are absent from `reference/` (e.g. `bench/`).
-4. Overwrite live `model.yaml` from `reference/model.yaml` (reference `model.yaml` is a structural template only).
+3. Delete live variant dirs that are absent from `calibration-tests/` (e.g. `bench/`).
+4. Overwrite live `model.yaml` from `calibration-tests/model.yaml` (that file is a structural template only).
 
 If a slug lacks `model.yaml`, ask the user for `gguf_path` before writing.
 
 ## Notify the user
 
-Report: which `reference/` files changed; live dirs were not given probe copies; any missing `model.yaml`; model-specific dirs left untouched.
+Report: which `calibration-tests/` files changed; live dirs were not given probe copies; any missing `model.yaml`; model-specific dirs left untouched.

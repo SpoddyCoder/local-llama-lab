@@ -1,35 +1,35 @@
 ---
-description: Keep configs reference templates in sync; do not run reference paths
-globs: tester-v1/configs/**,.cursor/skills/create-model-configs/**
+description: Keep calibration-tests templates in sync; do not run calibration-tests paths as config_dir
+globs: models/**,.cursor/skills/create-model-configs/**
 alwaysApply: false
 ---
 
-# Configs reference templates
+# Calibration test templates
 
 ## Canonical source
 
-`tester-v1/configs/reference/` is the only source for shared probe YAML. The create-model-configs skill copies from here, never from live model dirs.
+`tester-v1/calibration-tests/` is the only source for shared probe YAML. The create-model-configs skill copies bench YAML from here, never from live model dirs.
 
-**In reference:** global probes for calibration and manual `--server` / `--client` runs (`calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`, plus any future promoted probes).
+**In calibration-tests:** global probes for calibration (`calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`, plus any future promoted probes).
 
-**Not in reference:** per-model variants such as `bench/` or one-off experiments. Add those only under `configs/{model_slug}/`.
+**Not in calibration-tests:** per-model variants such as `bench/` or one-off experiments. Add those only under `models/{model_slug}/`.
 
 ## Promote / demote
 
-- **Promote:** add `{variant}/server.yaml` and `client.yaml` under `reference/`, then register the variant in `model_calibration` (today hardcoded to the three names above). Do not copy probe YAML into live model dirs; see `configs-reference-sync.mdc`.
-- **Demote:** remove from `reference/` only; live copies may stay.
+- **Promote:** add `{variant}/server.yaml` and `client.yaml` under `calibration-tests/`, then register the variant in `tester-v1/src/calibration.py` (today hardcoded to the three names above). Do not copy probe YAML into live model dirs; see `calibration-tests-sync.mdc`.
+- **Demote:** remove from `calibration-tests/` only; live copies may stay.
 
-**Default edits:** change shared behavior in `reference/`. One-off tweaks stay in that model's variant dir and are not copied to `reference/` unless promoted.
+**Default edits:** change shared behavior in `calibration-tests/`. One-off tweaks stay in that model's variant dir and are not copied to `calibration-tests/` unless promoted.
 
-When `reference/` changes, follow `configs-reference-sync.mdc`.
+When `calibration-tests/` changes, follow `calibration-tests-sync.mdc`.
 
-## How calibration uses reference
+## How calibration uses calibration-tests
 
-`model_calibration.py` checks `configs/reference/{variant}/`, then runs `single_test_runner.py` with:
+`tester_v1_calibrate.py` validates `calibration-tests/{variant}/`, then runs probes in-process with:
 
-- `config_dir` = `configs/{model}/{variant}/` (ephemeral dir for result layout; parent supplies `model.yaml`)
-- `--server` / `--client` = `configs/reference/{variant}/`
+- probe server/client from `calibration-tests/{variant}/`
+- ephemeral result layout under `models/{model}/{variant}/` (parent supplies `model.yaml`)
 
-## Do not run on reference
+## Do not run on calibration-tests
 
-Never pass `config_dir` under `configs/reference/` to `single_test_runner.py` or `model_calibration.py`.
+Never pass `tester-v1/calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Run test requires a model variant dir such as `models/{slug}/bench/`.

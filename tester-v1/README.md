@@ -2,8 +2,10 @@
 
 Single-run harness for `llama-server`: start the server (`server.yaml`), run one streaming chat completion (`client.yaml`), print all fourteen metrics plus a headline footer on stdout, then tear down.
 
-- Pass `--save-result` with a config directory to write JSON under `results/{model}/{variant}/` and print the full run summary. 
+- Pass `--save-result` with a variant directory to write JSON under `results/{model}/{variant}/` and print the full run summary.
 - Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
+
+Repo-root CLIs wrap this harness: [tester_v1_run_test.py](../tester_v1_run_test.py), [tester_v1_calibrate.py](../tester_v1_calibrate.py), [launch_server.py](../launch_server.py).
 
 ## Requirements
 
@@ -23,65 +25,24 @@ pip install -r requirements.txt
 
 ## Usage
 
+Run from the repo root:
+
 ```bash
 # print help
-./single_test_runner.py
+./tester_v1_run_test.py
 
-# run the bench test for qwen3.5-9b-q8
-./single_test_runner.py configs/qwen3.5-9b-q8/bench/
+# bench run for qwen3.5-9b-q8
+./tester_v1_run_test.py models/qwen3.5-9b-q8/bench/
 
-# run the bench test for qwen3.6-35b-a3b-ud-q4-k-xl with 24 experts offloaded to the CPU
-./single_test_runner.py configs/qwen3.6-35b-a3b-ud-q4-k-xl/bench/ --n-cpu-moe 24
+# bench run with 24 MoE experts offloaded to CPU
+./tester_v1_run_test.py models/qwen3.6-35b-a3b-ud-q4-k-xl/bench/ --n-cpu-moe 24
 
- # run the bench test and save detailed results JSON to results/
- ./single_test_runner.py configs/qwen3.5-9b-q8/bench/ --save-result
+# save detailed results JSON to results/
+./tester_v1_run_test.py models/qwen3.5-9b-q8/bench/ --save-result
 
- # run the bench test and print completion text on stdout
- ./single_test_runner.py configs/qwen3.5-9b-q8/bench/ --include-output
+# print completion text on stdout
+./tester_v1_run_test.py models/qwen3.5-9b-q8/bench/ --include-output
 ```
-
-## Unit tests
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
-## Config layout
-
-```text
-configs/
-  reference/                 # shared probes (calibration + --server/--client overrides)
-    calibration-footprint/
-    calibration-ctx-probe/
-    hello-world-baseline/
-  qwen3.5-9b-q8/
-    model.yaml               # GGUF path
-    bench/                   # server.yaml + client.yaml for routine runs
-```
-
-Each model dir needs `model.yaml`. Variant dirs hold `server.yaml` and `client.yaml`. Shared probe YAML lives under `reference/` only; see [configs/reference/README.md](configs/reference/README.md). Do not pass `configs/reference/` as `config_dir`.
-
-**model.yaml:** `model` is the GGUF path. The runner injects `-m`; do not set `-m` or `--model` in `server.yaml`.
-
-**server.yaml:** `args` (`args: |`, one flag per line), optional `binary`, `ready_timeout_s` (default 120), `ready_poll_interval_s` (default 0.5).
-
-**client.yaml:** `base_url` (default `http://127.0.0.1:8080`), `messages`, `params`, optional `timeout_s` (default 600). The runner always sets `stream: true`. Keep `base_url` in sync with `--port` in server args.
-
-## Probes
-
-`single_test_runner.py` starts `llama-server`, waits for health, runs one streaming chat completion, prints metrics and a three-line summary footer, then stops the server.
-
-Routine bench runs use a variant dir (see Usage above). For a quick probe with shared reference YAML and no JSON:
-
-```bash
-./single_test_runner.py \
-  --server configs/reference/hello-world-baseline/server.yaml \
-  --client configs/reference/hello-world-baseline/client.yaml \
-  --model-yaml configs/qwen3.5-9b-q8/model.yaml
-```
-
-Without `config_dir`, pass all three of `--server`, `--client`, and `--model-yaml`. `--save-result` requires `config_dir` and writes under `results/{model}/{variant}/`.
-
 
 | Flag               | Effect                                                                                          |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
@@ -90,29 +51,67 @@ Without `config_dir`, pass all three of `--server`, `--client`, and `--model-yam
 | `--include-output` | Print completion text after metrics; with `--save-result`, also writes `{timestamp}-output.txt` |
 | `--n-cpu-moe N`    | Append `--n-cpu-moe N` and `--n-gpu-layers 999` (MoE models)                                    |
 
+## Unit tests
+
+From the repo root:
+
+```bash
+./tester-v1/run_python_unit_tests.py
+```
+
+Or from `tester-v1/`:
+
+```bash
+./run_python_unit_tests.py
+```
+
+## Config layout
+
+```text
+models/                              # repo root
+  qwen3.5-9b-q8/
+    model.yaml                       # GGUF path
+    bench/                           # server.yaml + client.yaml for routine runs
+
+tester-v1/
+  calibration-tests/                 # shared calibration probes (not model configs)
+    calibration-footprint/
+    calibration-ctx-probe/
+    hello-world-baseline/
+    model.yaml                       # structural template for scaffolding
+  results/                           # gitignored harness output
+  src/                               # harness implementation
+```
+
+Each model dir under [models/](../models/) needs `model.yaml`. Variant dirs (e.g. `bench/`) hold `server.yaml` and `client.yaml`. Shared calibration probe YAML lives under [calibration-tests/](calibration-tests/); see [calibration-tests/README.md](calibration-tests/README.md).
+
+**model.yaml:** `model` is the GGUF path. The runner injects `-m`; do not set `-m` or `--model` in `server.yaml`.
+
+**server.yaml:** `args` (`args: |`, one flag per line), optional `binary`, `ready_timeout_s` (default 120), `ready_poll_interval_s` (default 0.5).
+
+**client.yaml:** `base_url` (default `http://127.0.0.1:8080`), `messages`, `params`, optional `timeout_s` (default 600). The runner always sets `stream: true`. Keep `base_url` in sync with `--port` in server args.
 
 ## Launch server
 
-`launch_server.py` starts `llama-server` from a model's `bench/` config, waits for health, and holds until Ctrl+C. Server stdout/stderr are not captured.
+[launch_server.py](../launch_server.py) starts `llama-server` from a model's `bench/` config, waits for health, and holds until Ctrl+C. Server stdout/stderr are not captured.
 
 ```bash
-./launch_server.py configs/qwen3.5-9b-q8/
-./launch_server.py configs/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
+./launch_server.py models/qwen3.5-9b-q8/
+./launch_server.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
 ```
 
-You can also pass a variant directory directly (e.g. `configs/qwen3.5-9b-q8/bench/`).
-
+You can also pass a variant directory directly (e.g. `models/qwen3.5-9b-q8/bench/`).
 
 ## Calibration
 
-`model_calibration.py` runs three reference probes (footprint, ctx-probe, hello-world-baseline) and prints a VRAM and throughput summary on six lines by default. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
+[tester_v1_calibrate.py](../tester_v1_calibrate.py) runs three shared probes (footprint, ctx-probe, hello-world-baseline) from `calibration-tests/` and prints a VRAM and throughput summary on six lines by default. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
 
-When calibration runs with MoE CPU offload (`./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24`, same pattern as Usage), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N.NN} GB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
+When calibration runs with MoE CPU offload (`./tester_v1_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24`, same pattern as Usage), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N.NN} GB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
 
 ```bash
-./model_calibration.py configs/qwen3.5-9b-q8
-./model_calibration.py configs/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24
-./model_calibration.py configs/qwen3.5-9b-q8 --save-result
+./tester_v1_calibrate.py models/qwen3.5-9b-q8
+./tester_v1_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24
+./tester_v1_calibrate.py models/qwen3.5-9b-q8 --save-result
 ```
 
 `--margin-mib` (default 100) subtracts a VRAM safety buffer from the KV budget. Estimated max context is VRAM-derived and can exceed the model native cap. Copy summary lines into the repo root README. New models: [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) skill.
@@ -142,5 +141,4 @@ Default stdout: all metrics (rounded), blank line, three headline lines (end-to-
 | `idle_system_ram_mb` | Process RSS (MiB) for `llama-server` after load at idle, before the measured prompt (`VmRSS` from `/proc/{pid}/status`; same idle window as `idle_vram_mb`, which uses `nvidia-smi`). Only sampled when resolved server args include `--n-cpu-moe` (MoE CPU offload); `null` / n/a when not applicable or if sampling fails. |
 | `peak_vram_mb`      | Peak GPU memory in MB during the measured prompt (background `nvidia-smi` poll; `null` if unavailable).          |
 | `model_max_context` | Native context limit from `GET /v1/models` (`data[0].meta.n_ctx_train`; `null` if missing or unreadable).        |
-
 

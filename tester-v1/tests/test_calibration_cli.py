@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
@@ -15,13 +15,13 @@ sys.path.insert(0, str(_SRC))
 from calibration import VARIANT_FOOTPRINT  # noqa: E402
 from calibration import DEFAULT_CALIBRATION_MARGIN_MIB  # noqa: E402
 from calibration_cli import (  # noqa: E402
-    _TESTER_ROOT,
     _result_config_dir,
     _run_calibration,
     _validate_model_dir,
     main,
 )
 from config import MODEL_YAML  # noqa: E402
+from paths import TESTER_ROOT  # noqa: E402
 
 
 class TestValidateModelDir(unittest.TestCase):
@@ -40,86 +40,86 @@ class TestValidateModelDir(unittest.TestCase):
                 _validate_model_dir(model_dir)
             self.assertIn("model config not found", str(ctx.exception))
 
-    def test_missing_reference_variant_raises(self) -> None:
+    def test_missing_calibration_variant_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             harness = Path(tmp) / "tester"
-            ref = harness / "configs" / "reference" / VARIANT_FOOTPRINT
-            ref.mkdir(parents=True)
-            (ref / "server.yaml").write_text("args: |\n", encoding="utf-8")
-            (ref / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = harness / "configs" / "my-model"
+            cal_root = harness / "calibration-tests"
+            footprint = cal_root / VARIANT_FOOTPRINT
+            footprint.mkdir(parents=True)
+            (footprint / "server.yaml").write_text("args: |\n", encoding="utf-8")
+            (footprint / "client.yaml").write_text("messages: []\n", encoding="utf-8")
+            model_dir = harness / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
-            with patch("calibration_cli._TESTER_ROOT", harness):
+            with patch("calibration_cli.CALIBRATION_TESTS_ROOT", cal_root):
                 with self.assertRaises(FileNotFoundError) as ctx:
                     _validate_model_dir(model_dir)
-            self.assertIn("reference variant", str(ctx.exception))
+            self.assertIn("calibration-tests/", str(ctx.exception))
 
 
-class TestRunVariantSubprocessArgv(unittest.TestCase):
+class TestRunCalibrationVariant(unittest.TestCase):
     def test_passes_reference_server_and_client_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp) / "tester"
-            tester_root.mkdir()
-            (tester_root / "single_test_runner.py").write_text("# stub\n", encoding="utf-8")
-            ref_dir = tester_root / "configs" / "reference" / VARIANT_FOOTPRINT
+            harness = Path(tmp) / "tester"
+            cal_root = harness / "calibration-tests"
+            ref_dir = cal_root / VARIANT_FOOTPRINT
             ref_dir.mkdir(parents=True)
             (ref_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (ref_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = tester_root / "configs" / "my-model"
+            model_dir = harness / "models" / "my-model"
+            model_dir.mkdir(parents=True)
+            (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             result_dir = _result_config_dir(model_dir, VARIANT_FOOTPRINT)
 
-            from calibration import run_variant_subprocess  # noqa: E402
+            from calibration import run_calibration_variant  # noqa: E402
 
-            with patch("calibration.subprocess.run") as run:
-                run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-                run_variant_subprocess(
-                    tester_root,
+            with patch("calibration._run", return_value=0) as run:
+                returncode, _output = run_calibration_variant(
+                    model_dir,
                     result_dir,
                     ref_dir,
                     save_result=True,
                     quiet=True,
                     session_id="sess1",
                 )
-            cmd = run.call_args.args[0]
-            self.assertEqual(cmd[2], str(result_dir))
-            self.assertEqual(cmd[3], "--server")
-            self.assertEqual(cmd[4], str(ref_dir / "server.yaml"))
-            self.assertEqual(cmd[5], "--client")
-            self.assertEqual(cmd[6], str(ref_dir / "client.yaml"))
-            self.assertIn("--save-result", cmd)
-            self.assertIn("--quiet", cmd)
-            self.assertIn("--session-id", cmd)
-            self.assertIn("sess1", cmd)
+            self.assertEqual(returncode, 0)
+            run.assert_called_once()
+            args = run.call_args.args
+            kwargs = run.call_args.kwargs
+            self.assertEqual(args[0], ref_dir / "server.yaml")
+            self.assertEqual(args[1], ref_dir / "client.yaml")
+            self.assertEqual(args[2], model_dir / MODEL_YAML)
+            self.assertEqual(args[3], result_dir)
+            self.assertTrue(kwargs["save_result"])
+            self.assertTrue(kwargs["quiet"])
+            self.assertEqual(kwargs["session_id"], "sess1")
             self.assertFalse(result_dir.exists())
 
     def test_passes_n_cpu_moe_when_set(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp) / "tester"
-            tester_root.mkdir()
-            (tester_root / "single_test_runner.py").write_text("# stub\n", encoding="utf-8")
-            ref_dir = tester_root / "configs" / "reference" / VARIANT_FOOTPRINT
+            harness = Path(tmp) / "tester"
+            cal_root = harness / "calibration-tests"
+            ref_dir = cal_root / VARIANT_FOOTPRINT
             ref_dir.mkdir(parents=True)
             (ref_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (ref_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = tester_root / "configs" / "my-model"
+            model_dir = harness / "models" / "my-model"
+            model_dir.mkdir(parents=True)
+            (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             result_dir = _result_config_dir(model_dir, VARIANT_FOOTPRINT)
 
-            from calibration import run_variant_subprocess  # noqa: E402
+            from calibration import run_calibration_variant  # noqa: E402
 
-            with patch("calibration.subprocess.run") as run:
-                run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-                run_variant_subprocess(
-                    tester_root,
+            with patch("calibration._run", return_value=0) as run:
+                run_calibration_variant(
+                    model_dir,
                     result_dir,
                     ref_dir,
                     save_result=False,
                     quiet=False,
                     n_cpu_moe=22,
                 )
-            cmd = run.call_args.args[0]
-            self.assertIn("--n-cpu-moe", cmd)
-            self.assertIn("22", cmd)
+            self.assertEqual(run.call_args.kwargs["n_cpu_moe"], 22)
 
 
 class TestMainArgparse(unittest.TestCase):
@@ -194,7 +194,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             "model_max_context": 128000,
         }
         with (
-            patch("calibration_cli.run_variant_subprocess", return_value=(0, "probe\n")),
+            patch("calibration_cli.run_calibration_variant", return_value=(0, "probe\n")),
             patch("calibration_cli._idle_vram_from_probe_output", side_effect=[1000, 1100]),
             patch(
                 "calibration_cli.parse_model_max_context_from_metrics_stdout",
@@ -238,7 +238,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             "model_max_context": 128000,
         }
         with (
-            patch("calibration_cli.run_variant_subprocess") as run_variant,
+            patch("calibration_cli.run_calibration_variant") as run_variant,
             patch("calibration_cli._idle_vram_from_probe_output", side_effect=[1000, 1100]),
             patch(
                 "calibration_cli.parse_model_max_context_from_metrics_stdout",
@@ -294,7 +294,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             return hello_world_result
 
         with (
-            patch("calibration_cli.run_variant_subprocess", return_value=(0, "")),
+            patch("calibration_cli.run_calibration_variant", return_value=(0, "")),
             patch("calibration_cli.format_compact_utc", return_value="sess123"),
             patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
             patch("calibration_cli.read_idle_vram_from_result", side_effect=[1000, 1100]),
@@ -339,7 +339,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(stdout.getvalue(), "")
         write_summary.assert_called_once_with(
-            _TESTER_ROOT,
+            TESTER_ROOT,
             "my-model",
             "sess123",
             {
@@ -371,7 +371,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             return Path("/result.json")
 
         with (
-            patch("calibration_cli.run_variant_subprocess", return_value=(0, "")) as run,
+            patch("calibration_cli.run_calibration_variant", return_value=(0, "")) as run,
             patch("calibration_cli.format_compact_utc", return_value="sess456"),
             patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
             patch("calibration_cli.read_idle_vram_from_result", side_effect=[1000, 1100]),
@@ -414,7 +414,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
         model_dir = Path("/tmp/model")
         stdout = io.StringIO()
         with (
-            patch("calibration_cli.run_variant_subprocess", return_value=(0, "foot\n")),
+            patch("calibration_cli.run_calibration_variant", return_value=(0, "foot\n")),
             patch("calibration_cli._idle_vram_from_probe_output", side_effect=[1000, 1100]),
             patch(
                 "calibration_cli.parse_model_max_context_from_metrics_stdout",
@@ -480,7 +480,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
             return hello_world_result
 
         with (
-            patch("calibration_cli.run_variant_subprocess", return_value=(0, "")),
+            patch("calibration_cli.run_calibration_variant", return_value=(0, "")),
             patch("calibration_cli.format_compact_utc", return_value="sessmoe"),
             patch("calibration_cli.find_latest_result", side_effect=fake_find_latest),
             patch(
@@ -540,7 +540,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
         model_dir = Path("/tmp/model")
 
         with (
-            patch("calibration_cli.run_variant_subprocess", return_value=(0, "")),
+            patch("calibration_cli.run_calibration_variant", return_value=(0, "")),
             patch("calibration_cli.format_compact_utc", return_value="sess789"),
             patch(
                 "calibration_cli.find_latest_result",

@@ -16,36 +16,31 @@ from config import (  # noqa: E402
     load_server_config,
     slug_from_config_dir,
 )
-from runner import _TESTER_ROOT  # noqa: E402
+from paths import MODELS_ROOT, TESTER_ROOT  # noqa: E402
 
 
 class TestSlugFromConfigDir(unittest.TestCase):
-    def test_under_configs(self) -> None:
-        config_dir = (
-            _TESTER_ROOT / "configs" / "qwen3.5-9b-q8" / "hello-world-baseline"
-        )
+    def test_under_models(self) -> None:
+        config_dir = MODELS_ROOT / "qwen3.5-9b-q8" / "hello-world-baseline"
         self.assertEqual(
-            slug_from_config_dir(config_dir, _TESTER_ROOT),
+            slug_from_config_dir(config_dir, TESTER_ROOT),
             "qwen3.5-9b-q8-hello-world-baseline",
         )
 
-    def test_outside_configs(self) -> None:
+    def test_outside_models_raises(self) -> None:
         config_dir = Path("/tmp/my-run")
-        self.assertEqual(
-            slug_from_config_dir(config_dir, _TESTER_ROOT),
-            "tmp-my-run",
-        )
+        with self.assertRaises(ValueError) as ctx:
+            slug_from_config_dir(config_dir, TESTER_ROOT)
+        self.assertIn("must be under", str(ctx.exception))
 
 
 class TestConfigDirMetadata(unittest.TestCase):
-    def test_under_configs(self) -> None:
-        config_dir = (
-            _TESTER_ROOT / "configs" / "qwen3.5-9b-q8" / "hello-world-baseline"
-        )
+    def test_under_models(self) -> None:
+        config_dir = MODELS_ROOT / "qwen3.5-9b-q8" / "hello-world-baseline"
         self.assertEqual(
-            config_dir_metadata(config_dir, _TESTER_ROOT),
+            config_dir_metadata(config_dir, TESTER_ROOT),
             {
-                "config_path": "qwen3.5-9b-q8/hello-world-baseline/",
+                "config_path": "models/qwen3.5-9b-q8/hello-world-baseline/",
                 "model": "qwen3.5-9b-q8",
                 "variant": "hello-world-baseline",
             },
@@ -53,7 +48,7 @@ class TestConfigDirMetadata(unittest.TestCase):
 
     def test_none_config_dir(self) -> None:
         self.assertEqual(
-            config_dir_metadata(None, _TESTER_ROOT),
+            config_dir_metadata(None, TESTER_ROOT),
             {
                 "config_path": None,
                 "model": None,
@@ -61,15 +56,10 @@ class TestConfigDirMetadata(unittest.TestCase):
             },
         )
 
-    def test_outside_configs(self) -> None:
-        self.assertEqual(
-            config_dir_metadata(Path("/tmp/my-run"), _TESTER_ROOT),
-            {
-                "config_path": None,
-                "model": None,
-                "variant": None,
-            },
-        )
+    def test_outside_models_raises(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            config_dir_metadata(Path("/tmp/my-run"), TESTER_ROOT)
+        self.assertIn("must be under", str(ctx.exception))
 
 
 class TestServerConfigSlug(unittest.TestCase):

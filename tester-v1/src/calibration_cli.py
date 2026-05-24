@@ -22,7 +22,7 @@ from calibration import (
     read_idle_system_ram_from_result,
     read_idle_vram_from_result,
     read_model_max_context_from_result,
-    run_variant_subprocess,
+    run_calibration_variant,
     write_calibration_session_summary,
 )
 from config import (
@@ -33,22 +33,17 @@ from config import (
     parse_context_from_args,
 )
 from result_layout import find_latest_result
+from paths import CALIBRATION_TESTS_ROOT, RESULTS_DIR, TESTER_ROOT
 from results import format_compact_utc, utc_now
 from vram import query_gpu_total_mb
 
-_TESTER_ROOT = Path(__file__).resolve().parent.parent
-_RESULTS_DIRNAME = "results"
-_CONFIGS_DIRNAME = "configs"
-_REFERENCE_DIR = "reference"
+_TESTER_ROOT = TESTER_ROOT
+
 _OUTPUT_TAIL_LINES = 40
 
 
-def _reference_root() -> Path:
-    return _TESTER_ROOT / _CONFIGS_DIRNAME / _REFERENCE_DIR
-
-
 def _reference_variant_dir(name: str) -> Path:
-    return _reference_root() / name
+    return CALIBRATION_TESTS_ROOT / name
 
 
 def _result_config_dir(model_dir: Path, name: str) -> Path:
@@ -76,7 +71,7 @@ def _validate_model_dir(model_dir: Path) -> None:
         if not ref_dir.is_dir():
             raise FileNotFoundError(
                 f"reference variant directory not found: {ref_dir} "
-                f"(expected configs/reference/{variant}/)"
+                f"(expected calibration-tests/{variant}/)"
             )
         _validate_variant_dir(ref_dir)
 
@@ -115,7 +110,7 @@ def _run_calibration(
     quiet: bool,
     n_cpu_moe: int | None = None,
 ) -> int:
-    results_dir = _TESTER_ROOT / _RESULTS_DIRNAME
+    results_dir = RESULTS_DIR
     footprint_result_dir = _result_config_dir(model_dir, VARIANT_FOOTPRINT)
     ctx_probe_result_dir = _result_config_dir(model_dir, VARIANT_CTX_PROBE)
     hello_world_result_dir = _result_config_dir(model_dir, VARIANT_HELLO_WORLD)
@@ -146,8 +141,8 @@ def _run_calibration(
     probe_outputs: list[tuple[Path, str]] = []
     for _name, result_dir, reference_dir, progress in variants:
         print(progress, file=sys.stderr)
-        returncode, output = run_variant_subprocess(
-            _TESTER_ROOT,
+        returncode, output = run_calibration_variant(
+            model_dir,
             result_dir,
             reference_dir,
             save_result=save_result,
@@ -168,13 +163,13 @@ def _run_calibration(
     if save_result:
         try:
             footprint_result = find_latest_result(
-                results_dir, footprint_result_dir, _TESTER_ROOT
+                results_dir, footprint_result_dir, TESTER_ROOT
             )
             ctx_probe_result = find_latest_result(
-                results_dir, ctx_probe_result_dir, _TESTER_ROOT
+                results_dir, ctx_probe_result_dir, TESTER_ROOT
             )
             hello_world_result = find_latest_result(
-                results_dir, hello_world_result_dir, _TESTER_ROOT
+                results_dir, hello_world_result_dir, TESTER_ROOT
             )
         except (FileNotFoundError, ValueError) as exc:
             return _fail(f"{exc}\n(results dir: {results_dir})")
@@ -272,10 +267,10 @@ def _run_calibration(
         )
 
     if save_result:
-        meta = config_dir_metadata(model_dir, _TESTER_ROOT)
+        meta = config_dir_metadata(model_dir, TESTER_ROOT)
         model = meta["model"] or model_dir.name
         write_calibration_session_summary(
-            _TESTER_ROOT,
+            TESTER_ROOT,
             model,
             session_id,
             summary,

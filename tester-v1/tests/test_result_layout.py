@@ -7,10 +7,12 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
+from paths import MODELS_ROOT, RESULTS_DIR, TESTER_ROOT  # noqa: E402
 from result_layout import (  # noqa: E402
     completion_output_path,
     find_latest_result,
@@ -18,7 +20,6 @@ from result_layout import (  # noqa: E402
     run_id_from_started_at,
     suite_from_variant,
 )
-from runner import _TESTER_ROOT  # noqa: E402
 
 
 class TestResolveResultTarget(unittest.TestCase):
@@ -26,34 +27,25 @@ class TestResolveResultTarget(unittest.TestCase):
         self.started = datetime(2026, 5, 17, 17, 2, 40, tzinfo=timezone.utc)
 
     def test_standard_layout(self) -> None:
-        config_dir = (
-            _TESTER_ROOT / "configs" / "qwen3.5-9b-q8" / "hello-world-baseline"
-        )
-        target = resolve_result_target(config_dir, _TESTER_ROOT, self.started)
+        config_dir = MODELS_ROOT / "qwen3.5-9b-q8" / "hello-world-baseline"
+        target = resolve_result_target(config_dir, TESTER_ROOT, self.started)
         self.assertEqual(target.layout, "standard")
         self.assertEqual(target.model, "qwen3.5-9b-q8")
         self.assertEqual(target.variant, "hello-world-baseline")
         self.assertEqual(target.run_id_suffix, "qwen3.5-9b-q8-hello-world-baseline")
         self.assertEqual(
             target.json_path,
-            _TESTER_ROOT
-            / "results"
+            RESULTS_DIR
             / "qwen3.5-9b-q8"
             / "hello-world-baseline"
             / "20260517T170240Z.json",
         )
 
-    def test_fallback_layout(self) -> None:
+    def test_outside_models_raises(self) -> None:
         config_dir = Path("/tmp/my-run")
-        target = resolve_result_target(config_dir, _TESTER_ROOT, self.started)
-        self.assertEqual(target.layout, "fallback")
-        self.assertIsNone(target.model)
-        self.assertIsNone(target.variant)
-        self.assertEqual(target.run_id_suffix, "tmp-my-run")
-        self.assertEqual(
-            target.json_path,
-            _TESTER_ROOT / "results" / "_other" / "tmp-my-run" / "20260517T170240Z.json",
-        )
+        with self.assertRaises(ValueError) as ctx:
+            resolve_result_target(config_dir, TESTER_ROOT, self.started)
+        self.assertIn("must be under", str(ctx.exception))
 
 
 class TestRunIdFromStartedAt(unittest.TestCase):
@@ -68,31 +60,41 @@ class TestRunIdFromStartedAt(unittest.TestCase):
 class TestFindLatestResult(unittest.TestCase):
     def test_picks_newest_by_stem(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp)
-            config_dir = tester_root / "configs" / "m" / "v"
-            variant_dir = tester_root / "results" / "m" / "v"
+            models_root = Path(tmp) / "models"
+            config_dir = models_root / "m" / "v"
+            variant_dir = Path(tmp) / "results" / "m" / "v"
             variant_dir.mkdir(parents=True)
             (variant_dir / "20260101T000000Z.json").write_text("{}", encoding="utf-8")
             (variant_dir / "20261231T235959Z.json").write_text("{}", encoding="utf-8")
             (variant_dir / "20260615T120000Z.json").write_text("{}", encoding="utf-8")
 
-            latest = find_latest_result(
-                tester_root / "results",
-                config_dir,
-                tester_root,
-            )
+            with (
+                patch("config.MODELS_ROOT", models_root),
+                patch("paths.MODELS_ROOT", models_root),
+                patch("result_layout.RESULTS_DIR", Path(tmp) / "results"),
+            ):
+                latest = find_latest_result(
+                    Path(tmp) / "results",
+                    config_dir,
+                    TESTER_ROOT,
+                )
             self.assertEqual(latest.name, "20261231T235959Z.json")
 
     def test_missing_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp)
-            config_dir = tester_root / "configs" / "m" / "v"
-            with self.assertRaises(FileNotFoundError):
-                find_latest_result(
-                    tester_root / "results",
-                    config_dir,
-                    tester_root,
-                )
+            models_root = Path(tmp) / "models"
+            config_dir = models_root / "m" / "v"
+            with (
+                patch("config.MODELS_ROOT", models_root),
+                patch("paths.MODELS_ROOT", models_root),
+                patch("result_layout.RESULTS_DIR", Path(tmp) / "results"),
+            ):
+                with self.assertRaises(FileNotFoundError):
+                    find_latest_result(
+                        Path(tmp) / "results",
+                        config_dir,
+                        TESTER_ROOT,
+                    )
 
 
 class TestCompletionOutputPath(unittest.TestCase):

@@ -28,8 +28,6 @@ from calibration import (  # noqa: E402
     write_calibration_session_summary,
 )
 from metrics import format_metrics_summary  # noqa: E402
-from runner import _TESTER_ROOT  # noqa: E402
-
 
 def _write_result(
     path: Path,

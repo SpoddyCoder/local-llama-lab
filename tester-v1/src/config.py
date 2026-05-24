@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from paths import MODELS_ROOT
+
 MODEL_YAML = "model.yaml"
 _MODEL_FLAGS = frozenset({"-m", "--model"})
 _DEFAULT_BINARY = "llama-server"
@@ -61,17 +63,28 @@ class ServerConfig:
         }
 
 
+def _models_parts(config_dir: Path) -> tuple[str, str]:
+    """Return (model, variant) for a config directory under MODELS_ROOT."""
+    config_dir = config_dir.resolve()
+    models_root = MODELS_ROOT.resolve()
+    try:
+        parts = config_dir.relative_to(models_root).parts
+    except ValueError as exc:
+        raise ValueError(
+            f"config_dir must be under {models_root}: {config_dir}"
+        ) from exc
+    if len(parts) != 2:
+        raise ValueError(
+            f"config_dir must be models/{{model}}/{{variant}}, got {len(parts)} "
+            f"part(s): {config_dir.relative_to(models_root)}"
+        )
+    return parts[0], parts[1]
+
+
 def slug_from_config_dir(config_dir: Path, tester_root: Path) -> str:
     """Derive a result filename slug from a config directory path."""
-    config_dir = config_dir.resolve()
-    configs_root = (tester_root / "configs").resolve()
-    try:
-        parts = config_dir.relative_to(configs_root).parts
-        joined = "-".join(parts)
-    except ValueError:
-        parts = [p for p in config_dir.parts if p]
-        joined = "-".join(parts)
-    return _sanitize_slug(joined)
+    model, variant = _models_parts(config_dir)
+    return _sanitize_slug(f"{model}-{variant}")
 
 
 def config_dir_metadata(
@@ -87,21 +100,11 @@ def config_dir_metadata(
     if config_dir is None:
         return empty
 
-    config_dir = config_dir.resolve()
-    configs_root = (tester_root / "configs").resolve()
-    try:
-        parts = config_dir.relative_to(configs_root).parts
-    except ValueError:
-        return empty
-
-    if len(parts) != 2:
-        return empty
-
-    model = None if parts[0] == "reference" else parts[0]
+    model, variant = _models_parts(config_dir)
     return {
-        "config_path": f"{parts[0]}/{parts[1]}/",
+        "config_path": f"models/{model}/{variant}/",
         "model": model,
-        "variant": parts[1],
+        "variant": variant,
     }
 
 
@@ -195,7 +198,7 @@ def load_server_config(path: str | Path, *, model: str) -> ServerConfig:
 
     if "label" in raw:
         raise ValueError(
-            f"'label' is removed; use configs/... directory layout "
+            f"'label' is removed; use models/... directory layout "
             f"for result filenames: {path}"
         )
 

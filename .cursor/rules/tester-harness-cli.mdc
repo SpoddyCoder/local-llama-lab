@@ -11,10 +11,10 @@ Do not run artifact-writing harness CLIs unless the user asked in this chat, a f
 
 Ask first before:
 
-- `tester-v1/model_calibration.py --save-result` (three reference probes via `single_test_runner --save-result --quiet`; JSON under `results/{model}/{variant}/`; session file under `results/{model}/calibration-sessions/`)
-- `tester-v1/single_test_runner.py --save-result` (JSON under `results/{model}/{variant}/`)
+- `./tester_v1_calibrate.py --save-result` (three calibration probes via in-process runs with `--save-result --quiet`; JSON under `tester-v1/results/{model}/{variant}/`; session file under `tester-v1/results/{model}/calibration-sessions/`)
+- `./tester_v1_run_test.py --save-result` (JSON under `tester-v1/results/{model}/{variant}/`)
 
-Same rule for `./model_calibration.py` / `./single_test_runner.py` from `tester-v1/`. Probe runs without `--save-result` are stdout-only and need no ask.
+Run these from the repo root. Probe runs without `--save-result` are stdout-only and need no ask.
 
 ## Prefer existing local output
 
@@ -25,6 +25,6 @@ Same rule for `./model_calibration.py` / `./single_test_runner.py` from `tester-
 3. Recompute from those files when needed (`idle_vram_mb`, calibration math).
 4. Suggest or run a new harness only if local data is missing, stale, or the user wants a new run.
 
-## Never use `configs/reference/` as `config_dir`
+## Do not use calibration-tests as config_dir
 
-Do not pass `tester-v1/configs/reference/` (or a variant under it) as `config_dir` to either CLI. See `configs-reference.mdc`.
+Do not pass `tester-v1/calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Run test expects a model variant dir such as `models/{slug}/bench/`. Calibration loads probes from `calibration-tests/` internally; pass `models/{slug}/` only. See `calibration-tests.mdc`.

@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from config import config_dir_metadata, slug_from_config_dir
+from config import _models_parts, config_dir_metadata
+from paths import RESULTS_DIR
 from results import format_compact_utc
 
 
@@ -21,19 +22,8 @@ class ResultTarget:
 
 def _result_variant_dir(config_dir: Path, tester_root: Path) -> Path:
     """Directory that holds result JSON files for a config directory."""
-    config_dir = config_dir.resolve()
-    tester_root = tester_root.resolve()
-    configs_root = (tester_root / "configs").resolve()
-    try:
-        parts = config_dir.relative_to(configs_root).parts
-    except ValueError:
-        parts = None
-
-    if parts is not None and len(parts) == 2:
-        return tester_root / "results" / parts[0] / parts[1]
-
-    slug = slug_from_config_dir(config_dir, tester_root)
-    return tester_root / "results" / "_other" / slug
+    model, variant = _models_parts(config_dir)
+    return RESULTS_DIR / model / variant
 
 
 def resolve_result_target(
@@ -42,42 +32,16 @@ def resolve_result_target(
     started_at: datetime,
 ) -> ResultTarget:
     """Resolve result JSON path and run_id suffix for a config directory."""
-    config_dir = config_dir.resolve()
-    tester_root = tester_root.resolve()
     compact = format_compact_utc(started_at)
     meta = config_dir_metadata(config_dir, tester_root)
-
-    configs_root = (tester_root / "configs").resolve()
-    try:
-        parts = config_dir.relative_to(configs_root).parts
-    except ValueError:
-        parts = None
-
-    if parts is not None and len(parts) == 2:
-        model_dir, variant_name = parts[0], parts[1]
-        json_path = (
-            tester_root
-            / "results"
-            / model_dir
-            / variant_name
-            / f"{compact}.json"
-        )
-        return ResultTarget(
-            json_path=json_path,
-            run_id_suffix=f"{model_dir}-{variant_name}",
-            model=meta["model"],
-            variant=meta["variant"],
-            layout="standard",
-        )
-
-    slug = slug_from_config_dir(config_dir, tester_root)
-    json_path = tester_root / "results" / "_other" / slug / f"{compact}.json"
+    model, variant = _models_parts(config_dir)
+    json_path = RESULTS_DIR / model / variant / f"{compact}.json"
     return ResultTarget(
         json_path=json_path,
-        run_id_suffix=slug,
-        model=None,
-        variant=None,
-        layout="fallback",
+        run_id_suffix=f"{model}-{variant}",
+        model=meta["model"],
+        variant=meta["variant"],
+        layout="standard",
     )
 
 

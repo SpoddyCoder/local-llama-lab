@@ -240,7 +240,7 @@ class TestLiveModelLayout(unittest.TestCase):
         server, model_yaml_path = resolve_model_server(self.model_dir)
 
         self.assertEqual(model_yaml_path, self.model_dir / MODEL_YAML)
-        self.assertEqual(parse_context_from_args(server.args), 4096)
+        self.assertEqual(parse_context_from_args(server.args), 78848)
 
 
 class TestResolveModelServer(unittest.TestCase):

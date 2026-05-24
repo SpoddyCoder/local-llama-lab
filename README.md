@@ -1,30 +1,12 @@
 # Local Model Testing (`llama.cpp`)
 First forays into local model usage, this is about tuning and understanding the most efficient models and configurations for the llama.cpp server.
 
-## Setup
-Relatively modest for AI work, but it's surprisingly viable. 
-Running on a WSL2 instance on a Windows host with 32Gb System RAM (26Gb allocated to WSL) and a 5080 with 16Gb VRAM...
+System is relatively modest for AI work, but surprisingly viable for cutting edge open-source models...
 
-```bash
-local-model-tests$ nvidia-smi
-Sat May 16 13:40:46 2026       
-+-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 595.71.05              Driver Version: 596.49         CUDA Version: 13.2     |
-+-----------------------------------------+------------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-|                                         |                        |               MIG M. |
-|=========================================+========================+======================|
-|   0  NVIDIA GeForce RTX 5080        On  |   00000000:01:00.0  On |                  N/A |
-|  0%   44C    P5             29W /  378W |    1054MiB /  16303MiB |      0%      Default |
-|                                         |                        |                  N/A |
-+-----------------------------------------+------------------------+----------------------+
-
-local-model-tests/$ free -h
-               total        used        free      shared  buff/cache   available
-Mem:            25Gi       1.4Gi        10Gi       3.2Mi        13Gi        23Gi
-Swap:           64Gi       351Mi        63Gi
-```
+* WSL2 instance on a Windows host
+* 32Gb System RAM, 26Gb allocated to WSL
+* 5080 with 16Gb VRAM
+* See [system setup](#system-setup) for more details.
 
 ## Dependencies
 ```bash
@@ -47,6 +29,7 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
 | [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)<br>March 2026 · Dense<br>100+ languages; strong generalist. | Throughput: **~86 tok/s**<br>Est. context: **79K**<br>Max context: **262K** | Model VRAM: **8.79 GB**<br>KV VRAM: **7.03 GB**<br>Disk: **9.55 GB** |
 | [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)<br>April 2026 · Dense<br>Barely fits 16 GB. | Throughput: **~46 tok/s**<br>Est. context: **9K**<br>Max context: **262K** | Model VRAM: **15.22 GB**<br>KV VRAM: **0.60 GB**<br>Disk: **15.79 GB** |
 
+---
 
 ## Tester v1
 * Calibration tests are used to test overall throughput and rough expected max context window given a 16Gb card.
@@ -77,6 +60,8 @@ Use a browser to access the llama web UI while it is running (port depends on `s
 * The test probe `client.yaml` & `server.yaml`'s are under [tester-v1/configs/reference/](tester-v1/configs/reference/). 
 * For MoE models, pass `--n-cpu-moe N` on calibration (also works for single_test_runner)
 * Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
+
+---
 
 ## Key Learnings
 
@@ -150,3 +135,29 @@ Without those flags you carry the extra weights but get no speed benefit.
   * Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
   * Doesn't appear to be available in the WSL fork of llama.cpp yet
 * `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
+
+---
+
+## System Setup
+WSL2, Ubuntu 24.04...
+
+```
+local-model-tests$ nvidia-smi
+Sat May 16 13:40:46 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 595.71.05              Driver Version: 596.49         CUDA Version: 13.2     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 5080        On  |   00000000:01:00.0  On |                  N/A |
+|  0%   44C    P5             29W /  378W |    1054MiB /  16303MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
+local-model-tests/$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:            25Gi       1.4Gi        10Gi       3.2Mi        13Gi        23Gi
+Swap:           64Gi       351Mi        63Gi
+```

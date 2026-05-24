@@ -656,20 +656,6 @@ class TestMainArgparse(unittest.TestCase):
         kwargs = run.call_args.kwargs
         self.assertEqual(kwargs["n_cpu_moe"], 22)
 
-    def test_main_n_cpu_moe_passes_to_test_server(self) -> None:
-        config = "configs/qwen3.5-9b-q8/hello-world-baseline"
-        with patch("runner.resolve_config_paths") as resolve:
-            resolve.return_value = (
-                _TESTER_ROOT / "server.yaml",
-                _TESTER_ROOT / "client.yaml",
-                _TESTER_ROOT / "model.yaml",
-            )
-            with patch("runner._run_test_server", return_value=0) as run_test_server:
-                main([config, "--test-server", "--n-cpu-moe", "22"])
-        run_test_server.assert_called_once()
-        kwargs = run_test_server.call_args.kwargs
-        self.assertEqual(kwargs["n_cpu_moe"], 22)
-
     def test_main_quiet_without_save_result_is_noop(self) -> None:
         config = "configs/qwen3.5-9b-q8/hello-world-baseline"
         with patch("runner.resolve_config_paths") as resolve:
@@ -685,6 +671,14 @@ class TestMainArgparse(unittest.TestCase):
         self.assertFalse(kwargs["save_result"])
         self.assertFalse(kwargs["quiet"])
         self.assertFalse(kwargs["include_output"])
+
+    def test_main_rejects_removed_test_server_flag(self) -> None:
+        stderr = io.StringIO()
+        with patch("sys.stderr", stderr):
+            with self.assertRaises(SystemExit):
+                main(["configs/qwen3.5-9b-q8/bench/", "--test-server"])
+        self.assertIn("unrecognized arguments", stderr.getvalue())
+        self.assertIn("--test-server", stderr.getvalue())
 
     def test_main_rejects_removed_test_client_flag(self) -> None:
         stderr = io.StringIO()

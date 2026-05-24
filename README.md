@@ -56,7 +56,7 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
 
 ```bash
 cd tester-v1
-./single_test_runner.py configs/qwen3.5-9b-q8/bench/ --test-server
+./launch_server.py configs/qwen3.5-9b-q8/
 ```
 
 Use a browser to access the llama web UI while it is running (port depends on `server.yaml` but is typically 8080):

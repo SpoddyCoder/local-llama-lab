@@ -40,6 +40,31 @@ class TestServerReadyS(unittest.TestCase):
         self.assertGreaterEqual(proc.server_ready_s, 0.0)
         self.assertEqual(proc.ready_endpoint, "/health")
 
+    def test_inherit_stdio_skips_pipes(self) -> None:
+        server = ServerConfig(
+            model="/tmp/model.gguf",
+            args=[],
+            ready_timeout_s=10.0,
+            ready_poll_interval_s=0.01,
+        )
+        proc = ServerProcess(server, "http://127.0.0.1:8080", inherit_stdio=True)
+        mock_popen = MagicMock()
+        mock_popen.return_value.poll.return_value = None
+
+        with (
+            patch("server.subprocess.Popen", mock_popen) as popen,
+            patch("server._stream_lines"),
+            patch("server._probe_health", return_value="/health"),
+        ):
+            proc.start()
+            proc.wait_ready()
+
+        popen.assert_called_once()
+        kwargs = popen.call_args.kwargs
+        self.assertNotIn("stdout", kwargs)
+        self.assertNotIn("stderr", kwargs)
+        self.assertTrue(kwargs["text"])
+
 
 class TestServerProcessPid(unittest.TestCase):
     def test_pid_none_before_start(self) -> None:

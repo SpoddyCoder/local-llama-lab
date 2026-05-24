@@ -47,9 +47,16 @@ def _stream_lines(pipe: IO[str], tail: collections.deque[str]) -> None:
 class ServerProcess:
     """Managed llama-server subprocess with health polling and teardown."""
 
-    def __init__(self, server: ServerConfig, base_url: str) -> None:
+    def __init__(
+        self,
+        server: ServerConfig,
+        base_url: str,
+        *,
+        inherit_stdio: bool = False,
+    ) -> None:
         self.server = server
         self.base_url = base_url.rstrip("/")
+        self.inherit_stdio = inherit_stdio
         self._proc: subprocess.Popen[str] | None = None
         self._stdout_tail: collections.deque[str] = collections.deque(maxlen=_TAIL_LINES)
         self._stderr_tail: collections.deque[str] = collections.deque(maxlen=_TAIL_LINES)
@@ -72,30 +79,36 @@ class ServerProcess:
             raise RuntimeError("server already started")
 
         argv = build_argv(self.server)
-        self._proc = subprocess.Popen(
-            argv,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            start_new_session=True,
-        )
-        assert self._proc.stdout is not None
-        assert self._proc.stderr is not None
-        self._reader_threads = [
-            threading.Thread(
-                target=_stream_lines,
-                args=(self._proc.stdout, self._stdout_tail),
-                daemon=True,
-            ),
-            threading.Thread(
-                target=_stream_lines,
-                args=(self._proc.stderr, self._stderr_tail),
-                daemon=True,
-            ),
-        ]
-        for t in self._reader_threads:
-            t.start()
+        popen_kwargs: dict[str, object] = {
+            "start_new_session": True,
+        }
+        if self.inherit_stdio:
+            popen_kwargs["text"] = True
+        else:
+            popen_kwargs.update(
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+            )
+        self._proc = subprocess.Popen(argv, **popen_kwargs)
+        if not self.inherit_stdio:
+            assert self._proc.stdout is not None
+            assert self._proc.stderr is not None
+            self._reader_threads = [
+                threading.Thread(
+                    target=_stream_lines,
+                    args=(self._proc.stdout, self._stdout_tail),
+                    daemon=True,
+                ),
+                threading.Thread(
+                    target=_stream_lines,
+                    args=(self._proc.stderr, self._stderr_tail),
+                    daemon=True,
+                ),
+            ]
+            for t in self._reader_threads:
+                t.start()
         self._start_monotonic = time.monotonic()
 
     def wait_ready(self) -> None:
@@ -181,9 +194,11 @@ class ServerProcess:
 def managed_server(
     server_config: ServerConfig,
     base_url: str,
+    *,
+    inherit_stdio: bool = False,
 ) -> Iterator[ServerProcess]:
     """Start server, poll until healthy, always tear down on exit."""
-    proc = ServerProcess(server_config, base_url)
+    proc = ServerProcess(server_config, base_url, inherit_stdio=inherit_stdio)
     old_sigint = signal.getsignal(signal.SIGINT)
 
     def _on_sigint(signum: int, frame: object | None) -> None:

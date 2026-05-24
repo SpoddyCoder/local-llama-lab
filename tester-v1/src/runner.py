@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -204,42 +203,6 @@ def _run(
     return 1
 
 
-def _run_test_server(
-    server_path: Path,
-    client_path: Path,
-    model_yaml_path: Path,
-    config_dir: Path | None = None,
-    *,
-    n_cpu_moe: int | None = None,
-) -> int:
-    server = _load_server(server_path, model_yaml_path)
-    if n_cpu_moe is not None:
-        try:
-            server = apply_n_cpu_moe(server, n_cpu_moe)
-        except ValueError as exc:
-            print(exc, file=sys.stderr)
-            return 1
-    client = load_client_config(client_path)
-    base_url = resolve_base_url(server, client.base_url)
-
-    print(f"Starting {server.binary} (model: {server.model_slug})...")
-    print(f"Health URL: {base_url}")
-
-    try:
-        with managed_server(server, base_url) as proc:
-            endpoint = proc.ready_endpoint or "unknown"
-            print(f"Server ready at {base_url} (health: {endpoint})")
-            print("Press Ctrl+C to stop.")
-            while True:
-                time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nStopped.")
-        return 0
-    except (TimeoutError, RuntimeError) as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        return 1
-
-
 def resolve_config_paths(
     config_dir: Path | None,
     server_override: Path | None,
@@ -320,11 +283,6 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--test-server",
-        action="store_true",
-        help="start llama-server, wait for health, hold until Ctrl+C",
-    )
-    parser.add_argument(
         "--save-result",
         action="store_true",
         help="write result JSON to results/ and print run summary",
@@ -370,15 +328,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     config_dir = args.config_dir
-    if args.test_server:
-        return _run_test_server(
-            server_path,
-            client_path,
-            model_yaml_path,
-            config_dir,
-            n_cpu_moe=args.n_cpu_moe,
-        )
-
     return _run(
         server_path,
         client_path,

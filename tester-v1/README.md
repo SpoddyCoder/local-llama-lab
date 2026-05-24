@@ -88,8 +88,19 @@ Without `config_dir`, pass all three of `--server`, `--client`, and `--model-yam
 | `--save-result`    | Write `results/{model}/{variant}/{timestamp}.json`; print run summary on stdout                 |
 | `--quiet`          | With `--save-result`: one `Wrote ...` line on stderr instead of stdout summary                  |
 | `--include-output` | Print completion text after metrics; with `--save-result`, also writes `{timestamp}-output.txt` |
-| `--test-server`    | Start server, wait for health, hold until Ctrl+C                                                |
 | `--n-cpu-moe N`    | Append `--n-cpu-moe N` and `--n-gpu-layers 999` (MoE models)                                    |
+
+
+## Launch server
+
+`launch_server.py` starts `llama-server` from a model's `bench/` config, waits for health, and holds until Ctrl+C. Server stdout/stderr are not captured.
+
+```bash
+./launch_server.py configs/qwen3.5-9b-q8/
+./launch_server.py configs/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
+```
+
+You can also pass a variant directory directly (e.g. `configs/qwen3.5-9b-q8/bench/`).
 
 
 ## Calibration

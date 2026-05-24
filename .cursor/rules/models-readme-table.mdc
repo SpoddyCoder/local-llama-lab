@@ -1,0 +1,23 @@
+---
+description: README models table row order and LiveCodeBench footnote
+globs: README.md,.cursor/skills/create-model-configs/**
+alwaysApply: false
+---
+
+# README models table
+
+## Row order
+
+In [README.md](../README.md) `## Models`, sort table rows by **LiveCodeBench v6 score descending** (highest first).
+
+When adding or updating a model row, re-sort the full table. Ties: keep stable order or sort by model name.
+
+LiveCodeBench values come from official vendor model cards (see table footnote). Update the score and month on the row when the source changes.
+
+## Footnote
+
+Keep the paragraph under the table (LiveCodeBench source, quant vs BF16 note, [gguf-bench](https://gguf-bench.com/) link). Do not remove when reordering rows.
+
+## Adding a model
+
+Scaffold under `models/{slug}/` per create-model-configs. After calibration metrics are known, insert the README row at the correct LiveCodeBench rank; do not append by default.

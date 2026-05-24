@@ -46,6 +46,7 @@ If the user's name is non-conforming, derive a slug, state it in the summary, an
 4. Copy `tester-v1/templates/server.yaml` to `models/{model_slug}/server.yaml`.
 5. Copy `tester-v1/templates/llama_bench.yaml` to `models/{model_slug}/llama_bench.yaml`.
 6. Summarize paths and commands below.
+7. If the user wants the model in the README table, add or update its row in [README.md](../../README.md) and sort rows by LiveCodeBench v6 score descending (`models-readme-table.mdc`).
 
 ## Sandbox (optional)
 

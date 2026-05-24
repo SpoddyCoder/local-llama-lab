@@ -1,10 +1,10 @@
 ---
 name: create-model-configs
 description: >-
-  Scaffold model.yaml and server.yaml under models/ for a new GGUF model from
-  tester-v1/templates/. Shared calibration probes live under
-  tester-v1/calibration-tests/ only. Model slugs: lowercase kebab-case with
-  dots in version segments (e.g. qwen3.5-9b-q8). Use when adding a model,
+  Scaffold model.yaml, server.yaml, and llama_bench.yaml under models/ for a
+  new GGUF model from tester-v1/templates/. Shared calibration probes live
+  under tester-v1/calibration-tests/ only. Model slugs: lowercase kebab-case
+  with dots in version segments (e.g. qwen3.5-9b-q8). Use when adding a model,
   scaffolding configs, or setting up calibration for a new slug.
 ---
 
@@ -14,6 +14,7 @@ Write under `models/{model_slug}/`:
 
 - `model.yaml` with the user's GGUF path (from `tester-v1/templates/model.yaml`)
 - `server.yaml` copied from `tester-v1/templates/server.yaml`
+- `llama_bench.yaml` copied from `tester-v1/templates/llama_bench.yaml`
 
 Do **not** copy calibration probe YAML into the model slug. Calibration loads probes from `tester-v1/calibration-tests/` in-process. See `calibration-tests.mdc` and [tester-v1/calibration-tests/README.md](../../../tester-v1/calibration-tests/README.md).
 
@@ -40,10 +41,11 @@ If the user's name is non-conforming, derive a slug, state it in the summary, an
 ## Workflow
 
 1. Collect and normalize `model_slug`; verify `gguf_path` exists.
-2. If `model.yaml` or `server.yaml` exists, show contents and do not overwrite without explicit OK.
+2. If `model.yaml`, `server.yaml`, or `llama_bench.yaml` exists, show contents and do not overwrite without explicit OK.
 3. Copy `tester-v1/templates/model.yaml` to `models/{model_slug}/model.yaml`; set `model:` to the user's path (including `~` if given).
 4. Copy `tester-v1/templates/server.yaml` to `models/{model_slug}/server.yaml`.
-5. Summarize paths and commands below.
+5. Copy `tester-v1/templates/llama_bench.yaml` to `models/{model_slug}/llama_bench.yaml`.
+6. Summarize paths and commands below.
 
 ## Sandbox (optional)
 
@@ -53,11 +55,14 @@ For ad-hoc prompts, copy or adapt `tester-v1/templates/sandbox/` to `models/{mod
 
 Pass `--n-cpu-moe N` on the CLI for calibration and run-test. Optionally bake MoE flags into that slug's `server.yaml` when they are stable for the model.
 
+For `llama_bench.yaml`, uncomment or add `-ngl 999` and `-ncmoe N` (or tune per slug). Pass `--n-cpu-moe N` to `./llama_bench.py` to override `-ncmoe` at run time.
+
 ## Safety
 
 - No overwrite without confirmation; no edits under `tester-v1/src/`.
 - Templates live under `tester-v1/templates/`; do not run GPU calibration or `--save-result` unless the user asks (`tester-harness-cli.mdc`).
 - New global probes: edit `tester-v1/calibration-tests/` and register in `tester-v1/src/calibration.py` (`calibration-tests-sync.mdc`).
+- `llama_bench.yaml` is required for `./llama_bench.py`; the CLI exits with an error if it is missing.
 
 ## Commands (from repo root)
 
@@ -78,6 +83,14 @@ Launch server (model root `server.yaml`):
 
 ```bash
 ./launch_server.py models/{model_slug}/
+```
+
+llama-bench (model root `llama_bench.yaml`; uses `model.yaml` for the GGUF path):
+
+```bash
+./llama_bench.py models/{model_slug}/
+./llama_bench.py models/{model_slug}/ --n-cpu-moe N
+./llama_bench.py models/{model_slug}/ --dry-run
 ```
 
 Add `--save-result` when JSON on disk is needed (gitignored under `tester-v1/results/`).

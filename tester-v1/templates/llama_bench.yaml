@@ -1,0 +1,17 @@
+binary: llama-bench
+args: |
+  # preload weights; server: --no-mmap
+  -mmp 0
+  # prompt tokens per run (bench-only)
+  -p 512
+  # generated tokens per run (bench-only)
+  -n 128
+  # repeat each test (bench-only)
+  -r 5
+  # stdout format (bench-only)
+  -o md
+  # MoE example (uncomment and tune for MoE slugs):
+  # GPU layers; server: --n-gpu-layers
+  # -ngl 999
+  # MoE experts on CPU; server: --n-cpu-moe
+  # -ncmoe 24

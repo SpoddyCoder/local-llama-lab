@@ -80,6 +80,16 @@ Default variant is `hello-world-baseline` (shared probe under [tester-v1/calibra
 - For MoE models, pass `--n-cpu-moe N` on calibration and run-test (replaces any existing MoE offload flags in merged server config).
 - Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
+### llama-bench wrapper
+
+Run upstream `llama-bench` from a model config dir. Each slug has `llama_bench.yaml` at the model root (alongside `server.yaml`). Throughput numbers in the [models table](#models) still come from tester v1 calibration and harness runs, not llama-bench (different measurement).
+
+```bash
+./llama_bench.py models/qwen3.5-9b-q8/
+```
+
+See [tester-v1/templates/llama_bench.yaml](tester-v1/templates/llama_bench.yaml) for the config file format.
+
 ---
 
 ## Key Learnings

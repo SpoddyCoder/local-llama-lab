@@ -42,10 +42,10 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
 
 | Model | Throughput · context | Memory · setup |
 |-------|------------------------|----------------|
-| [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>April 2026 · MoE · Tool-calling and structured output. | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB** |
-| [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)<br>April 2026 · MoE. | Throughput: **~52 tok/s**<br>Est. context: **69K**<br>Max context: **262K** | Model VRAM: **10.50 GB**<br>System RAM: **11.97 GB**<br>KV VRAM: **5.33 GB**<br>Disk: **22.36 GB**<br>`--n-cpu-moe 24`<br/>`--n-gpu-layers 999`<br/>(~5 GB KV headroom) |
-| [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)<br>March 2026 · Dense · 100+ languages; strong generalist scores. | Throughput: **~86 tok/s**<br>Est. context: **79K**<br>Max context: **262K** | Model VRAM: **8.79 GB**<br>KV VRAM: **7.03 GB**<br>Disk: **9.55 GB** |
-| [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)<br>April 2026 · Dense · Barely fits 16 GB; almost no ctx headroom. | Throughput: **~46 tok/s**<br>Est. context: **9K**<br>Max context: **262K** | Model VRAM: **15.22 GB**<br>KV VRAM: **0.60 GB**<br>Disk: **15.79 GB** |
+| [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>April 2026 · MoE<br>Tool-calling, structured output. | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB** |
+| [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)<br>April 2026 · MoE<br>35B MoE, 3B active. | Throughput: **~52 tok/s**<br>Est. context: **69K**<br>Max context: **262K** | Model VRAM: **10.50 GB**<br>System RAM: **11.97 GB**<br>KV VRAM: **5.33 GB**<br>Disk: **22.36 GB**<br>`--n-cpu-moe 24`<br/>`--n-gpu-layers 999`<br/>(~5 GB KV headroom) |
+| [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)<br>March 2026 · Dense<br>100+ languages; strong generalist. | Throughput: **~86 tok/s**<br>Est. context: **79K**<br>Max context: **262K** | Model VRAM: **8.79 GB**<br>KV VRAM: **7.03 GB**<br>Disk: **9.55 GB** |
+| [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)<br>April 2026 · Dense<br>Barely fits 16 GB. | Throughput: **~46 tok/s**<br>Est. context: **9K**<br>Max context: **262K** | Model VRAM: **15.22 GB**<br>KV VRAM: **0.60 GB**<br>Disk: **15.79 GB** |
 
 
 ## Tester v1

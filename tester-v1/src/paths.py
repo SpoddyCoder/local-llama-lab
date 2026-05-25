@@ -1,4 +1,4 @@
-"""Shared filesystem roots for the tester harness."""
+"""Shared filesystem roots for the tester runner."""
 
 from __future__ import annotations
 

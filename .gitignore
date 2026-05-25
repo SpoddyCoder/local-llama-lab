@@ -1,6 +1,6 @@
 __pycache__/
 .venv/
 
-# Local harness output (not tracked; copy metrics into README when documenting models)
+# Local runner output (not tracked; copy metrics into README when documenting models)
 tester-v1/results/**
 !tester-v1/results/.gitkeep

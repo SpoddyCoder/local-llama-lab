@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## No writes under `tester-v1/results/`
 
-That tree is gitignored harness output only. Use inline dicts/strings or `tempfile` for fixtures and assertions.
+That tree is gitignored tester output only. Use inline dicts/strings or `tempfile` for fixtures and assertions.
 
 Read-only use of `MODELS_ROOT / "..."` is fine.
 

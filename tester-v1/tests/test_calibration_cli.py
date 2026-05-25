@@ -27,8 +27,6 @@ from config import MODEL_YAML  # noqa: E402
 from paths import TESTER_ROOT  # noqa: E402
 
 
-from paths import TESTER_ROOT  # noqa: E402
-
 _CALIBRATION_VARIANTS = (
     VARIANT_FOOTPRINT,
     VARIANT_CTX_PROBE,
@@ -70,10 +68,10 @@ def _resolve_run_config_side_effect(
 class TestValidateModelDir(unittest.TestCase):
     def test_accepts_model_and_server_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            harness = Path(tmp) / "tester"
-            cal_root = harness / "calibration-tests"
+            tester_root = Path(tmp) / "tester"
+            cal_root = tester_root / "calibration-tests"
             _write_probe_variants(cal_root)
-            model_dir = harness / "models" / "my-model"
+            model_dir = tester_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
@@ -100,13 +98,13 @@ class TestValidateModelDir(unittest.TestCase):
 
     def test_missing_calibration_variant_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            harness = Path(tmp) / "tester"
-            cal_root = harness / "calibration-tests"
+            tester_root = Path(tmp) / "tester"
+            cal_root = tester_root / "calibration-tests"
             footprint = cal_root / VARIANT_FOOTPRINT
             footprint.mkdir(parents=True)
             (footprint / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (footprint / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = harness / "models" / "my-model"
+            model_dir = tester_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
@@ -120,13 +118,13 @@ class TestValidateModelDir(unittest.TestCase):
 class TestRunCalibrationVariant(unittest.TestCase):
     def test_resolves_run_config_and_calls_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            harness = Path(tmp) / "tester"
-            cal_root = harness / "calibration-tests"
+            tester_root = Path(tmp) / "tester"
+            cal_root = tester_root / "calibration-tests"
             ref_dir = cal_root / VARIANT_FOOTPRINT
             ref_dir.mkdir(parents=True)
             (ref_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (ref_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = harness / "models" / "my-model"
+            model_dir = tester_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
@@ -166,13 +164,13 @@ class TestRunCalibrationVariant(unittest.TestCase):
 
     def test_passes_n_cpu_moe_to_resolve_run_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            harness = Path(tmp) / "tester"
-            cal_root = harness / "calibration-tests"
+            tester_root = Path(tmp) / "tester"
+            cal_root = tester_root / "calibration-tests"
             ref_dir = cal_root / VARIANT_FOOTPRINT
             ref_dir.mkdir(parents=True)
             (ref_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (ref_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = harness / "models" / "my-model"
+            model_dir = tester_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")

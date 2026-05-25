@@ -16,4 +16,4 @@ Run from `tester-v1/`:
 ./run_python_unit_tests.py
 ```
 
-Do not use harness CLIs with `--save-result` to verify test changes unless the user asks (`tester-harness-cli.mdc`).
+Do not use tester CLIs with `--save-result` to verify test changes unless the user asks (`tester-cli.mdc`).

@@ -1,11 +1,13 @@
 # Tester v1
 
-Single-run harness for `llama-server`: start the server (`server.yaml`), run one streaming chat completion (`client.yaml`), print all fourteen metrics plus a headline footer on stdout, then tear down.
+**Tester v1** is the local model test runner. [`src/runner.py`](src/runner.py) is the single-run implementation used by `tester_v1_run_test.py` and calibration probes.
+
+Single-run runner for `llama-server`: start the server (`server.yaml`), run one streaming chat completion (`client.yaml`), print all fourteen metrics plus a headline footer on stdout, then tear down.
 
 - Pass `--save-result` to write JSON under `results/{model}/{variant}/` and print the full run summary.
 - Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
 
-Repo-root CLIs wrap this harness: [tester_v1_run_test.py](../tester_v1_run_test.py), [tester_v1_calibrate.py](../tester_v1_calibrate.py), [launch_server.py](../launch_server.py), [download_model.py](../download_model.py).
+Repo-root CLIs wrap this runner: [tester_v1_run_test.py](../tester_v1_run_test.py), [tester_v1_calibrate.py](../tester_v1_calibrate.py), [launch_server.py](../launch_server.py), [download_model.py](../download_model.py).
 
 ## Requirements
 
@@ -90,8 +92,8 @@ tester-v1/
   calibration-tests/{variant}/
     client.yaml
     server.yaml                    # thin ctx-size override only
-  results/                         # gitignored harness output
-  src/                             # harness implementation
+  results/                         # gitignored tester output
+  src/                             # runner implementation
 ```
 
 Each model under [models/](../models/) needs `model.yaml` and `server.yaml` at the model root. Shared calibration probe YAML lives under [calibration-tests/](calibration-tests/); see [calibration-tests/README.md](calibration-tests/README.md). Optional ad-hoc prompts go under `sandbox/client.yaml` and run with `--variant sandbox`.

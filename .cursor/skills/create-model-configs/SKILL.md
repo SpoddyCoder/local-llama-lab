@@ -51,8 +51,8 @@ Lowercase; allowed `a-z`, `0-9`, `-`, `.`. Normalize: lowercase; `_`, `/`, space
 
 6. **`llama_bench.yaml`:** copy template; for MoE, uncomment/set `-ngl 999` and `-ncmoe N` to match `server.yaml`.
 7. **`sandbox/`:** always copy `client.yaml` and `server.yaml` from `tester-v1/templates/sandbox/`.
-8. **LiveCodeBench v6 (lookup only):** find the score on the **official vendor model card** for the base model family (Qwen, Google Gemma, etc.), not from a local GGUF run. Prefer the vendor's published LiveCodeBench v6 number; note the month shown on that card. If the exact variant has no published score, use the closest official base-model card and say so in the summary. If no trustworthy source exists, use `LiveCodeBench: **TODO**` and tell the user what to look up. Do not run `./tester_v1_calibrate.py` or other harness probes to fill this field.
-9. **README `## Models` row** (`models-readme-table.mdc`): insert a row in [README.md](../../../README.md) sorted by LiveCodeBench v6 descending (re-sort the full table). Match existing column layout and link style (HF blob URL from step 3). Do **not** run calibration to populate harness metrics; use literal `TODO` placeholders until the user runs calibration:
+8. **LiveCodeBench v6 (lookup only):** find the score on the **official vendor model card** for the base model family (Qwen, Google Gemma, etc.), not from a local GGUF run. Prefer the vendor's published LiveCodeBench v6 number; note the month shown on that card. If the exact variant has no published score, use the closest official base-model card and say so in the summary. If no trustworthy source exists, use `LiveCodeBench: **TODO**` and tell the user what to look up. Do not run `./tester_v1_calibrate.py` or other calibration probes to fill this field.
+9. **README `## Models` row** (`models-readme-table.mdc`): insert a row in [README.md](../../../README.md) sorted by LiveCodeBench v6 descending (re-sort the full table). Match existing column layout and link style (HF blob URL from step 3). Do **not** run calibration to populate calibration metrics; use literal `TODO` placeholders until the user runs calibration:
 
    | Cell | At scaffold | After user runs `./tester_v1_calibrate.py` |
    |------|-------------|---------------------------------------------|
@@ -66,7 +66,7 @@ Lowercase; allowed `a-z`, `0-9`, `-`, `.`. Normalize: lowercase; `_`, `/`, space
 ## Safety
 
 - No overwrite without confirmation; no edits under `tester-v1/src/`.
-- No GPU runs, calibration probes, or `--save-result` unless the user asks (`tester-harness-cli.mdc`). Scaffolding must not invoke `./tester_v1_calibrate.py` to fill README metrics.
+- No GPU runs, calibration probes, or `--save-result` unless the user asks (`tester-cli.mdc`). Scaffolding must not invoke `./tester_v1_calibrate.py` to fill README metrics.
 - New global probes: `tester-v1/calibration-tests/` + `calibration.py` (`calibration-tests-sync.mdc`).
 
 ## Commands (repo root; user runs download)

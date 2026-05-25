@@ -47,7 +47,7 @@ Download a model from Hugging Face using its config under [models/](models/):
 ## Tester v1
 
 * Calibration tests measure throughput and rough max context window on a 16 GB card.
-* See [tester-v1/README.md](tester-v1/README.md) for harness details.
+* See [tester-v1/README.md](tester-v1/README.md) for tester runner details.
 * Each model under [models/](models/) has `model.yaml` (GGUF path, `hf-download` repo/file) and `server.yaml` (base llama-server load profile) at the model root.
 * Scaffold new models from [tester-v1/templates/](tester-v1/templates/).
   * Cursor skill `create-model-configs` can do this automatically - just tell it which model + variant you want and it'll do the rest.
@@ -80,7 +80,7 @@ Use a browser to access the llama web UI while it is running (port depends on `s
 
 * Runs `llama-bench` from a model config dir. 
 * Each model has `llama_bench.yaml` at the model root (alongside `server.yaml`). 
-* Throughput numbers in the [models table](#models) still come from tester v1 calibration and harness runs, not llama-bench (different measurement).
+* Throughput numbers in the [models table](#models) still come from tester v1 calibration and full CLI runs (`--save-result`), not llama-bench (different measurement).
 
 ```bash
 ./llama_bench.py models/qwen3.5-9b-q8/

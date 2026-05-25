@@ -1,13 +1,13 @@
 ---
-description: Do not run tester harness CLIs that write results without user permission
+description: Do not run tester CLIs that write results without user permission
 alwaysApply: true
 ---
 
-# Tester harness CLIs
+# Tester CLIs
 
 ## Permission before `--save-result`
 
-Do not run artifact-writing harness CLIs unless the user asked in this chat, a fresh run is required for an explicit request, or you are debugging the harness itself.
+Do not run artifact-writing tester CLIs unless the user asked in this chat, a fresh run is required for an explicit request, or you are debugging the runner itself.
 
 Ask first before:
 
@@ -23,7 +23,7 @@ Run these from the repo root. Probe runs without `--save-result` are stdout-only
 1. Use metrics already in repo README or other docs.
 2. Else read newest `*.json` under `tester-v1/results/{model}/{variant}/`, or `calibration-sessions/{session_id}.json` for saved calibration.
 3. Recompute from those files when needed (`idle_vram_mb`, calibration math).
-4. Suggest or run a new harness only if local data is missing, stale, or the user wants a new run.
+4. Suggest or run a new tester run only if local data is missing, stale, or the user wants a new run.
 
 ## Do not use calibration-tests as config_dir
 

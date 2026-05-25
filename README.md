@@ -23,18 +23,21 @@ System is relatively modest for AI work, but surprisingly viable for cutting edg
 | [Qwen3.6-27B-Q4](https://huggingface.co/unsloth/Qwen3.6-27B-GGUF/blob/main/Qwen3.6-27B-Q4_0.gguf)<br>Dense 27B<br>Strong coding/reasonin; not really usable on 16 GB<br>LiveCodeBench: **83.9%**<br>April 2026                             | Throughput: **~46 tok/s**<br>Est. context: **9K**<br>Max context: **262K**    | Model VRAM: **15.22 GB**<br>KV VRAM: **0.60 GB**<br>Disk: **15.79 GB**                                           |
 | [Qwen3.5-9B-Q8](https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF/blob/main/Qwen_Qwen3.5-9B-Q8_0.gguf)<br>Dense 9B<br>201 languages, multimodal; great quality/speed balance<br>LiveCodeBench: **82.7%**<br>March 2026                            | Throughput: **~86 tok/s**<br>Est. context: **79K**<br>Max context: **262K**   | Model VRAM: **8.79 GB**<br>KV VRAM: **7.03 GB**<br>Disk: **9.55 GB**                                             |
 | [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)<br>MoE (35B / 3B active)<br>Agentic coding leader; needs CPU-offloaded MoE on 16 GB.<br>LiveCodeBench: **80.4%**<br>April 2026 | Throughput: **~52 tok/s**<br>Est. context: **69K**<br>Max context: **262K**   | Model VRAM: **10.50 GB**<br>System RAM: **11.97 GB**<br>KV VRAM: **5.33 GB**<br>Disk: **22.36 GB**<br>`--n-cpu-moe 24` |
-| [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>Edge (4.5B effective)<br>Multimodal, tool-calling; fast on 16 GB VRAM.<br>LiveCodeBench: **52.0%**<br>April 2026                            | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB**                                            |
+| [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>Effective 4.5B (E4B)<br>Multimodal, tool-calling; fast on 16 GB VRAM.<br>LiveCodeBench: **52.0%**<br>April 2026                            | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB**                                            |
 
 LiveCodeBench v6 scores are from official vendor model cards ([LiveCodeBench](https://livecodebench.github.io/)): base BF16 weights, not a local GGUF run. For coding, local quants are usually close: Q8 and Q6 within about 1-3% of BF16; Q4_K_XL and UD-Q4 within about 3-8% (ranking tends to hold; absolute numbers shift). See [gguf-bench quant curves](https://gguf-bench.com/) for llama-server GGUF scores by quant level.
 
 
-Download a model from Hugging Face...
+Download a model from Hugging Face using the slug's config (repo root):
 
 ```bash
-hf download bartowski/Qwen_Qwen3.5-9B-GGUF Qwen_Qwen3.5-9B-Q8_0.gguf
+./download_model.py models/qwen3.5-9b-q8/
+./download_model.py models/qwen3.5-9b-q8/ --dry-run
 ```
 
-Note: if you omit the 2nd argument the whole repo is downloaded (all variants of the model - normally huge!)
+Each slug's [model.yaml](models/qwen3.5-9b-q8/model.yaml) can store an optional `hf-download` block with `repo` and `file`; `./download_model.py` reads those keys, runs `hf download`, and updates `model:` if the cache path changes. Omitting the filename downloads the whole repo (all variants, normally huge), which is why the structured block names a specific file.
+
+For ad-hoc downloads without a slug config, raw `hf download org/repo file.gguf` still works.
 
 ---
 
@@ -45,7 +48,7 @@ Note: if you omit the 2nd argument the whole repo is downloaded (all variants of
 
 Run CLIs from the repo root (no `cd tester-v1`).
 
-Each model under [models/](models/) has `model.yaml` (GGUF path) and `server.yaml` (base llama-server load profile) at the model root. Scaffold new slugs from [tester-v1/templates/](tester-v1/templates/).
+Each model under [models/](models/) has `model.yaml` (GGUF path, optional `hf-download` repo/file) and `server.yaml` (base llama-server load profile) at the model root. Scaffold new slugs from [tester-v1/templates/](tester-v1/templates/).
 
 ### Run a server
 
@@ -100,7 +103,7 @@ Model filenames often encode the architecture:
 
 - **Dense** (e.g. `Qwen3.5-9B`, `Qwen3.6-27B`): every parameter runs on every token. Simpler to load; VRAM scales with total size.
 - **MoE** (e.g. `35B-A3B`): many expert sub-networks, but only a few activate per token (~3B active here). Near-large-model quality at small-model speed; on 16 GB you may need `--n-cpu-moe` to offload experts to CPU RAM.
-- **Edge** (e.g. `Gemma-4-E4B`): Google's Per-Layer Embeddings (PLE), not MoE. Most weights live in per-layer embedding tables (~4.5B effective params, ~8B on disk). Built for laptops and phones: fast decode, modest VRAM, strong tool use for the size. Loads and runs like a dense model in llama.cpp.
+- **Effective (E)** (e.g. `Gemma-4-E4B`): "E" means effective parameters (PLE, not MoE). Per-layer embedding tables hold most weights (~4.5B effective, ~8B on disk). Tuned for on-device and edge deployment: fast decode, modest VRAM, strong tool use for the size. Loads and runs like a dense model in llama.cpp.
 
 ### Reading quant names
 

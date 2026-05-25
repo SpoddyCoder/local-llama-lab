@@ -1,1 +1,4 @@
 model: /path/to/model.gguf
+# hf-download:
+#   repo: bartowski/Qwen_Qwen3.5-9B-GGUF
+#   file: Qwen_Qwen3.5-9B-Q8_0.gguf

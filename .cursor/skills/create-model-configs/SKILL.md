@@ -27,6 +27,15 @@ Ask before writing if anything is missing:
 | `model_slug` | `qwen3.5-9b-q8` |
 | `gguf_path` | `~/.cache/.../model-Q8_0.gguf` (must exist; expand `~` to verify) |
 
+## Optional inputs
+
+| Input | Example |
+|-------|---------|
+| `hf_repo` | `bartowski/Qwen_Qwen3.5-9B-GGUF` |
+| `hf_file` | `Qwen_Qwen3.5-9B-Q8_0.gguf` |
+
+When both are known, set the `hf-download` block in `model.yaml` so `./download_model.py` can fetch the GGUF without manual `hf download` commands.
+
 ## Slug normalization
 
 Allowed: `a-z`, `0-9`, `-`, `.` (lowercase only). Apply in order:
@@ -42,7 +51,7 @@ If the user's name is non-conforming, derive a slug, state it in the summary, an
 
 1. Collect and normalize `model_slug`; verify `gguf_path` exists.
 2. If `model.yaml`, `server.yaml`, or `llama_bench.yaml` exists, show contents and do not overwrite without explicit OK.
-3. Copy `tester-v1/templates/model.yaml` to `models/{model_slug}/model.yaml`; set `model:` to the user's path (including `~` if given).
+3. Copy `tester-v1/templates/model.yaml` to `models/{model_slug}/model.yaml`; set `model:` to the user's path (including `~` if given). When `hf_repo` and `hf_file` are known, uncomment or set the `hf-download` block (`repo`, `file`).
 4. Copy `tester-v1/templates/server.yaml` to `models/{model_slug}/server.yaml`.
 5. Copy `tester-v1/templates/llama_bench.yaml` to `models/{model_slug}/llama_bench.yaml`.
 6. Summarize paths and commands below.
@@ -78,6 +87,13 @@ Run test (default variant `hello-world-baseline` from calibration-tests):
 ```bash
 ./tester_v1_run_test.py models/{model_slug}/
 ./tester_v1_run_test.py models/{model_slug}/ --variant hello-world-baseline
+```
+
+Download GGUF (optional `hf-download` in `model.yaml`):
+
+```bash
+./download_model.py models/{model_slug}/
+./download_model.py models/{model_slug}/ --dry-run
 ```
 
 Launch server (model root `server.yaml`):

@@ -5,7 +5,7 @@ Single-run harness for `llama-server`: start the server (`server.yaml`), run one
 - Pass `--save-result` to write JSON under `results/{model}/{variant}/` and print the full run summary.
 - Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
 
-Repo-root CLIs wrap this harness: [tester_v1_run_test.py](../tester_v1_run_test.py), [tester_v1_calibrate.py](../tester_v1_calibrate.py), [launch_server.py](../launch_server.py).
+Repo-root CLIs wrap this harness: [tester_v1_run_test.py](../tester_v1_run_test.py), [tester_v1_calibrate.py](../tester_v1_calibrate.py), [launch_server.py](../launch_server.py), [download_model.py](../download_model.py).
 
 ## Requirements
 
@@ -96,7 +96,7 @@ tester-v1/
 
 Each model dir under [models/](../models/) needs `model.yaml` and `server.yaml` at the slug root. Shared calibration probe YAML lives under [calibration-tests/](calibration-tests/); see [calibration-tests/README.md](calibration-tests/README.md). Optional ad-hoc prompts go under `sandbox/client.yaml` and run with `--variant sandbox`.
 
-**model.yaml:** `model` is the GGUF path. The runner injects `-m`; do not set `-m` or `--model` in `server.yaml`.
+**model.yaml:** `model` is the GGUF path. The runner injects `-m`; do not set `-m` or `--model` in `server.yaml`. Optional `hf-download` block with `repo` and `file` keys tells [download_model.py](../download_model.py) which Hugging Face repo and GGUF to fetch; after download it updates `model:` if the cache path changed.
 
 **server.yaml (model root):** full load profile — `args` (`args: |`, one flag per line), optional `binary`, `ready_timeout_s` (default 120), `ready_poll_interval_s` (default 0.5).
 
@@ -105,6 +105,15 @@ Each model dir under [models/](../models/) needs `model.yaml` and `server.yaml` 
 **client.yaml:** `base_url` (default `http://127.0.0.1:8080`), `messages`, `params`, optional `timeout_s` (default 600). The runner always sets `stream: true`. Keep `base_url` in sync with `--port` in server args.
 
 **Merge order:** model `server.yaml` + probe or sandbox override (if any) + CLI flags (`--n-cpu-moe` replaces existing MoE offload flags). Client YAML comes from the variant dir (`calibration-tests/{variant}/` or `sandbox/`).
+
+## Download model
+
+[download_model.py](../download_model.py) runs `hf download` from the optional `hf-download` block in the slug's `model.yaml`, then updates `model:` if the cached GGUF path changed.
+
+```bash
+./download_model.py models/qwen3.5-9b-q8/
+./download_model.py models/qwen3.5-9b-q8/ --dry-run
+```
 
 ## Launch server
 

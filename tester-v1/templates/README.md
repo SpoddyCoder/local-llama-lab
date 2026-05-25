@@ -4,7 +4,7 @@ Copy these when scaffolding a new slug under `models/`. Canonical source for new
 
 | File | Use |
 |------|-----|
-| `model.yaml` | Copy to `models/{slug}/model.yaml` and set the GGUF path |
+| `model.yaml` | Copy to `models/{slug}/model.yaml` and set the GGUF path; optional `hf-download` (`repo`, `file`) for [download_model.py](../../download_model.py) |
 | `server.yaml` | Copy to `models/{slug}/server.yaml` (base llama-server load profile) |
 | `sandbox/client.yaml` | Optional ad-hoc prompt; copy to `models/{slug}/sandbox/client.yaml` and run with `--variant sandbox` |
 | `sandbox/server.yaml` | Optional thin server override (commented stub); copy with client when needed |

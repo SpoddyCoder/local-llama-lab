@@ -203,44 +203,62 @@ class TestResolveRunConfigErrors(unittest.TestCase):
             self.assertIn("server.yaml", str(ctx.exception))
 
 
-class TestLiveModelLayout(unittest.TestCase):
-    _LIVE_SLUG = "qwen3.5-9b-q8"
+def _discover_model_slugs() -> list[str]:
+    """Return sorted slugs under MODELS_ROOT that have model.yaml and server.yaml."""
+    if not MODELS_ROOT.is_dir():
+        return []
+    slugs: list[str] = []
+    for path in sorted(MODELS_ROOT.iterdir()):
+        if not path.is_dir():
+            continue
+        if (path / MODEL_YAML).is_file() and (path / "server.yaml").is_file():
+            slugs.append(path.name)
+    return slugs
 
+
+def _live_slug_skip_reason(model_dir: Path) -> str | None:
+    model_yaml = model_dir / MODEL_YAML
+    server_yaml = model_dir / "server.yaml"
+    if not model_dir.is_dir():
+        return f"model directory not found: {model_dir}"
+    if not model_yaml.is_file() or not server_yaml.is_file():
+        return "model.yaml or server.yaml missing at model root"
+    try:
+        load_model_config(model_yaml)
+    except ValueError as exc:
+        return str(exc)
+    return None
+
+
+class TestLiveModelLayout(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.model_dir = MODELS_ROOT / cls._LIVE_SLUG
-        cls._skip_reason: str | None = None
-        if not cls.model_dir.is_dir():
-            cls._skip_reason = f"model directory not found: {cls.model_dir}"
-            return
-        model_yaml = cls.model_dir / MODEL_YAML
-        server_yaml = cls.model_dir / "server.yaml"
-        if not model_yaml.is_file() or not server_yaml.is_file():
-            cls._skip_reason = "model.yaml or server.yaml missing at model root"
-            return
-        try:
-            load_model_config(model_yaml)
-        except ValueError as exc:
-            cls._skip_reason = str(exc)
+        cls._slugs = _discover_model_slugs()
 
-    def setUp(self) -> None:
-        if self._skip_reason is not None:
-            self.skipTest(self._skip_reason)
+    def test_live_model_layout_invariants(self) -> None:
+        if not self._slugs:
+            self.skipTest(
+                f"no model directories with {MODEL_YAML} and server.yaml under {MODELS_ROOT}"
+            )
 
-    def test_resolve_run_config_hello_world_baseline(self) -> None:
-        cfg = resolve_run_config(self.model_dir, "hello-world-baseline")
+        for slug in self._slugs:
+            with self.subTest(slug=slug):
+                model_dir = MODELS_ROOT / slug
+                skip_reason = _live_slug_skip_reason(model_dir)
+                if skip_reason is not None:
+                    self.skipTest(skip_reason)
 
-        self.assertIsInstance(cfg, RunConfig)
-        self.assertEqual(cfg.model, self._LIVE_SLUG)
-        self.assertEqual(cfg.variant, "hello-world-baseline")
-        self.assertEqual(cfg.model_yaml_path, self.model_dir / MODEL_YAML)
-        self.assertEqual(parse_context_from_args(cfg.server.args), 4096)
+                server, model_yaml_path = resolve_model_server(model_dir)
+                self.assertEqual(model_yaml_path, model_dir / MODEL_YAML)
+                self.assertGreater(parse_context_from_args(server.args), 0)
+                self.assertTrue(server.model)
 
-    def test_resolve_model_server(self) -> None:
-        server, model_yaml_path = resolve_model_server(self.model_dir)
-
-        self.assertEqual(model_yaml_path, self.model_dir / MODEL_YAML)
-        self.assertEqual(parse_context_from_args(server.args), 78848)
+                cfg = resolve_run_config(model_dir, "hello-world-baseline")
+                self.assertIsInstance(cfg, RunConfig)
+                self.assertEqual(cfg.model, slug)
+                self.assertEqual(cfg.variant, "hello-world-baseline")
+                self.assertEqual(cfg.model_yaml_path, model_dir / MODEL_YAML)
+                self.assertEqual(parse_context_from_args(cfg.server.args), 4096)
 
 
 class TestResolveModelServer(unittest.TestCase):

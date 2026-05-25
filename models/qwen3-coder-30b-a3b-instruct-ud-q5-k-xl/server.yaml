@@ -1,0 +1,10 @@
+args: |
+  --host 127.0.0.1
+  --port 8080
+  --parallel 1
+  --no-mmap
+  --fit off
+  --n-gpu-layers 999
+  --n-cpu-moe 24
+  # safe ctx for 16GB VRAM
+  --ctx-size 32768

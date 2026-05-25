@@ -44,12 +44,27 @@ def _write_probe_variants(cal_root: Path) -> None:
         (probe_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
 
 
-def _resolve_run_config_side_effect() -> list[MagicMock]:
-    footprint_cfg = MagicMock()
-    ctx_cfg = MagicMock()
-    footprint_cfg.server.args = []
-    ctx_cfg.server.args = []
-    return [footprint_cfg, ctx_cfg]
+def _resolve_run_config_side_effect(
+    *,
+    yaml_n_cpu_moe: int | None = None,
+):
+    def side_effect(model_dir, variant, *, n_cpu_moe=None):
+        footprint_cfg = MagicMock()
+        ctx_cfg = MagicMock()
+        effective = n_cpu_moe if n_cpu_moe is not None else yaml_n_cpu_moe
+        if variant == VARIANT_FOOTPRINT and effective is not None:
+            footprint_cfg.server.args = [
+                "--n-cpu-moe",
+                str(effective),
+                "--n-gpu-layers",
+                "999",
+            ]
+        else:
+            footprint_cfg.server.args = ["-c", "4096"]
+        ctx_cfg.server.args = ["-c", "16384"]
+        return footprint_cfg if variant == VARIANT_FOOTPRINT else ctx_cfg
+
+    return side_effect
 
 
 class TestValidateModelDir(unittest.TestCase):
@@ -536,6 +551,78 @@ class TestRunCalibrationStdout(unittest.TestCase):
         for call in resolve.call_args_list:
             self.assertEqual(call.kwargs["n_cpu_moe"], 4)
 
+    def test_server_yaml_n_cpu_moe_includes_model_system_ram_without_cli_flag(
+        self,
+    ) -> None:
+        model_dir = Path("/tmp/model")
+        stdout = io.StringIO()
+
+        def resolve_with_yaml_moe(model_dir_arg, variant, *, n_cpu_moe=None):
+            footprint_cfg = MagicMock()
+            ctx_cfg = MagicMock()
+            footprint_cfg.server.args = [
+                "--n-cpu-moe",
+                "24",
+                "--n-gpu-layers",
+                "999",
+            ]
+            ctx_cfg.server.args = []
+            if variant == VARIANT_FOOTPRINT:
+                return footprint_cfg
+            return ctx_cfg
+
+        with (
+            patch("calibration_cli.run_calibration_variant", return_value=(0, "foot\n")),
+            patch("calibration_cli._idle_vram_from_probe_output", side_effect=[1000, 1100]),
+            patch(
+                "calibration_cli.parse_model_max_context_from_metrics_stdout",
+                return_value=128000,
+            ),
+            patch(
+                "calibration_cli.parse_decode_tok_s_from_metrics_stdout",
+                return_value=91.2,
+            ),
+            patch(
+                "calibration_cli.parse_idle_system_ram_from_metrics_stdout",
+                return_value=10368,
+            ) as parse_ram,
+            patch(
+                "calibration_cli.load_model_config",
+                return_value="/tmp/model.gguf",
+            ),
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=resolve_with_yaml_moe,
+            ) as resolve,
+            patch("calibration_cli.parse_context_from_args", side_effect=[4096, 16384]),
+            patch("calibration_cli.gguf_size_gb", return_value=1.0),
+            patch("calibration_cli.query_gpu_total_mb", return_value=16000),
+            patch(
+                "calibration_cli.compute_summary",
+                return_value={
+                    "gguf_gb": 1.0,
+                    "model_vram_mb": 1000,
+                    "kv_vram_mb": 2000,
+                    "estimated_context_max": 4096,
+                },
+            ),
+            patch("sys.stdout", stdout),
+            patch("sys.stderr", io.StringIO()),
+        ):
+            code = _run_calibration(
+                model_dir,
+                0,
+                save_result=False,
+                quiet=False,
+                n_cpu_moe=None,
+            )
+        self.assertEqual(code, 0)
+        parse_ram.assert_called_once_with("foot\n")
+        self.assertIn("* Model System RAM: 10.12 GB", stdout.getvalue())
+        self.assertEqual(resolve.call_count, 2)
+        for call in resolve.call_args_list:
+            self.assertIsNone(call.kwargs["n_cpu_moe"])
+
     def test_save_result_n_cpu_moe_includes_model_system_ram_in_session_summary(
         self,
     ) -> None:
@@ -625,6 +712,11 @@ class TestRunCalibrationStdout(unittest.TestCase):
                 "calibration_cli.load_model_config",
                 return_value="/tmp/model.gguf",
             ),
+            patch(
+                "calibration_cli.resolve_run_config",
+                side_effect=_resolve_run_config_side_effect(),
+            ),
+            patch("calibration_cli.gguf_size_gb", return_value=1.0),
             patch("sys.stdout", io.StringIO()),
             patch("sys.stderr", io.StringIO()) as stderr,
         ):

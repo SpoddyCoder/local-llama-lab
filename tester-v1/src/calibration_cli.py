@@ -25,7 +25,12 @@ from calibration import (
     run_calibration_variant,
     write_calibration_session_summary,
 )
-from config import MODEL_YAML, load_model_config, parse_context_from_args
+from config import (
+    MODEL_YAML,
+    load_model_config,
+    parse_context_from_args,
+    parse_n_cpu_moe_from_args,
+)
 from model_layout import resolve_run_config
 from result_layout import find_latest_result
 from paths import CALIBRATION_TESTS_ROOT, RESULTS_DIR, TESTER_ROOT
@@ -124,6 +129,25 @@ def _run_calibration(
             _print_probe_output(output)
             probe_outputs.append((variant_name, output))
 
+    try:
+        model_path = load_model_config(model_dir / MODEL_YAML)
+        footprint_cfg = resolve_run_config(
+            model_dir, VARIANT_FOOTPRINT, n_cpu_moe=n_cpu_moe
+        )
+        ctx_probe_cfg = resolve_run_config(
+            model_dir, VARIANT_CTX_PROBE, n_cpu_moe=n_cpu_moe
+        )
+        effective_n_cpu_moe = parse_n_cpu_moe_from_args(footprint_cfg.server.args)
+        footprint_c = parse_context_from_args(footprint_cfg.server.args)
+        ctx_c = parse_context_from_args(ctx_probe_cfg.server.args)
+        gguf_gb = gguf_size_gb(model_path)
+    except ValueError as exc:
+        return _fail(
+            f"{exc}\n"
+            f"merged server config for variants "
+            f"{VARIANT_FOOTPRINT!r} and {VARIANT_CTX_PROBE!r}"
+        )
+
     if save_result:
         try:
             model = model_dir.name
@@ -146,7 +170,7 @@ def _run_calibration(
             generation_throughput_tok_s = read_decode_tok_s_from_result(
                 hello_world_result
             )
-            if n_cpu_moe is not None:
+            if effective_n_cpu_moe is not None:
                 footprint_model_system_ram_mb = read_idle_system_ram_from_result(
                     footprint_result
                 )
@@ -170,7 +194,7 @@ def _run_calibration(
             generation_throughput_tok_s = parse_decode_tok_s_from_metrics_stdout(
                 probe_outputs[2][1]
             )
-            if n_cpu_moe is not None:
+            if effective_n_cpu_moe is not None:
                 footprint_model_system_ram_mb = (
                     parse_idle_system_ram_from_metrics_stdout(probe_outputs[0][1])
                 )
@@ -178,24 +202,6 @@ def _run_calibration(
                 footprint_model_system_ram_mb = None
         except ValueError as exc:
             return _fail(str(exc))
-
-    try:
-        model_path = load_model_config(model_dir / MODEL_YAML)
-        footprint_cfg = resolve_run_config(
-            model_dir, VARIANT_FOOTPRINT, n_cpu_moe=n_cpu_moe
-        )
-        ctx_probe_cfg = resolve_run_config(
-            model_dir, VARIANT_CTX_PROBE, n_cpu_moe=n_cpu_moe
-        )
-        footprint_c = parse_context_from_args(footprint_cfg.server.args)
-        ctx_c = parse_context_from_args(ctx_probe_cfg.server.args)
-        gguf_gb = gguf_size_gb(model_path)
-    except ValueError as exc:
-        return _fail(
-            f"{exc}\n"
-            f"merged server config for variants "
-            f"{VARIANT_FOOTPRINT!r} and {VARIANT_CTX_PROBE!r}"
-        )
 
     gpu_total_mb = query_gpu_total_mb()
     if gpu_total_mb is None:
@@ -216,7 +222,7 @@ def _run_calibration(
         )
         summary["model_max_context"] = model_max_context
         summary["generation_throughput_tok_s"] = generation_throughput_tok_s
-        if n_cpu_moe is not None:
+        if effective_n_cpu_moe is not None:
             summary["model_system_ram_mb"] = footprint_model_system_ram_mb
     except ValueError as exc:
         if save_result:

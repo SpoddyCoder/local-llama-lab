@@ -128,7 +128,7 @@ Each model under [models/](../models/) needs `model.yaml` and `server.yaml` at t
 
 [tester_v1_calibrate.py](../tester_v1_calibrate.py) runs three shared probes (footprint, ctx-probe, hello-world-baseline) from `calibration-tests/` and prints a VRAM and throughput summary on six lines by default. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
 
-When calibration runs with MoE CPU offload (`./tester_v1_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl --n-cpu-moe 24`, same pattern as Usage), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N.NN} GB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
+When calibration runs with MoE CPU offload (from model `server.yaml`, a probe override, or CLI `--n-cpu-moe`), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N.NN} GB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
 
 ```bash
 ./tester_v1_calibrate.py models/qwen3.5-9b-q8
@@ -140,7 +140,7 @@ When calibration runs with MoE CPU offload (`./tester_v1_calibrate.py models/qwe
 
 ## Results
 
-`results/` is gitignored. Probe JSON: `results/{model}/{variant}/{timestamp}.json`. Calibration with `--save-result` also writes `results/{model}/calibration-sessions/{session_id}.json`; MoE offload runs include `model_system_ram_mb` in the session `summary` when `--n-cpu-moe` was set.
+`results/` is gitignored. Probe JSON: `results/{model}/{variant}/{timestamp}.json`. Calibration with `--save-result` also writes `results/{model}/calibration-sessions/{session_id}.json`; MoE offload runs include `model_system_ram_mb` in the session `summary` when resolved server args include `--n-cpu-moe`.
 
 Default stdout: all metrics (rounded), blank line, three headline lines (end-to-end time, peak VRAM, decode tok/s). With `--save-result`, stdout is a run summary unless `--quiet`.
 

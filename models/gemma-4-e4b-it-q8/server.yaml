@@ -5,4 +5,4 @@ args: |
   --no-mmap
   --fit off
   # safe ctx for 16GB VRAM
-  --ctx-size 128,000
+  --ctx-size 128000

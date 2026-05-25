@@ -4,6 +4,7 @@ args: |
   --parallel 1
   --no-mmap
   --fit off
+  --jinja
   --n-gpu-layers 999
   --n-cpu-moe 24
   # safe ctx for 16GB VRAM

@@ -177,18 +177,27 @@ Without those flags you carry the extra weights but get no speed benefit.
 
 ### Server Config
 
-- `--fit off` - disable llama.cpp auto VRAM fitting on load (on by default).
-  - Fit can shrink context or move layers to CPU to avoid OOM; on large models that often costs a lot of tok/s.
-  - Use when you already set `--ctx-size`.
-- `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
-  - Negatively affects startup time tho.
-- `--n-gpu-layers 999 --n-cpu-moe 41` - use with MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
-  - Tune 42 down to use more gpu vram (more experts on vram)
-  - Any VRAM not used by the model is used by the KV cache (context length), so you should wnat to leave 1-4Gb free.
-- `--cache-type-k turbo4 --cache-type-v turbo3` - use turbo4 for cache keys and turbo3 for cache values (TurboQuant).
-  - Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
-  - Doesn't appear to be available in the WSL fork of llama.cpp yet
-- `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
+* `--fit off` - disable llama.cpp auto VRAM fitting on load (on by default).
+  * Fit can shrink context or move layers to CPU to avoid OOM; on large models that often costs a lot of tok/s.
+  * Use when you already set `--ctx-size`.
+* `--no-mmap` - force preload of model immediately into memory, to avoid disk reads during usage
+  * Negatively affects startup time tho.
+* `--n-gpu-layers 999 --n-cpu-moe 41` - use with MoE models, put the small fast firing stuff on gpu and the bulky experts on cpu
+  * Tune 42 down to use more gpu vram (more experts on vram)
+  * Any VRAM not used by the model is used by the KV cache (context length), so you should wnat to leave 1-4Gb free.
+* `--cache-type-k turbo4 --cache-type-v turbo3` - use turbo4 for cache keys and turbo3 for cache values (TurboQuant).
+  * Asymmetry can be useful if the model uses grouped query attention (8:1 ratio on qwen3.6) which means the keys can take heavier compression than the values.
+  * Doesn't appear to be available in the WSL fork of llama.cpp yet
+* `--ngl 20` - first 20 layers go on GPU, rest on CPU (not fast! but useful for testing)
+* `--jinja` - use the model's Jinja chat template from GGUF metadata (off by default).
+  * Required for OpenAI-style tool calling (`tools` in `/v1/chat/completions`).
+  * With tools in the request, llama-server prefers `tokenizer.chat_template.tool_use` when present.
+* `--chat-template-file PATH` - override the embedded chat template with a local `.jinja` file.
+  * Usually not needed; check `http://localhost:8080/props` after `--jinja` first.
+  * Use when the GGUF template is wrong, missing tool support, or you need a known community override.
+* `--flash-attn` - Flash Attention: faster attention and lower KV-cache VRAM use.
+  * Helps fit longer context on the same GPU; not tool-calling-specific.
+  * Needs a build with FA support; drop it if startup fails or output looks off.
 
 ---
 

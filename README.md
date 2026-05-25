@@ -87,6 +87,31 @@ Use a browser to access the llama web UI while it is running (port depends on `s
 
 See [tester-v1/templates/llama_bench.yaml](tester-v1/templates/llama_bench.yaml) for the config file format.
 
+### Huggingface CLI
+Some useful commands...
+
+```bash
+# download an entire repo (all variants, normally huge!)
+hf download unsloth/Qwen3.6-35B-A3B-MTP-GGUF
+
+# download a quant variant
+hf download unsloth/Qwen3.6-35B-A3B-MTP-GGUF/blob/main/Qwen3.6-35B-A3B-MTP-GGUF-Q4_K_XL.gguf
+
+# list model in local cache
+hf cache ls --filter "type=model" --sort size:desc
+hf cache ls --filter "type=model" --sort size:desc -q   # just the model name
+hf cache ls --filter "type=model" --sort size:desc --json | jq . # formatted json
+
+# delete a model (deletes all variants)
+hf delete unsloth/Qwen3.6-35B-A3B-MTP-GGUF
+
+# remove a specific variant
+hf cache rm <revision_hash>
+
+# remove detactched/orphan variants
+hf cache prune
+```
+
 ---
 
 ## Key Learnings

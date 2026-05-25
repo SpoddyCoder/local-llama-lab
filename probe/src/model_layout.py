@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from config import MODEL_YAML, ServerConfig, load_variant_server, merge_server_configs
-from paths import CALIBRATION_TESTS_ROOT
+from paths import CALIBRATION_PROBES_ROOT
 
 
 @dataclass(frozen=True)
@@ -41,12 +41,12 @@ def _resolve_variant_paths(
     model_dir: Path,
     variant: str,
 ) -> tuple[Path, Path | None]:
-    calib_client = CALIBRATION_TESTS_ROOT / variant / "client.yaml"
+    calib_client = CALIBRATION_PROBES_ROOT / variant / "client.yaml"
     local_client = model_dir / variant / "client.yaml"
 
     if calib_client.is_file():
         client_path = calib_client
-        override_path = CALIBRATION_TESTS_ROOT / variant / "server.yaml"
+        override_path = CALIBRATION_PROBES_ROOT / variant / "server.yaml"
     elif local_client.is_file():
         client_path = local_client
         override_path = model_dir / variant / "server.yaml"

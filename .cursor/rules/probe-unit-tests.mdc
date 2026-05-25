@@ -1,0 +1,27 @@
+---
+description: Unit tests must not write artifacts under probe/results/
+globs: probe/tests/**/*.py
+alwaysApply: false
+---
+
+# Probe unit tests
+
+## No writes under `probe/results/`
+
+That tree is gitignored probe output only. Use inline dicts/strings or `tempfile` for fixtures and assertions.
+
+Read-only use of `MODELS_ROOT / "..."` is fine.
+
+## Mocked save-result paths
+
+When `write_result` is mocked but code still writes siblings (e.g. `{stem}-output.txt` with `--include-output`), put the mocked path under `tempfile.TemporaryDirectory()`, not `_PROBE_ROOT / "results"`.
+
+```python
+with tempfile.TemporaryDirectory() as tmp:
+    result_path = Path(tmp) / "results" / model / variant / "20260101T000000Z.json"
+    patch("runner.write_result", return_value=result_path),
+```
+
+See `test_include_output_with_save_result_writes_output_txt` in `probe/tests/test_runner_cli.py`.
+
+Mocking `write_result` alone without sibling writes may use a path under `_PROBE_ROOT / "results"` if no real I/O occurs.

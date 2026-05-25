@@ -365,7 +365,7 @@ class TestFormatRunSummary(unittest.TestCase):
             "decode_tok_s": 7.5,
             "peak_vram_mb": 8192,
         }
-        root = Path("/tmp/tester-v1")
+        root = Path("/tmp/probe")
         result_path = (
             root
             / "results"
@@ -378,7 +378,7 @@ class TestFormatRunSummary(unittest.TestCase):
             result_path,
             server,
             metrics,
-            tester_root=root,
+            probe_root=root,
         )
         self.assertIn(
             "Run: 20260516T134500Z_qwen3.5-9b-q8-hello-world-baseline", text

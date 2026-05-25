@@ -1,0 +1,28 @@
+---
+description: Propagate calibration-probes template changes (calibration-probes only; live models keep model.yaml)
+globs: probe/calibration-probes/**
+alwaysApply: false
+---
+
+# Calibration probe template updates
+
+After editing `probe/calibration-probes/` (unless the user says not to sync):
+
+## Live models
+
+All subdirs of `models/` at the repo root. Discover dynamically; do not hardcode model names.
+
+Each live dir should have `model.yaml` and `server.yaml` at the model root. Optional `sandbox/` dirs are model-specific and must not be deleted when syncing calibration-probes.
+
+## Do not
+
+1. Copy `calibration-probes/{variant}/` into live models. Calibration reads probes in-process from `calibration-probes/`.
+2. Create or update `calibration-footprint/`, `calibration-ctx-probe`, or `hello-world-baseline/` under live models.
+3. Delete live `sandbox/` dirs (or other model-specific dirs) when syncing calibration-probes.
+4. Overwrite live `model.yaml` or `server.yaml` from templates or `calibration-probes/model.yaml` (those files are structural references only).
+
+If a model lacks `model.yaml`, ask the user for `gguf_path` before writing.
+
+## Notify the user
+
+Report: which `calibration-probes/` files changed; live dirs were not given probe copies; any missing `model.yaml`; model-specific dirs left untouched.

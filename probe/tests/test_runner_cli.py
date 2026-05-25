@@ -1,4 +1,4 @@
-"""Unit tests for single_test_runner CLI (_run, main)."""
+"""Unit tests for probe runner CLI (_run, main)."""
 
 from __future__ import annotations
 

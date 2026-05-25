@@ -1,4 +1,4 @@
-"""YAML config loaders and validation for tester-v1."""
+"""YAML config loaders and validation for probe."""
 
 from __future__ import annotations
 

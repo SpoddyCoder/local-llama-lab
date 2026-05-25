@@ -135,24 +135,24 @@ def read_idle_system_ram_from_result(path: Path) -> int | None:
     return int(value)
 
 
-def _relative_result_path(path: Path, tester_root: Path) -> str:
+def _relative_result_path(path: Path, probe_root: Path) -> str:
     try:
-        return str(path.resolve().relative_to(tester_root.resolve()))
+        return str(path.resolve().relative_to(probe_root.resolve()))
     except ValueError:
         return str(path)
 
 
-def _probe_ref(path: Path, tester_root: Path) -> dict[str, str]:
+def _probe_ref(path: Path, probe_root: Path) -> dict[str, str]:
     with path.open(encoding="utf-8") as f:
         document = json.load(f)
     run_id = document.get("run_id")
     if not isinstance(run_id, str) or not run_id:
         raise ValueError(f"run_id missing in result: {path}")
-    return {"run_id": run_id, "path": _relative_result_path(path, tester_root)}
+    return {"run_id": run_id, "path": _relative_result_path(path, probe_root)}
 
 
 def write_calibration_session_summary(
-    tester_root: Path,
+    probe_root: Path,
     model: str,
     session_id: str,
     summary: dict[str, float | int | None],
@@ -161,8 +161,8 @@ def write_calibration_session_summary(
     hello_world_result: Path,
 ) -> Path:
     """Write calibration session summary JSON under results/{model}/calibration-sessions/."""
-    tester_root = tester_root.resolve()
-    out_dir = tester_root / "results" / model / "calibration-sessions"
+    probe_root = probe_root.resolve()
+    out_dir = probe_root / "results" / model / "calibration-sessions"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{session_id}.json"
     document = {
@@ -184,9 +184,9 @@ def write_calibration_session_summary(
             ),
         },
         "probes": {
-            "footprint": _probe_ref(footprint_result, tester_root),
-            "ctx_probe": _probe_ref(ctx_probe_result, tester_root),
-            "hello_world": _probe_ref(hello_world_result, tester_root),
+            "footprint": _probe_ref(footprint_result, probe_root),
+            "ctx_probe": _probe_ref(ctx_probe_result, probe_root),
+            "hello_world": _probe_ref(hello_world_result, probe_root),
         },
     }
     out_path.write_text(

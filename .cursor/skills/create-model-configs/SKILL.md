@@ -1,6 +1,6 @@
 ---
 name: create-model-configs
-description: Scaffold models/{model}/ from tester-v1/templates/. Look up HF repo/file for model.yaml (do not download). Tailor server.yaml for 16GB VRAM. Copy sandbox/. Look up LiveCodeBench v6 on vendor model cards; add README Models row (TODO for calibration metrics). Do not run calibration. Kebab-case dir names; dots OK in version segments.
+description: Scaffold models/{model}/ from probe/templates/. Look up HF repo/file for model.yaml (do not download). Tailor server.yaml for 16GB VRAM. Copy sandbox/. Look up LiveCodeBench v6 on vendor model cards; add README Models row (TODO for calibration metrics). Do not run calibration. Kebab-case dir names; dots OK in version segments.
 ---
 
 # Create model configs
@@ -9,12 +9,12 @@ Scaffold under `models/{model}/`:
 
 | File | Source |
 |------|--------|
-| `model.yaml` | `tester-v1/templates/model.yaml` |
+| `model.yaml` | `probe/templates/model.yaml` |
 | `server.yaml` | template base, tuned for 16GB (see below) |
-| `llama_bench.yaml` | `tester-v1/templates/llama_bench.yaml` |
-| `sandbox/client.yaml`, `sandbox/server.yaml` | `tester-v1/templates/sandbox/` |
+| `llama_bench.yaml` | `probe/templates/llama_bench.yaml` |
+| `sandbox/client.yaml`, `sandbox/server.yaml` | `probe/templates/sandbox/` |
 
-Do **not** copy calibration probes into the model dir. Probes live in `tester-v1/calibration-tests/` only (`calibration-tests.mdc`).
+Do **not** copy calibration probes into the model dir. Probes live in `probe/calibration-probes/` only (`calibration-probes.mdc`).
 
 ## Required inputs
 
@@ -37,7 +37,7 @@ Lowercase; allowed `a-z`, `0-9`, `-`, `.`. Normalize: lowercase; `_`, `/`, space
 2. If any target file exists, show contents; do not overwrite without explicit OK.
 3. **HF metadata (lookup only):** find the canonical GGUF on Hugging Face (repo + exact filename). Prefer quantizers already used in this repo (e.g. bartowski, unsloth, ggml-org). Set `hf-download.repo` and `hf-download.file` in `model.yaml`. **Do not** run `./download_model.py`, `hf download`, or other download commands.
 4. **`model.yaml`:** set `model:` to the user's existing path if the GGUF is already on disk; otherwise leave the template placeholder `/path/to/model.gguf` (or `/path/to/{file}`). Always include the `hf-download` block when repo/file are known.
-5. **`server.yaml`:** start from `tester-v1/templates/server.yaml` (host, port, parallel, `--no-mmap`, `--fit off`). Add flags and `--ctx-size` for a **16GB VRAM** card. Use a similar model under `models/` as the primary reference when one exists:
+5. **`server.yaml`:** start from `probe/templates/server.yaml` (host, port, parallel, `--no-mmap`, `--fit off`). Add flags and `--ctx-size` for a **16GB VRAM** card. Use a similar model under `models/` as the primary reference when one exists:
 
    | Architecture | Typical extras | `--ctx-size` hint |
    |--------------|------------------|-------------------|
@@ -50,11 +50,11 @@ Lowercase; allowed `a-z`, `0-9`, `-`, `.`. Normalize: lowercase; `_`, `/`, space
    Add comment `# safe ctx for 16GB VRAM` above `--ctx-size`. Tune `-ncmoe` / ctx from model size and quant when no close match exists.
 
 6. **`llama_bench.yaml`:** copy template; for MoE, uncomment/set `-ngl 999` and `-ncmoe N` to match `server.yaml`.
-7. **`sandbox/`:** always copy `client.yaml` and `server.yaml` from `tester-v1/templates/sandbox/`.
-8. **LiveCodeBench v6 (lookup only):** find the score on the **official vendor model card** for the base model family (Qwen, Google Gemma, etc.), not from a local GGUF run. Prefer the vendor's published LiveCodeBench v6 number; note the month shown on that card. If the exact variant has no published score, use the closest official base-model card and say so in the summary. If no trustworthy source exists, use `LiveCodeBench: **TODO**` and tell the user what to look up. Do not run `./tester_v1_calibrate.py` or other calibration probes to fill this field.
+7. **`sandbox/`:** always copy `client.yaml` and `server.yaml` from `probe/templates/sandbox/`.
+8. **LiveCodeBench v6 (lookup only):** find the score on the **official vendor model card** for the base model family (Qwen, Google Gemma, etc.), not from a local GGUF run. Prefer the vendor's published LiveCodeBench v6 number; note the month shown on that card. If the exact variant has no published score, use the closest official base-model card and say so in the summary. If no trustworthy source exists, use `LiveCodeBench: **TODO**` and tell the user what to look up. Do not run `./probe_calibrate.py` or other calibration probes to fill this field.
 9. **README `## Models` row** (`models-readme-table.mdc`): insert a row in [README.md](../../../README.md) sorted by LiveCodeBench v6 descending (re-sort the full table). Match existing column layout and link style (HF blob URL from step 3). Do **not** run calibration to populate calibration metrics; use literal `TODO` placeholders until the user runs calibration:
 
-   | Cell | At scaffold | After user runs `./tester_v1_calibrate.py` |
+   | Cell | At scaffold | After user runs `./probe_calibrate.py` |
    |------|-------------|---------------------------------------------|
    | Col 1 | Linked display name, architecture line, short blurb, `LiveCodeBench: **X%**` + month | Update score/month if vendor card changes |
    | Col 2 | `Throughput: **TODO**`, `Est. context: **TODO**`; `Max context` from model spec when known, else **TODO** | Measured throughput, est. context |
@@ -65,21 +65,21 @@ Lowercase; allowed `a-z`, `0-9`, `-`, `.`. Normalize: lowercase; `_`, `/`, space
 
 ## Safety
 
-- No overwrite without confirmation; no edits under `tester-v1/src/`.
-- No GPU runs, calibration probes, or `--save-result` unless the user asks (`tester-cli.mdc`). Scaffolding must not invoke `./tester_v1_calibrate.py` to fill README metrics.
-- New global probes: `tester-v1/calibration-tests/` + `calibration.py` (`calibration-tests-sync.mdc`).
+- No overwrite without confirmation; no edits under `probe/src/`.
+- No GPU runs, calibration probes, or `--save-result` unless the user asks (`probe-cli.mdc`). Scaffolding must not invoke `./probe_calibrate.py` to fill README metrics.
+- New global probes: `probe/calibration-probes/` + `calibration.py` (`calibration-probes-sync.mdc`).
 
 ## Commands (repo root; user runs download)
 
 ```bash
 ./download_model.py models/{model}/
 ./download_model.py models/{model}/ --dry-run
-./tester_v1_calibrate.py models/{model}/
-./tester_v1_run_test.py models/{model}/ --variant sandbox
+./probe_calibrate.py models/{model}/
+./probe_run.py models/{model}/ --variant sandbox
 ./launch_server.py models/{model}/
 ./llama_bench.py models/{model}/
 ```
 
-MoE: pass `--n-cpu-moe N` on calibrate, run-test, launch, and llama_bench when not fully baked into YAML. Add `--save-result` only when the user wants JSON under `tester-v1/results/`.
+MoE: pass `--n-cpu-moe N` on calibrate, probe run, launch, and llama_bench when not fully baked into YAML. Add `--save-result` only when the user wants JSON under `probe/results/`.
 
-Probe details: [tester-v1/README.md](../../../tester-v1/README.md#calibration).
+Probe details: [probe/README.md](../../../probe/README.md#calibration).

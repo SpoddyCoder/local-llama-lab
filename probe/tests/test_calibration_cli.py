@@ -24,7 +24,7 @@ from calibration_cli import (  # noqa: E402
     main,
 )
 from config import MODEL_YAML  # noqa: E402
-from paths import TESTER_ROOT  # noqa: E402
+from paths import PROBE_ROOT  # noqa: E402
 
 
 _CALIBRATION_VARIANTS = (
@@ -68,14 +68,14 @@ def _resolve_run_config_side_effect(
 class TestValidateModelDir(unittest.TestCase):
     def test_accepts_model_and_server_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp) / "tester"
-            cal_root = tester_root / "calibration-tests"
+            probe_root = Path(tmp) / "probe"
+            cal_root = probe_root / "calibration-probes"
             _write_probe_variants(cal_root)
-            model_dir = tester_root / "models" / "my-model"
+            model_dir = probe_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
-            with patch("calibration_cli.CALIBRATION_TESTS_ROOT", cal_root):
+            with patch("calibration_cli.CALIBRATION_PROBES_ROOT", cal_root):
                 _validate_model_dir(model_dir)
 
     def test_missing_model_yaml_raises(self) -> None:
@@ -98,33 +98,33 @@ class TestValidateModelDir(unittest.TestCase):
 
     def test_missing_calibration_variant_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp) / "tester"
-            cal_root = tester_root / "calibration-tests"
+            probe_root = Path(tmp) / "probe"
+            cal_root = probe_root / "calibration-probes"
             footprint = cal_root / VARIANT_FOOTPRINT
             footprint.mkdir(parents=True)
             (footprint / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (footprint / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = tester_root / "models" / "my-model"
+            model_dir = probe_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
-            with patch("calibration_cli.CALIBRATION_TESTS_ROOT", cal_root):
+            with patch("calibration_cli.CALIBRATION_PROBES_ROOT", cal_root):
                 with self.assertRaises(FileNotFoundError) as ctx:
                     _validate_model_dir(model_dir)
             self.assertIn("calibration probe config missing", str(ctx.exception))
-            self.assertIn("calibration-tests/", str(ctx.exception))
+            self.assertIn("calibration-probes/", str(ctx.exception))
 
 
 class TestRunCalibrationVariant(unittest.TestCase):
     def test_resolves_run_config_and_calls_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp) / "tester"
-            cal_root = tester_root / "calibration-tests"
+            probe_root = Path(tmp) / "probe"
+            cal_root = probe_root / "calibration-probes"
             ref_dir = cal_root / VARIANT_FOOTPRINT
             ref_dir.mkdir(parents=True)
             (ref_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (ref_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = tester_root / "models" / "my-model"
+            model_dir = probe_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
@@ -164,13 +164,13 @@ class TestRunCalibrationVariant(unittest.TestCase):
 
     def test_passes_n_cpu_moe_to_resolve_run_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp) / "tester"
-            cal_root = tester_root / "calibration-tests"
+            probe_root = Path(tmp) / "probe"
+            cal_root = probe_root / "calibration-probes"
             ref_dir = cal_root / VARIANT_FOOTPRINT
             ref_dir.mkdir(parents=True)
             (ref_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
             (ref_dir / "client.yaml").write_text("messages: []\n", encoding="utf-8")
-            model_dir = tester_root / "models" / "my-model"
+            model_dir = probe_root / "models" / "my-model"
             model_dir.mkdir(parents=True)
             (model_dir / MODEL_YAML).write_text("model: /tmp/x.gguf\n", encoding="utf-8")
             (model_dir / "server.yaml").write_text("args: |\n", encoding="utf-8")
@@ -423,7 +423,7 @@ class TestRunCalibrationStdout(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(stdout.getvalue(), "")
         write_summary.assert_called_once_with(
-            TESTER_ROOT,
+            PROBE_ROOT,
             "model",
             "sess123",
             {

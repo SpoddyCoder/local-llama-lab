@@ -165,23 +165,23 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
             "generation_throughput_tok_s": 91.2,
         }
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp)
+            probe_root = Path(tmp)
             footprint = (
-                tester_root
+                probe_root
                 / "results"
                 / "qwen3.5-9b-q8"
                 / "calibration-footprint"
                 / "20260101T000000Z.json"
             )
             ctx_probe = (
-                tester_root
+                probe_root
                 / "results"
                 / "qwen3.5-9b-q8"
                 / "calibration-ctx-probe"
                 / "20260101T000001Z.json"
             )
             hello_world = (
-                tester_root
+                probe_root
                 / "results"
                 / "qwen3.5-9b-q8"
                 / "hello-world-baseline"
@@ -201,7 +201,7 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
                 hello_world_doc = json.load(f)
 
             out_path = write_calibration_session_summary(
-                tester_root,
+                probe_root,
                 "qwen3.5-9b-q8",
                 "20260517T120000Z",
                 summary,
@@ -211,7 +211,7 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
             )
             self.assertEqual(
                 out_path,
-                tester_root
+                probe_root
                 / "results"
                 / "qwen3.5-9b-q8"
                 / "calibration-sessions"
@@ -267,18 +267,18 @@ class TestWriteCalibrationSessionSummary(unittest.TestCase):
             "model_system_ram_mb": 24000,
         }
         with tempfile.TemporaryDirectory() as tmp:
-            tester_root = Path(tmp)
+            probe_root = Path(tmp)
             footprint = (
-                tester_root / "results" / "x" / "calibration-footprint" / "a.json"
+                probe_root / "results" / "x" / "calibration-footprint" / "a.json"
             )
-            ctx_probe = tester_root / "results" / "x" / "calibration-ctx-probe" / "b.json"
+            ctx_probe = probe_root / "results" / "x" / "calibration-ctx-probe" / "b.json"
             hello_world = (
-                tester_root / "results" / "x" / "hello-world-baseline" / "c.json"
+                probe_root / "results" / "x" / "hello-world-baseline" / "c.json"
             )
             for p in (footprint, ctx_probe, hello_world):
                 _write_result(p, idle_vram_mb=1)
             out_path = write_calibration_session_summary(
-                tester_root,
+                probe_root,
                 "x",
                 "sess",
                 summary,

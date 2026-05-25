@@ -1,0 +1,36 @@
+---
+description: Keep calibration-probes templates in sync; do not run calibration-probes paths as config_dir
+globs: models/**,.cursor/skills/create-model-configs/**
+alwaysApply: false
+---
+
+# Calibration probe templates
+
+## Canonical source
+
+`probe/calibration-probes/` is the only source for shared probe YAML. The create-model-configs skill scaffolds from `probe/templates/`, never from live model dirs.
+
+**In calibration-probes:** global probes for calibration and probe run (`calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`, plus any future promoted probes). Each variant has `client.yaml` and a thin `server.yaml` (ctx-size override only).
+
+**Not in calibration-probes:** per-model sandbox prompts. Add those under `models/{model}/sandbox/client.yaml` (optional `sandbox/server.yaml` override) and run with `--variant sandbox`.
+
+## Promote / demote
+
+- **Promote:** add `{variant}/server.yaml` (ctx override) and `client.yaml` under `calibration-probes/`, then register the variant in `probe/src/calibration.py` (today hardcoded to the three names above). Do not copy probe YAML into live model dirs; see `calibration-probes-sync.mdc`.
+- **Demote:** remove from `calibration-probes/` only; live copies may stay.
+
+**Default edits:** change shared behavior in `calibration-probes/`. Ad-hoc tweaks stay in that model's `sandbox/` dir and are not copied to `calibration-probes/` unless promoted.
+
+When `calibration-probes/` changes, follow `calibration-probes-sync.mdc`.
+
+## How calibration uses calibration-probes
+
+`probe_calibrate.py` validates `calibration-probes/{variant}/`, then runs probes in-process with:
+
+- base load profile from `models/{model}/server.yaml`
+- probe server/client from `calibration-probes/{variant}/` (thin server.yaml merged on top of model server.yaml)
+- model path from `models/{model}/model.yaml`
+
+## Do not run on calibration-probes
+
+Never pass `probe/calibration-probes/` (or a variant under it) to `probe_run.py`. Pass `models/{model}/` and use `--variant` to select a shared probe or local sandbox.

@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parent / "tester-v1" / "src"
+_SRC = Path(__file__).resolve().parent / "probe" / "src"
 sys.path.insert(0, str(_SRC))
 
 from launch_server import main  # noqa: E402

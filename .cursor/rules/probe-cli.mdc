@@ -1,0 +1,30 @@
+---
+description: Do not run probe CLIs that write results without user permission
+alwaysApply: true
+---
+
+# Probe CLIs
+
+## Permission before `--save-result`
+
+Do not run artifact-writing probe CLIs unless the user asked in this chat, a fresh run is required for an explicit request, or you are debugging the runner itself.
+
+Ask first before:
+
+- `./probe_calibrate.py --save-result` (three calibration probes via in-process runs with `--save-result --quiet`; JSON under `probe/results/{model}/{variant}/`; session file under `probe/results/{model}/calibration-sessions/`)
+- `./probe_run.py --save-result` (JSON under `probe/results/{model}/{variant}/`)
+
+Run these from the repo root. Probe runs without `--save-result` are stdout-only and need no ask.
+
+## Prefer existing local output
+
+`probe/results/` is gitignored. For docs, comparisons, or VRAM/context answers:
+
+1. Use metrics already in repo README or other docs.
+2. Else read newest `*.json` under `probe/results/{model}/{variant}/`, or `calibration-sessions/{session_id}.json` for saved calibration.
+3. Recompute from those files when needed (`idle_vram_mb`, calibration math).
+4. Suggest or run a new probe run only if local data is missing, stale, or the user wants a new run.
+
+## Do not use calibration-probes as config_dir
+
+Do not pass `probe/calibration-probes/` (or a variant under it) to `probe_run.py`. Pass `models/{model}/` and select a probe or sandbox with `--variant` (default `hello-world-baseline`). Calibration loads probes from `calibration-probes/` internally; pass `models/{model}/` only. See `calibration-probes.mdc`.

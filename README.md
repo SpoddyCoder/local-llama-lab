@@ -44,12 +44,12 @@ Download a model from Hugging Face using its config under [models/](models/):
 
 ---
 
-## Tester v1
+## Probe
 
 * Calibration tests measure throughput and rough max context window on a 16 GB card.
-* See [tester-v1/README.md](tester-v1/README.md) for tester runner details.
+* See [probe/README.md](probe/README.md) for probe runner details.
 * Each model under [models/](models/) has `model.yaml` (GGUF path, `hf-download` repo/file) and `server.yaml` (base llama-server load profile) at the model root.
-* Scaffold new models from [tester-v1/templates/](tester-v1/templates/).
+* Scaffold new models from [probe/templates/](probe/templates/).
   * Cursor skill `create-model-configs` can do this automatically - just tell it which model + variant you want and it'll do the rest.
 
 ### Run Server From Model Config
@@ -66,27 +66,27 @@ Use a browser to access the llama web UI while it is running (port depends on `s
 
 ```bash
 # standard dense model
-./tester_v1_calibrate.py models/qwen3.5-9b-q8
+./probe_calibrate.py models/qwen3.5-9b-q8
 
 # MoE models: offload experts to CPU (to fit large models on small cards)
-./tester_v1_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
+./probe_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
 ```
 
-- Shared calibration probe YAML lives under [tester-v1/calibration-tests/](tester-v1/calibration-tests/).
-- For MoE models, pass `--n-cpu-moe N` on calibration and run-test (replaces any existing MoE offload flags in merged server config).
-- Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
+- Shared calibration probe YAML lives under [probe/calibration-probes/](probe/calibration-probes/).
+- For MoE models, pass `--n-cpu-moe N` on calibration and probe run (replaces any existing MoE offload flags in merged server config).
+- Add `--save-result` to save detailed output JSON to `probe/results/{model}/`.
 
 ### `llama-bench` CLI Wrapper
 
 * Runs `llama-bench` from a model config dir. 
 * Each model has `llama_bench.yaml` at the model root (alongside `server.yaml`). 
-* Throughput numbers in the [models table](#models) still come from tester v1 calibration and full CLI runs (`--save-result`), not llama-bench (different measurement).
+* Throughput numbers in the [models table](#models) still come from probe calibration and full CLI runs (`--save-result`), not llama-bench (different measurement).
 
 ```bash
 ./llama_bench.py models/qwen3.5-9b-q8/
 ```
 
-See [tester-v1/templates/llama_bench.yaml](tester-v1/templates/llama_bench.yaml) for the config file format.
+See [probe/templates/llama_bench.yaml](probe/templates/llama_bench.yaml) for the config file format.
 
 ### Huggingface CLI
 Some useful commands...

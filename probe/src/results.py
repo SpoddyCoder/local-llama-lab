@@ -145,12 +145,12 @@ def format_run_summary(
     server_config: ServerConfig,
     metrics_dict: dict[str, float | int | None],
     *,
-    tester_root: Path | None = None,
+    probe_root: Path | None = None,
 ) -> str:
     """Human-readable stdout block after a successful run."""
-    if tester_root is not None:
+    if probe_root is not None:
         try:
-            rel = result_path.relative_to(tester_root)
+            rel = result_path.relative_to(probe_root)
             result_display = str(rel)
         except ValueError:
             result_display = str(result_path)
@@ -171,13 +171,13 @@ def format_error_summary(
     error: str,
     result_path: Path | None,
     *,
-    tester_root: Path | None = None,
+    probe_root: Path | None = None,
 ) -> str:
     lines = [f"Error: {error}"]
     if result_path is not None:
-        if tester_root is not None:
+        if probe_root is not None:
             try:
-                rel = result_path.relative_to(tester_root)
+                rel = result_path.relative_to(probe_root)
                 result_display = str(rel)
             except ValueError:
                 result_display = str(result_path)

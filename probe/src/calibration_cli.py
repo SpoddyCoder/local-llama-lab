@@ -33,11 +33,11 @@ from config import (
 )
 from model_layout import resolve_run_config
 from result_layout import find_latest_result
-from paths import CALIBRATION_TESTS_ROOT, RESULTS_DIR, TESTER_ROOT
+from paths import CALIBRATION_PROBES_ROOT, PROBE_ROOT, RESULTS_DIR
 from results import format_compact_utc, utc_now
 from vram import query_gpu_total_mb
 
-_TESTER_ROOT = TESTER_ROOT
+_PROBE_ROOT = PROBE_ROOT
 
 _OUTPUT_TAIL_LINES = 40
 
@@ -52,11 +52,11 @@ def _validate_model_dir(model_dir: Path) -> None:
     if not server_yaml.is_file():
         raise FileNotFoundError(f"server config not found: {server_yaml}")
     for variant in (VARIANT_FOOTPRINT, VARIANT_CTX_PROBE, VARIANT_HELLO_WORLD):
-        probe_dir = CALIBRATION_TESTS_ROOT / variant
+        probe_dir = CALIBRATION_PROBES_ROOT / variant
         missing: list[str] = []
         for name in ("client.yaml", "server.yaml"):
             if not (probe_dir / name).is_file():
-                missing.append(f"calibration-tests/{variant}/{name}")
+                missing.append(f"calibration-probes/{variant}/{name}")
         if missing:
             names = ", ".join(missing)
             raise FileNotFoundError(
@@ -239,7 +239,7 @@ def _run_calibration(
 
     if save_result:
         write_calibration_session_summary(
-            TESTER_ROOT,
+            PROBE_ROOT,
             model_dir.name,
             session_id,
             summary,

@@ -1,4 +1,4 @@
-"""Result file paths and run IDs for tester-v1."""
+"""Result file paths and run IDs for probe."""
 
 from __future__ import annotations
 

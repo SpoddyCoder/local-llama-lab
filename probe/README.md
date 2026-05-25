@@ -1,17 +1,17 @@
-# Tester v1
+# Probe
 
-**Tester v1** is the local model test runner. [`src/runner.py`](src/runner.py) is the single-run implementation used by `tester_v1_run_test.py` and calibration probes.
+**Probe** is the local model probe runner. [`src/runner.py`](src/runner.py) is the single-run implementation used by `probe_run.py` and calibration probes.
 
 Single-run runner for `llama-server`: start the server (`server.yaml`), run one streaming chat completion (`client.yaml`), print all fourteen metrics plus a headline footer on stdout, then tear down.
 
 - Pass `--save-result` to write JSON under `results/{model}/{variant}/` and print the full run summary.
 - Add `--include-output` to print completion text on stdout; with `--save-result`, also write `{timestamp}-output.txt` beside the JSON.
 
-Repo-root CLIs wrap this runner: [tester_v1_run_test.py](../tester_v1_run_test.py), [tester_v1_calibrate.py](../tester_v1_calibrate.py), [launch_server.py](../launch_server.py), [download_model.py](../download_model.py).
+Repo-root CLIs wrap this runner: [probe_run.py](../probe_run.py), [probe_calibrate.py](../probe_calibrate.py), [launch_server.py](../launch_server.py), [download_model.py](../download_model.py).
 
 ## Requirements
 
-From `tester-v1/`, check Python deps (`httpx`, PyYAML). Skip the venv block if this prints `deps ok`:
+From `probe/`, check Python deps (`httpx`, PyYAML). Skip the venv block if this prints `deps ok`:
 
 ```bash
 python3 -c "import httpx, yaml" 2>/dev/null && echo "deps ok" || echo "need install"
@@ -31,25 +31,25 @@ Run from the repo root:
 
 ```bash
 # print help
-./tester_v1_run_test.py
+./probe_run.py
 
 # default variant (hello-world-baseline)
-./tester_v1_run_test.py models/qwen3.5-9b-q8/
+./probe_run.py models/qwen3.5-9b-q8/
 
 # MoE: offload 24 experts to CPU
-./tester_v1_run_test.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
+./probe_run.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
 
 # explicit shared probe variant
-./tester_v1_run_test.py models/qwen3.5-9b-q8/ --variant calibration-footprint
+./probe_run.py models/qwen3.5-9b-q8/ --variant calibration-footprint
 
 # local sandbox client (optional sandbox/server.yaml override)
-./tester_v1_run_test.py models/qwen3.5-9b-q8/ --variant sandbox
+./probe_run.py models/qwen3.5-9b-q8/ --variant sandbox
 
 # save detailed results JSON to results/
-./tester_v1_run_test.py models/qwen3.5-9b-q8/ --save-result
+./probe_run.py models/qwen3.5-9b-q8/ --save-result
 
 # print completion text on stdout
-./tester_v1_run_test.py models/qwen3.5-9b-q8/ --include-output
+./probe_run.py models/qwen3.5-9b-q8/ --include-output
 ```
 
 | Flag               | Effect                                                                                          |
@@ -65,10 +65,10 @@ Run from the repo root:
 From the repo root:
 
 ```bash
-./tester-v1/run_python_unit_tests.py
+./probe/run_python_unit_tests.py
 ```
 
-Or from `tester-v1/`:
+Or from `probe/`:
 
 ```bash
 ./run_python_unit_tests.py
@@ -84,29 +84,29 @@ models/{model}/
     client.yaml                    # optional ad-hoc prompt
     server.yaml                    # optional thin override
 
-tester-v1/
+probe/
   templates/
     model.yaml
     server.yaml
     sandbox/                       # optional ad-hoc prompt template
-  calibration-tests/{variant}/
+  calibration-probes/{variant}/
     client.yaml
     server.yaml                    # thin ctx-size override only
-  results/                         # gitignored tester output
+  results/                         # gitignored probe output
   src/                             # runner implementation
 ```
 
-Each model under [models/](../models/) needs `model.yaml` and `server.yaml` at the model root. Shared calibration probe YAML lives under [calibration-tests/](calibration-tests/); see [calibration-tests/README.md](calibration-tests/README.md). Optional ad-hoc prompts go under `sandbox/client.yaml` and run with `--variant sandbox`.
+Each model under [models/](../models/) needs `model.yaml` and `server.yaml` at the model root. Shared calibration probe YAML lives under [calibration-probes/](calibration-probes/); see [calibration-probes/README.md](calibration-probes/README.md). Optional ad-hoc prompts go under `sandbox/client.yaml` and run with `--variant sandbox`.
 
 **model.yaml:** `model` is the GGUF path. The runner injects `-m`; do not set `-m` or `--model` in `server.yaml`. Optional `hf-download` block with `repo` and `file` keys tells [download_model.py](../download_model.py) which Hugging Face repo and GGUF to fetch; after download it updates `model:` if the cache path changed.
 
 **server.yaml (model root):** full load profile — `args` (`args: |`, one flag per line), optional `binary`, `ready_timeout_s` (default 120), `ready_poll_interval_s` (default 0.5).
 
-**server.yaml (calibration-tests):** ctx-size override only; merged on top of the model's `server.yaml`.
+**server.yaml (calibration-probes):** ctx-size override only; merged on top of the model's `server.yaml`.
 
 **client.yaml:** `base_url` (default `http://127.0.0.1:8080`), `messages`, `params`, optional `timeout_s` (default 600). The runner always sets `stream: true`. Keep `base_url` in sync with `--port` in server args.
 
-**Merge order:** model `server.yaml` + probe or sandbox override (if any) + CLI flags (`--n-cpu-moe` replaces existing MoE offload flags). Client YAML comes from the variant dir (`calibration-tests/{variant}/` or `sandbox/`).
+**Merge order:** model `server.yaml` + probe or sandbox override (if any) + CLI flags (`--n-cpu-moe` replaces existing MoE offload flags). Client YAML comes from the variant dir (`calibration-probes/{variant}/` or `sandbox/`).
 
 ## Download model
 
@@ -128,14 +128,14 @@ Each model under [models/](../models/) needs `model.yaml` and `server.yaml` at t
 
 ## Calibration
 
-[tester_v1_calibrate.py](../tester_v1_calibrate.py) runs three shared probes (footprint, ctx-probe, hello-world-baseline) from `calibration-tests/` and prints a VRAM and throughput summary on six lines by default. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
+[probe_calibrate.py](../probe_calibrate.py) runs three shared probes (footprint, ctx-probe, hello-world-baseline) from `calibration-probes/` and prints a VRAM and throughput summary on six lines by default. Footprint and ctx-probe use different `--ctx-size` values; idle VRAM delta estimates KV cost per token.
 
 When calibration runs with MoE CPU offload (from model `server.yaml`, a probe override, or CLI `--n-cpu-moe`), the trailing summary block grows from six lines to seven. The extra line comes from the footprint probe only: `* Model System RAM: {N.NN} GB` when RSS sampling succeeds, or `* Model System RAM: unavailable` when it fails. Ctx-probe does not contribute this value.
 
 ```bash
-./tester_v1_calibrate.py models/qwen3.5-9b-q8
-./tester_v1_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
-./tester_v1_calibrate.py models/qwen3.5-9b-q8 --save-result
+./probe_calibrate.py models/qwen3.5-9b-q8
+./probe_calibrate.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
+./probe_calibrate.py models/qwen3.5-9b-q8 --save-result
 ```
 
 `--margin-mib` (default 100) subtracts a VRAM safety buffer from the KV budget. Estimated max context is VRAM-derived and can exceed the model native cap. Copy summary lines into the repo root README. New models: [create-model-configs](../.cursor/skills/create-model-configs/SKILL.md) skill and [templates/](templates/).

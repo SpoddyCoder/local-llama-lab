@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI: run tester-v1 Python unit tests (unittest discover)."""
+"""CLI: run probe Python unit tests (unittest discover)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _ROOT = Path(__file__).resolve().parent
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run tester-v1 unit tests (unittest discover -s tests).",
+        description="Run probe unit tests (unittest discover -s tests).",
     )
     parser.add_argument(
         "-q",

@@ -27,16 +27,16 @@ from results import (
     write_result,
 )
 from host_ram import sample_process_rss_mb
-from paths import RESULTS_DIR, TESTER_ROOT
+from paths import PROBE_ROOT, RESULTS_DIR
 from server import fetch_model_max_context, managed_server, resolve_base_url
 from vram import VramPoller, sample_vram_mb
 
-_TESTER_ROOT = TESTER_ROOT
+_PROBE_ROOT = PROBE_ROOT
 
 
 def _result_path_display(result_path: Path) -> str:
     try:
-        return str(result_path.relative_to(TESTER_ROOT))
+        return str(result_path.relative_to(PROBE_ROOT))
     except ValueError:
         return str(result_path)
 
@@ -174,20 +174,20 @@ def _run(
                     result_path,
                     server,
                     metrics_dict,
-                    tester_root=TESTER_ROOT,
+                    probe_root=PROBE_ROOT,
                 )
             )
         return 0
 
     print(
-        format_error_summary(error or "unknown error", result_path, tester_root=TESTER_ROOT),
+        format_error_summary(error or "unknown error", result_path, probe_root=PROBE_ROOT),
         file=sys.stderr,
     )
     return 1
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Local model tester v1")
+    parser = argparse.ArgumentParser(description="Local model probe run")
     parser.add_argument(
         "model_dir",
         type=Path,

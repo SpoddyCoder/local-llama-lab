@@ -61,12 +61,12 @@ class TestResolveRunConfigCalibration(unittest.TestCase):
     def test_calibration_variant_uses_shared_probe_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            calib_root = tmp_path / "calibration-tests"
+            calib_root = tmp_path / "calibration-probes"
             model_dir = _write_model_dir(tmp_path)
             variant = "hello-world-baseline"
             _write_client(calib_root / variant / "client.yaml")
 
-            with patch("model_layout.CALIBRATION_TESTS_ROOT", calib_root):
+            with patch("model_layout.CALIBRATION_PROBES_ROOT", calib_root):
                 cfg = resolve_run_config(model_dir, variant)
 
             self.assertIsInstance(cfg, RunConfig)
@@ -81,7 +81,7 @@ class TestResolveRunConfigServerOverride(unittest.TestCase):
     def test_thin_override_merges_ctx_size_onto_base(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            calib_root = tmp_path / "calibration-tests"
+            calib_root = tmp_path / "calibration-probes"
             model_dir = _write_model_dir(tmp_path)
             variant = "calibration-ctx-probe"
             _write_client(calib_root / variant / "client.yaml")
@@ -90,7 +90,7 @@ class TestResolveRunConfigServerOverride(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with patch("model_layout.CALIBRATION_TESTS_ROOT", calib_root):
+            with patch("model_layout.CALIBRATION_PROBES_ROOT", calib_root):
                 cfg = resolve_run_config(model_dir, variant)
 
             self.assertEqual(parse_context_from_args(cfg.server.args), 8192)
@@ -153,7 +153,7 @@ class TestResolveRunConfigNCpuMoe(unittest.TestCase):
     def test_cli_n_cpu_moe_wins_over_base_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            calib_root = tmp_path / "calibration-tests"
+            calib_root = tmp_path / "calibration-probes"
             server_args = (
                 "  --host 127.0.0.1\n"
                 "  -c 4096\n"
@@ -164,7 +164,7 @@ class TestResolveRunConfigNCpuMoe(unittest.TestCase):
             variant = "hello-world-baseline"
             _write_client(calib_root / variant / "client.yaml")
 
-            with patch("model_layout.CALIBRATION_TESTS_ROOT", calib_root):
+            with patch("model_layout.CALIBRATION_PROBES_ROOT", calib_root):
                 cfg = resolve_run_config(model_dir, variant, n_cpu_moe=22)
 
             self.assertEqual(parse_n_cpu_moe_from_args(cfg.server.args), 22)
@@ -175,11 +175,11 @@ class TestResolveRunConfigErrors(unittest.TestCase):
     def test_missing_variant_lists_search_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            calib_root = tmp_path / "calibration-tests"
+            calib_root = tmp_path / "calibration-probes"
             model_dir = _write_model_dir(tmp_path)
             variant = "missing-variant"
 
-            with patch("model_layout.CALIBRATION_TESTS_ROOT", calib_root):
+            with patch("model_layout.CALIBRATION_PROBES_ROOT", calib_root):
                 with self.assertRaises(FileNotFoundError) as ctx:
                     resolve_run_config(model_dir, variant)
 

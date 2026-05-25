@@ -1,6 +1,6 @@
 # Calibration test probes
 
-`calibration-tests/` holds shared probe YAML used by [tester_v1_calibrate.py](../../tester_v1_calibrate.py). Calibration loads these files in-process; model paths come from `models/{model_slug}/model.yaml` and the base load profile from `models/{model_slug}/server.yaml`.
+`calibration-tests/` holds shared probe YAML used by [tester_v1_calibrate.py](../../tester_v1_calibrate.py). Calibration loads these files in-process; model paths come from `models/{model}/model.yaml` and the base load profile from `models/{model}/server.yaml`.
 
 ## Variants
 
@@ -10,10 +10,10 @@ Scaffold new models from [tester-v1/templates/](../templates/) (`model.yaml`, `s
 
 ## Not a run-test config_dir
 
-Do not pass `calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Pass the model slug dir and select a probe with `--variant`:
+Do not pass `calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Pass the model directory and select a probe with `--variant`:
 
 ```bash
-./tester_v1_run_test.py models/{model_slug}/ --variant hello-world-baseline
+./tester_v1_run_test.py models/{model}/ --variant hello-world-baseline
 ```
 
 Calibration merges each probe's thin `server.yaml` with the model's root `server.yaml` in-process. Saved results go to `tester-v1/results/{model}/{variant}/`, not under the model dir.

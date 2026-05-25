@@ -20,4 +20,4 @@ Keep the paragraph under the table (LiveCodeBench source, quant vs BF16 note, [g
 
 ## Adding a model
 
-Scaffold under `models/{slug}/` per create-model-configs. After calibration metrics are known, insert the README row at the correct LiveCodeBench rank; do not append by default.
+Scaffold under `models/{model}/` per create-model-configs. After calibration metrics are known, insert the README row at the correct LiveCodeBench rank; do not append by default.

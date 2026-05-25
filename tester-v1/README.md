@@ -75,7 +75,7 @@ Or from `tester-v1/`:
 ## Config layout
 
 ```text
-models/{slug}/
+models/{model}/
   model.yaml
   server.yaml
   sandbox/
@@ -94,7 +94,7 @@ tester-v1/
   src/                             # harness implementation
 ```
 
-Each model dir under [models/](../models/) needs `model.yaml` and `server.yaml` at the slug root. Shared calibration probe YAML lives under [calibration-tests/](calibration-tests/); see [calibration-tests/README.md](calibration-tests/README.md). Optional ad-hoc prompts go under `sandbox/client.yaml` and run with `--variant sandbox`.
+Each model under [models/](../models/) needs `model.yaml` and `server.yaml` at the model root. Shared calibration probe YAML lives under [calibration-tests/](calibration-tests/); see [calibration-tests/README.md](calibration-tests/README.md). Optional ad-hoc prompts go under `sandbox/client.yaml` and run with `--variant sandbox`.
 
 **model.yaml:** `model` is the GGUF path. The runner injects `-m`; do not set `-m` or `--model` in `server.yaml`. Optional `hf-download` block with `repo` and `file` keys tells [download_model.py](../download_model.py) which Hugging Face repo and GGUF to fetch; after download it updates `model:` if the cache path changed.
 
@@ -108,7 +108,7 @@ Each model dir under [models/](../models/) needs `model.yaml` and `server.yaml` 
 
 ## Download model
 
-[download_model.py](../download_model.py) runs `hf download` from the optional `hf-download` block in the slug's `model.yaml`, then updates `model:` if the cached GGUF path changed.
+[download_model.py](../download_model.py) runs `hf download` from the optional `hf-download` block in the model's `model.yaml`, then updates `model:` if the cached GGUF path changed.
 
 ```bash
 ./download_model.py models/qwen3.5-9b-q8/

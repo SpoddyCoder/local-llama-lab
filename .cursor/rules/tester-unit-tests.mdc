@@ -18,7 +18,7 @@ When `write_result` is mocked but code still writes siblings (e.g. `{stem}-outpu
 
 ```python
 with tempfile.TemporaryDirectory() as tmp:
-    result_path = Path(tmp) / "results" / model_slug / variant / "20260101T000000Z.json"
+    result_path = Path(tmp) / "results" / model / variant / "20260101T000000Z.json"
     patch("runner.write_result", return_value=result_path),
 ```
 

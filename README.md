@@ -28,16 +28,16 @@ System is relatively modest for AI work, but surprisingly viable for cutting edg
 LiveCodeBench v6 scores are from official vendor model cards ([LiveCodeBench](https://livecodebench.github.io/)): base BF16 weights, not a local GGUF run. For coding, local quants are usually close: Q8 and Q6 within about 1-3% of BF16; Q4_K_XL and UD-Q4 within about 3-8% (ranking tends to hold; absolute numbers shift). See [gguf-bench quant curves](https://gguf-bench.com/) for llama-server GGUF scores by quant level.
 
 
-Download a model from Hugging Face using the slug's config (repo root):
+Download a model from Hugging Face using its config under [models/](models/) (repo root):
 
 ```bash
 ./download_model.py models/qwen3.5-9b-q8/
 ./download_model.py models/qwen3.5-9b-q8/ --dry-run
 ```
 
-Each slug's [model.yaml](models/qwen3.5-9b-q8/model.yaml) can store an optional `hf-download` block with `repo` and `file`; `./download_model.py` reads those keys, runs `hf download`, and updates `model:` if the cache path changes. Omitting the filename downloads the whole repo (all variants, normally huge), which is why the structured block names a specific file.
+Each model's [model.yaml](models/qwen3.5-9b-q8/model.yaml) can store an optional `hf-download` block with `repo` and `file`; `./download_model.py` reads those keys, runs `hf download`, and updates `model:` if the cache path changes. Omitting the filename downloads the whole repo (all variants, normally huge), which is why the structured block names a specific file.
 
-For ad-hoc downloads without a slug config, raw `hf download org/repo file.gguf` still works.
+For ad-hoc downloads without a model config, raw `hf download org/repo file.gguf` still works.
 
 ---
 
@@ -48,7 +48,7 @@ For ad-hoc downloads without a slug config, raw `hf download org/repo file.gguf`
 
 Run CLIs from the repo root (no `cd tester-v1`).
 
-Each model under [models/](models/) has `model.yaml` (GGUF path, optional `hf-download` repo/file) and `server.yaml` (base llama-server load profile) at the model root. Scaffold new slugs from [tester-v1/templates/](tester-v1/templates/).
+Each model under [models/](models/) has `model.yaml` (GGUF path, optional `hf-download` repo/file) and `server.yaml` (base llama-server load profile) at the model root. Scaffold new models from [tester-v1/templates/](tester-v1/templates/).
 
 ### Run a server
 
@@ -85,7 +85,7 @@ Default variant is `hello-world-baseline` (shared probe under [tester-v1/calibra
 
 ### llama-bench wrapper
 
-Run upstream `llama-bench` from a model config dir. Each slug has `llama_bench.yaml` at the model root (alongside `server.yaml`). Throughput numbers in the [models table](#models) still come from tester v1 calibration and harness runs, not llama-bench (different measurement).
+Run upstream `llama-bench` from a model config dir. Each model has `llama_bench.yaml` at the model root (alongside `server.yaml`). Throughput numbers in the [models table](#models) still come from tester v1 calibration and harness runs, not llama-bench (different measurement).
 
 ```bash
 ./llama_bench.py models/qwen3.5-9b-q8/

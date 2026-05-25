@@ -12,7 +12,7 @@ alwaysApply: false
 
 **In calibration-tests:** global probes for calibration and run-test (`calibration-footprint`, `calibration-ctx-probe`, `hello-world-baseline`, plus any future promoted probes). Each variant has `client.yaml` and a thin `server.yaml` (ctx-size override only).
 
-**Not in calibration-tests:** per-model sandbox prompts. Add those under `models/{model_slug}/sandbox/client.yaml` (optional `sandbox/server.yaml` override) and run with `--variant sandbox`.
+**Not in calibration-tests:** per-model sandbox prompts. Add those under `models/{model}/sandbox/client.yaml` (optional `sandbox/server.yaml` override) and run with `--variant sandbox`.
 
 ## Promote / demote
 
@@ -27,10 +27,10 @@ When `calibration-tests/` changes, follow `calibration-tests-sync.mdc`.
 
 `tester_v1_calibrate.py` validates `calibration-tests/{variant}/`, then runs probes in-process with:
 
-- base load profile from `models/{model_slug}/server.yaml`
+- base load profile from `models/{model}/server.yaml`
 - probe server/client from `calibration-tests/{variant}/` (thin server.yaml merged on top of model server.yaml)
-- model path from `models/{model_slug}/model.yaml`
+- model path from `models/{model}/model.yaml`
 
 ## Do not run on calibration-tests
 
-Never pass `tester-v1/calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Pass `models/{slug}/` and use `--variant` to select a shared probe or local sandbox.
+Never pass `tester-v1/calibration-tests/` (or a variant under it) to `tester_v1_run_test.py`. Pass `models/{model}/` and use `--variant` to select a shared probe or local sandbox.

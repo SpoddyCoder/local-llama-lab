@@ -10,9 +10,9 @@ After editing `tester-v1/calibration-tests/` (unless the user says not to sync):
 
 ## Live models
 
-All subdirs of `models/` at the repo root. Discover dynamically; do not hardcode slugs.
+All subdirs of `models/` at the repo root. Discover dynamically; do not hardcode model names.
 
-Each live dir should have `model.yaml` and `server.yaml` at the slug root. Optional `sandbox/` dirs are model-specific and must not be deleted when syncing calibration-tests.
+Each live dir should have `model.yaml` and `server.yaml` at the model root. Optional `sandbox/` dirs are model-specific and must not be deleted when syncing calibration-tests.
 
 ## Do not
 
@@ -21,7 +21,7 @@ Each live dir should have `model.yaml` and `server.yaml` at the slug root. Optio
 3. Delete live `sandbox/` dirs (or other model-specific dirs) when syncing calibration-tests.
 4. Overwrite live `model.yaml` or `server.yaml` from templates or `calibration-tests/model.yaml` (those files are structural references only).
 
-If a slug lacks `model.yaml`, ask the user for `gguf_path` before writing.
+If a model lacks `model.yaml`, ask the user for `gguf_path` before writing.
 
 ## Notify the user
 

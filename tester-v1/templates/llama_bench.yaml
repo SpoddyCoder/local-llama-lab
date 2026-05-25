@@ -10,7 +10,7 @@ args: |
   -r 5
   # stdout format (bench-only)
   -o md
-  # MoE example (uncomment and tune for MoE slugs):
+  # MoE example (uncomment and tune for MoE models):
   # GPU layers; server: --n-gpu-layers
   # -ngl 999
   # MoE experts on CPU; server: --n-cpu-moe

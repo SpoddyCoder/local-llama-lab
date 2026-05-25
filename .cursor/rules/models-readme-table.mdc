@@ -20,4 +20,4 @@ Keep the paragraph under the table (LiveCodeBench source, quant vs BF16 note, [g
 
 ## Adding a model
 
-Scaffold under `models/{model}/` per create-model-configs. After calibration metrics are known, insert the README row at the correct LiveCodeBench rank; do not append by default.
+Scaffold under `models/{model}/` per create-model-configs. On scaffold, add the README row at the correct LiveCodeBench rank (lookup v6 on the vendor model card; do not run calibration). Use **TODO** for throughput, est. context, VRAM/RAM, and disk until `./tester_v1_calibrate.py` results exist; fill max context from the model spec when known. Re-sort by score; do not append by default. Replace TODOs after the user runs calibration.

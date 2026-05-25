@@ -13,7 +13,7 @@ System is relatively modest for AI work, but surprisingly viable for cutting edg
 
 ```bash
 ./wsl-builder.sh dev-python python3
-./wsl-builder.sh ai cuda132,llama-cpp,huggingface-cli
+./wsl-builder.sh ai cuda132, llama-cpp, huggingface-cli
 ```
 
 ## Models
@@ -25,32 +25,33 @@ System is relatively modest for AI work, but surprisingly viable for cutting edg
 | [Qwen3.6-35B-A3B-UD-Q4-K-XL](https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/blob/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf)<br>MoE (35B / 3B active)<br>Agentic coding leader; needs CPU-offloaded MoE on 16 GB.<br>LiveCodeBench: **80.4%**<br>April 2026 | Throughput: **~52 tok/s**<br>Est. context: **69K**<br>Max context: **262K**   | Model VRAM: **10.50 GB**<br>System RAM: **11.97 GB**<br>KV VRAM: **5.33 GB**<br>Disk: **22.36 GB**<br>`--n-cpu-moe 24` |
 | [Gemma-4-E4B-IT-Q8](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q8_0.gguf)<br>Effective 4.5B (E4B)<br>Multimodal, tool-calling; fast on 16 GB VRAM.<br>LiveCodeBench: **52.0%**<br>April 2026                            | Throughput: **~114 tok/s**<br>Est. context: **130K**<br>Max context: **131K** | Model VRAM: **5.65 GB**<br>KV VRAM: **10.18 GB**<br>Disk: **8.03 GB**                                            |
 
-LiveCodeBench v6 scores are from official vendor model cards ([LiveCodeBench](https://livecodebench.github.io/)): base BF16 weights, not a local GGUF run. For coding, local quants are usually close: Q8 and Q6 within about 1-3% of BF16; Q4_K_XL and UD-Q4 within about 3-8% (ranking tends to hold; absolute numbers shift). See [gguf-bench quant curves](https://gguf-bench.com/) for llama-server GGUF scores by quant level.
+* LiveCodeBench v6 scores are from official vendor model cards ([LiveCodeBench](https://livecodebench.github.io/)): base BF16 weights, not a local GGUF run. 
+* For coding, local quants are usually close:
+  * Q8 and Q6 within about 1-3% of BF16
+  * Q4_K_XL and UD-Q4 within about 3-8% (ranking tends to hold; absolute numbers shift). 
+  * See [gguf-bench quant curves](https://gguf-bench.com/) for llama-server GGUF scores by quant level.
 
-
-Download a model from Hugging Face using its config under [models/](models/) (repo root):
+Download a model from Hugging Face using its config under [models/](models/):
 
 ```bash
 ./download_model.py models/qwen3.5-9b-q8/
 ./download_model.py models/qwen3.5-9b-q8/ --dry-run
 ```
 
-Each model's [model.yaml](models/qwen3.5-9b-q8/model.yaml) can store an optional `hf-download` block with `repo` and `file`; `./download_model.py` reads those keys, runs `hf download`, and updates `model:` if the cache path changes. Omitting the filename downloads the whole repo (all variants, normally huge), which is why the structured block names a specific file.
-
-For ad-hoc downloads without a model config, raw `hf download org/repo file.gguf` still works.
+* Each model's [model.yaml](models/qwen3.5-9b-q8/model.yaml) has a `hf-download` block with 
+* `./download_model.py` reads the `repo` and `file` keys from the `model.yaml`, runs `hf download` and updates yaml if necessary.
 
 ---
 
 ## Tester v1
 
-- Calibration tests measure throughput and rough max context window on a 16 GB card.
-- See [tester-v1/README.md](tester-v1/README.md) for harness details.
+* Calibration tests measure throughput and rough max context window on a 16 GB card.
+* See [tester-v1/README.md](tester-v1/README.md) for harness details.
+* Each model under [models/](models/) has `model.yaml` (GGUF path, `hf-download` repo/file) and `server.yaml` (base llama-server load profile) at the model root.
+* Scaffold new models from [tester-v1/templates/](tester-v1/templates/).
+  * Cursor skill `create-model-configs` can do this automatically - just tell it which model + variant you want and it'll do the rest.
 
-Run CLIs from the repo root (no `cd tester-v1`).
-
-Each model under [models/](models/) has `model.yaml` (GGUF path, optional `hf-download` repo/file) and `server.yaml` (base llama-server load profile) at the model root. Scaffold new models from [tester-v1/templates/](tester-v1/templates/).
-
-### Run a server
+### Run Server From Model Config
 
 ```bash
 ./launch_server.py models/qwen3.5-9b-q8/
@@ -60,16 +61,7 @@ Use a browser to access the llama web UI while it is running (port depends on `s
 
 [https://localhost:8080](https://localhost:8080)
 
-### Run a test
-
-```bash
-./tester_v1_run_test.py models/qwen3.5-9b-q8/
-./tester_v1_run_test.py models/qwen3.6-35b-a3b-ud-q4-k-xl/ --n-cpu-moe 24
-```
-
-Default variant is `hello-world-baseline` (shared probe under [tester-v1/calibration-tests/](tester-v1/calibration-tests/)). Pass `--variant NAME` for other probes or the local sandbox.
-
-### Calibration probe runs
+### Calibration Tests
 
 ```bash
 # standard dense model
@@ -83,9 +75,11 @@ Default variant is `hello-world-baseline` (shared probe under [tester-v1/calibra
 - For MoE models, pass `--n-cpu-moe N` on calibration and run-test (replaces any existing MoE offload flags in merged server config).
 - Add `--save-result` to save detailed output JSON to `tester-v1/results/{model}/`.
 
-### llama-bench wrapper
+### `llama-bench` CLI Wrapper
 
-Run upstream `llama-bench` from a model config dir. Each model has `llama_bench.yaml` at the model root (alongside `server.yaml`). Throughput numbers in the [models table](#models) still come from tester v1 calibration and harness runs, not llama-bench (different measurement).
+* Runs `llama-bench` from a model config dir. 
+* Each model has `llama_bench.yaml` at the model root (alongside `server.yaml`). 
+* Throughput numbers in the [models table](#models) still come from tester v1 calibration and harness runs, not llama-bench (different measurement).
 
 ```bash
 ./llama_bench.py models/qwen3.5-9b-q8/

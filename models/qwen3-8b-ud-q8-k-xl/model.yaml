@@ -1,0 +1,4 @@
+model: ~/.cache/huggingface/hub/models--unsloth--Qwen3-8B-GGUF/snapshots/a6adef130ffb23ddaf1a62fec9dced968c9bc482/Qwen3-8B-UD-Q8_K_XL.gguf
+hf-download:
+  repo: unsloth/Qwen3-8B-GGUF
+  file: Qwen3-8B-UD-Q8_K_XL.gguf

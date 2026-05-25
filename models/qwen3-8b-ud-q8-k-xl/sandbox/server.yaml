@@ -1,0 +1,3 @@
+# Optional thin override merged on top of the model root server.yaml.
+args: |
+  # --ctx-size 4096

@@ -115,16 +115,8 @@ hf cache prune
 ```
 
 ### Berkeley Function Call Leaderboard (BFCL)
-Install and post install info...
-```bash
-./wsl-builder.sh ai-resources bfcl-eval
-
-INFO: Note: to use BFCL eval:
-INFO:     conda activate bfcl-eval
-INFO:     edit ~/ai-resources/gorilla/berkeley-function-call-leaderboard/.env (API keys and config)
-INFO:     bfcl generate --model MODEL_NAME --test-category TEST_CATEGORY
-INFO: Optional: pip install -e .[oss_eval_vllm] or -e .[oss_eval_sglang] for self-hosted models
-```
+Tool calling is where small local models often fall down.
+See [BFCL.md](BFCL.md) for more details.
 
 ---
 

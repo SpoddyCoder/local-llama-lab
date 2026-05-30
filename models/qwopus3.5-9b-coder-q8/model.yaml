@@ -1,0 +1,4 @@
+model: ~/.cache/huggingface/hub/models--Jackrong--Qwopus3.5-9B-Coder-GGUF/snapshots/c7ade415abeb55a72f72f3606fa5ac6e3e68aa4d/Qwopus3.5-9B-coder-Exp-Q8_0.gguf
+hf-download:
+  repo: Jackrong/Qwopus3.5-9B-Coder-GGUF
+  file: Qwopus3.5-9B-coder-Exp-Q8_0.gguf

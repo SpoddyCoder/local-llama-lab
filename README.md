@@ -1,6 +1,6 @@
-# Local Model Testing (`llama.cpp`)
+# Local Llama Lab (`llama.cpp`)
 
-First forays into local model usage, this is about tuning and understanding the most efficient models and configurations for the llama.cpp server.
+Lab for tuning and understanding the most efficient models and configurations for the llama.cpp server.
 
 System is relatively modest for AI work, but surprisingly viable for cutting edge open-source models...
 
@@ -213,7 +213,7 @@ Without those flags you carry the extra weights but get no speed benefit.
 WSL2, Ubuntu 24.04...
 
 ```
-local-model-tests$ nvidia-smi
+local-llama-lab$ nvidia-smi
 Sat May 16 13:40:46 2026       
 +-----------------------------------------------------------------------------------------+
 | NVIDIA-SMI 595.71.05              Driver Version: 596.49         CUDA Version: 13.2     |
@@ -227,7 +227,7 @@ Sat May 16 13:40:46 2026
 |                                         |                        |                  N/A |
 +-----------------------------------------+------------------------+----------------------+
 
-local-model-tests/$ free -h
+local-llama-lab$ free -h
                total        used        free      shared  buff/cache   available
 Mem:            25Gi       1.4Gi        10Gi       3.2Mi        13Gi        23Gi
 Swap:           64Gi       351Mi        63Gi

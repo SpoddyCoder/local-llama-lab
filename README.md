@@ -10,7 +10,9 @@ System is relatively modest for AI work, but surprisingly viable for cutting edg
 - See [system setup](#system-setup) for more details.
 
 ## Dependencies
+1) Use [wsl-builds](https://github.com/SpoddyCoder/wsl-builds) to make installing the complex software stack really easy.
 
+2) Install the CUDA toolkit, llama.cpp, and huggingface-cli:
 ```bash
 ./wsl-builder.sh dev-python python3
 ./wsl-builder.sh ai cuda132,llama-cpp,huggingface-cli
